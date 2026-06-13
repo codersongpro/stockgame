@@ -1,0 +1,84 @@
+"use client";
+
+import {
+  netWorth,
+  playerRank,
+  portfolioValue,
+  fundamentalValue,
+  type GameState,
+} from "@/lib/engine";
+import { getIndustry } from "@/lib/data/industries";
+import { getCountry } from "@/lib/data/countries";
+import { formatMoney, changePct, formatPct } from "@/lib/format";
+import { Sparkline } from "./Sparkline";
+
+export function Dashboard({ game }: { game: GameState }) {
+  const p = game.companies.find((c) => c.id === game.playerCompanyId)!;
+  const nw = netWorth(p, game);
+  const rank = playerRank(game);
+  const ind = getIndustry(p.industryId);
+  const ctry = getCountry(p.countryId);
+  const hist = p.netWorthHistory;
+  const nwChange = changePct(nw, hist[hist.length - 2] ?? nw);
+
+  return (
+    <div className="space-y-4">
+      {/* Hero */}
+      <div className="card overflow-hidden">
+        <div className="bg-gradient-to-br from-brand-600 to-indigo-500 p-5 text-white">
+          <div className="flex items-center gap-2 text-sm opacity-90">
+            <span className="h-6 w-6 rounded" style={{ background: p.logoColor }} />
+            {p.name}
+            <span className="pill bg-white/20">{ctry.flag} {ind.emoji} {ind.name}</span>
+            {p.basedOn && <span className="pill bg-white/20">모티브</span>}
+          </div>
+          <div className="mt-3 text-xs uppercase tracking-wide opacity-80">총 순자산</div>
+          <div className="flex items-end gap-3">
+            <div className="text-4xl font-black">{formatMoney(nw)}</div>
+            <div className={`mb-1 text-sm font-bold ${nwChange >= 0 ? "text-green-200" : "text-red-200"}`}>
+              {formatPct(nwChange)}
+            </div>
+          </div>
+          <div className="mt-2">
+            <Sparkline data={hist.slice(-24)} width={260} height={40} stroke="#ffffff" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-4">
+          <Cell label="순위" value={`${rank}위 / ${game.companies.length}`} />
+          <Cell label="현금" value={formatMoney(p.cash)} />
+          <Cell label="기업가치" value={formatMoney(fundamentalValue(p))} />
+          <Cell label="투자자산" value={formatMoney(portfolioValue(p, game))} />
+        </div>
+      </div>
+
+      {/* Quick facts */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Mini label="지난 매출" value={formatMoney(p.lastRevenue)} emoji="💵" />
+        <Mini label="지난 이익" value={formatMoney(p.lastProfit)} emoji={p.lastProfit >= 0 ? "📈" : "📉"} />
+        <Mini label="건물" value={`${p.buildings.length}개`} emoji="🏗️" />
+        <Mini label="임원" value={`${p.hired.length}명`} emoji="👔" />
+      </div>
+    </div>
+  );
+}
+
+function Cell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-3 text-center">
+      <div className="text-[11px] text-slate-500">{label}</div>
+      <div className="font-bold text-slate-800">{value}</div>
+    </div>
+  );
+}
+
+function Mini({ label, value, emoji }: { label: string; value: string; emoji: string }) {
+  return (
+    <div className="card flex items-center gap-2 p-3">
+      <span className="text-xl">{emoji}</span>
+      <div>
+        <div className="text-[11px] text-slate-500">{label}</div>
+        <div className="text-sm font-bold text-slate-800">{value}</div>
+      </div>
+    </div>
+  );
+}

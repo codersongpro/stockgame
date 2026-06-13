@@ -1,0 +1,173 @@
+"use client";
+
+import { useState } from "react";
+import { useGameStore } from "@/store/gameStore";
+import {
+  estimateDemand,
+  productionCapacity,
+  type Company,
+  type GameState,
+} from "@/lib/engine";
+import { getIndustry } from "@/lib/data/industries";
+import { getCountry } from "@/lib/data/countries";
+import { formatMoney, formatNum } from "@/lib/format";
+import { Bar } from "./Sparkline";
+
+export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
+  const setDecisions = useGameStore((s) => s.setDecisions);
+  const loan = useGameStore((s) => s.loan);
+  const [loanAmt, setLoanAmt] = useState(200000);
+
+  const industry = getIndustry(company.industryId);
+  const country = getCountry(company.countryId);
+  const capacity = productionCapacity(company, game.config);
+  const demand = estimateDemand(company, industry, country, game.macro, game.config);
+  const d = company.decisions;
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5">
+        <h3 className="mb-4 text-base font-bold text-slate-800">🏢 경영 결정</h3>
+
+        <Slider
+          label="판매 가격"
+          value={d.price}
+          min={Math.round(industry.unitCost)}
+          max={Math.round(industry.basePrice * 2)}
+          step={1}
+          format={(v) => `${formatNum(v)}원`}
+          onChange={(v) => setDecisions({ price: v })}
+        />
+        <Slider
+          label="생산 목표 (수량)"
+          value={d.productionTarget}
+          min={0}
+          max={Math.max(capacity, d.productionTarget)}
+          step={10}
+          format={(v) => `${formatNum(v)}개`}
+          onChange={(v) => setDecisions({ productionTarget: v })}
+        />
+        <Slider
+          label="마케팅 예산"
+          value={d.marketingBudget}
+          min={0}
+          max={200000}
+          step={5000}
+          format={(v) => formatMoney(v)}
+          onChange={(v) => setDecisions({ marketingBudget: v })}
+        />
+        <Slider
+          label="R&D 예산"
+          value={d.rndBudget}
+          min={0}
+          max={200000}
+          step={5000}
+          format={(v) => formatMoney(v)}
+          onChange={(v) => setDecisions({ rndBudget: v })}
+        />
+
+        <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+          <Info label="생산 능력" value={`${formatNum(capacity)}개`} />
+          <Info label="예상 수요" value={`${formatNum(demand)}개`} hint={demand < d.productionTarget ? "수요<생산: 재고 위험" : "수요 충분"} />
+          <Info label="재고" value={`${formatNum(company.inventory)}개`} />
+          <Info label="지난 분기 이익" value={formatMoney(company.lastProfit)} tone={company.lastProfit >= 0 ? "good" : "bad"} />
+        </div>
+      </div>
+
+      {/* Company stats */}
+      <div className="card p-5">
+        <h3 className="mb-3 text-base font-bold text-slate-800">📊 회사 상태</h3>
+        <StatBar label="품질 / 기술" value={company.quality} color="#6366f1" />
+        <StatBar label="평판" value={company.reputation} color="#0ea5e9" />
+        <StatBar label="직원 사기" value={company.morale} color="#16a34a" />
+        <StatBar label="안전" value={company.safety} color="#f59e0b" hint={company.safety < 40 ? "낮음! 사고 위험" : undefined} />
+      </div>
+
+      {/* Finance */}
+      {game.config.showAdvancedMetrics && (
+        <div className="card p-5">
+          <h3 className="mb-3 text-base font-bold text-slate-800">💳 재무</h3>
+          <div className="mb-3 flex justify-between text-sm">
+            <span className="text-slate-500">부채</span>
+            <span className="font-bold text-slate-800">{formatMoney(company.debt)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={loanAmt}
+              onChange={(e) => setLoanAmt(Math.max(0, Number(e.target.value)))}
+              className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+            />
+            <button className="btn-ghost" onClick={() => loan(loanAmt, "borrow")}>
+              대출
+            </button>
+            <button className="btn-ghost" onClick={() => loan(loanAmt, "repay")}>
+              상환
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format: (v: number) => string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="mb-1 flex justify-between text-sm">
+        <span className="font-semibold text-slate-600">{label}</span>
+        <span className="font-bold text-brand-700">{format(value)}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-brand-600"
+      />
+    </div>
+  );
+}
+
+function Info({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "good" | "bad" }) {
+  return (
+    <div>
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className={`font-bold ${tone === "good" ? "text-bull" : tone === "bad" ? "text-bear" : "text-slate-800"}`}>
+        {value}
+      </div>
+      {hint && <div className="text-[10px] text-amber-600">{hint}</div>}
+    </div>
+  );
+}
+
+function StatBar({ label, value, color, hint }: { label: string; value: number; color: string; hint?: string }) {
+  return (
+    <div className="mb-3">
+      <div className="mb-1 flex justify-between text-xs">
+        <span className="text-slate-500">{label}</span>
+        <span className="font-semibold text-slate-700">{Math.round(value)}</span>
+      </div>
+      <Bar value={value} color={color} />
+      {hint && <div className="mt-0.5 text-[10px] text-amber-600">{hint}</div>}
+    </div>
+  );
+}

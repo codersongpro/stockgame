@@ -1,0 +1,226 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useGameStore } from "@/store/gameStore";
+import { netWorth, playerRank, rankings } from "@/lib/engine";
+import { formatMoney } from "@/lib/format";
+import { initAudio, isMuted, setMuted, startBgm, stopBgm } from "@/lib/audio";
+
+import { Dashboard } from "@/components/Dashboard";
+import { CompanyMap } from "@/components/CompanyMap";
+import { CompanyPanel } from "@/components/CompanyPanel";
+import { InvestmentDesk } from "@/components/InvestmentDesk";
+import { TalentMarket } from "@/components/TalentMarket";
+import { NewsFeed } from "@/components/NewsFeed";
+import { Leaderboard } from "@/components/Leaderboard";
+import { EconomyIndicators } from "@/components/EconomyIndicators";
+import { Secretary } from "@/components/Secretary";
+import { WorldMap } from "@/components/WorldMap";
+
+type Tab = "home" | "company" | "invest" | "talent" | "news" | "rank" | "visit";
+
+const TABS: { id: Tab; label: string; emoji: string }[] = [
+  { id: "home", label: "대시보드", emoji: "🏠" },
+  { id: "company", label: "회사", emoji: "🏙️" },
+  { id: "invest", label: "투자", emoji: "📈" },
+  { id: "talent", label: "인재", emoji: "👔" },
+  { id: "news", label: "뉴스", emoji: "📰" },
+  { id: "rank", label: "순위", emoji: "🏆" },
+  { id: "visit", label: "방문", emoji: "🌍" },
+];
+
+export default function PlayPage() {
+  const router = useRouter();
+  const game = useGameStore((s) => s.game);
+  const next = useGameStore((s) => s.next);
+  const toast = useGameStore((s) => s.toast);
+  const dismissToast = useGameStore((s) => s.dismissToast);
+  const loadSave = useGameStore((s) => s.loadSave);
+
+  const [tab, setTab] = useState<Tab>("home");
+  const [visitId, setVisitId] = useState<string | null>(null);
+  const [muted, setMutedState] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  // Hydrate from save if the store is empty (e.g. page refresh).
+  useEffect(() => {
+    initAudio();
+    setMutedState(isMuted());
+    if (!useGameStore.getState().game) {
+      if (!loadSave()) {
+        router.replace("/");
+        return;
+      }
+    }
+    setReady(true);
+  }, [loadSave, router]);
+
+  // BGM follows market mood.
+  useEffect(() => {
+    if (!game || muted) {
+      stopBgm();
+      return;
+    }
+    const mood = game.macro.sentiment > 0.25 ? "bright" : game.macro.sentiment < -0.25 ? "tense" : "neutral";
+    startBgm(mood);
+    return () => stopBgm();
+  }, [game?.macro.phase, muted, game]);
+
+  // Auto-dismiss toast.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(dismissToast, 2200);
+    return () => clearTimeout(t);
+  }, [toast, dismissToast]);
+
+  if (!ready || !game) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white">불러오는 중…</div>;
+  }
+
+  const player = game.companies.find((c) => c.id === game.playerCompanyId)!;
+  const nw = netWorth(player, game);
+  const rank = playerRank(game);
+  const ended = game.status === "ended";
+
+  const toggleMute = () => {
+    const m = !muted;
+    setMuted(m);
+    setMutedState(m);
+  };
+
+  const goVisit = (companyId: string) => {
+    setVisitId(companyId);
+    setTab("visit");
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 pb-24">
+      {/* Top bar */}
+      <header className="sticky top-0 z-30 bg-white/90 shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="h-8 w-8 rounded-lg" style={{ background: player.logoColor }} />
+            <div className="leading-tight">
+              <div className="text-sm font-black text-slate-800">{player.name}</div>
+              <div className="text-[10px] text-slate-500">
+                {game.turn}/{game.maxTurns}분기 · {rank}위
+              </div>
+            </div>
+          </div>
+          <div className="ml-auto text-right">
+            <div className="text-[10px] text-slate-500">순자산</div>
+            <div className="text-sm font-black text-slate-800">{formatMoney(nw)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] text-slate-500">현금</div>
+            <div className="text-sm font-bold text-bull">{formatMoney(player.cash)}</div>
+          </div>
+          <button onClick={toggleMute} className="btn-ghost !px-2.5 !py-2" title="소리">
+            {muted ? "🔇" : "🔊"}
+          </button>
+          <button
+            onClick={next}
+            disabled={ended}
+            className="btn-primary whitespace-nowrap"
+          >
+            {ended ? "게임 종료" : "다음 분기 ▶"}
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <nav className="mx-auto flex max-w-5xl gap-1 overflow-x-auto scroll-thin px-2 pb-2">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                tab === t.id ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <span>{t.emoji}</span>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      {/* Body */}
+      <main className="mx-auto grid max-w-5xl gap-4 px-4 py-4 lg:grid-cols-[1fr_320px]">
+        <div className="min-w-0">
+          {tab === "home" && <Dashboard game={game} />}
+          {tab === "company" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="card p-4">
+                <h3 className="mb-3 text-base font-bold text-slate-800">🏙️ 우리 회사 캠퍼스</h3>
+                <CompanyMap game={game} company={player} />
+              </div>
+              <CompanyPanel game={game} company={player} />
+            </div>
+          )}
+          {tab === "invest" && <InvestmentDesk game={game} company={player} />}
+          {tab === "talent" && <TalentMarket game={game} company={player} />}
+          {tab === "news" && <NewsFeed game={game} />}
+          {tab === "rank" && <Leaderboard game={game} onVisit={goVisit} />}
+          {tab === "visit" && <WorldMap game={game} initialCompanyId={visitId} />}
+        </div>
+
+        {/* Sidebar */}
+        <aside className="space-y-4">
+          <Secretary game={game} />
+          <EconomyIndicators game={game} />
+        </aside>
+      </main>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 animate-popin">
+          <div
+            className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg ${
+              toast.tone === "good" ? "bg-bull" : toast.tone === "bad" ? "bg-bear" : "bg-slate-700"
+            }`}
+          >
+            {toast.text}
+          </div>
+        </div>
+      )}
+
+      {/* Game over overlay */}
+      {ended && <GameOver game={game} onRestart={() => router.push("/")} />}
+    </div>
+  );
+}
+
+function GameOver({ game, onRestart }: { game: ReturnType<typeof useGameStore.getState>["game"] & object; onRestart: () => void }) {
+  if (!game) return null;
+  const board = rankings(game);
+  const rank = board.findIndex((e) => e.companyId === game.playerCompanyId) + 1;
+  const won = rank === 1;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="card w-full max-w-md animate-popin p-6 text-center">
+        <div className="text-6xl">{won ? "🏆" : "🎮"}</div>
+        <h2 className="mt-3 text-2xl font-black text-slate-800">
+          {won ? "축하합니다! 1위 달성!" : "게임 종료"}
+        </h2>
+        <p className="mt-1 text-slate-500">{game.maxTurns}분기 경영 결과, {rank}위로 마쳤어요.</p>
+        <div className="mt-4 space-y-1.5 text-left">
+          {board.slice(0, 5).map((e, i) => (
+            <div
+              key={e.companyId}
+              className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
+                e.isPlayer ? "bg-brand-50 font-bold" : "bg-slate-50"
+              }`}
+            >
+              <span>{["🥇", "🥈", "🥉"][i] ?? `${i + 1}`} {e.name}</span>
+              <span className="text-slate-700">{formatMoney(e.netWorth)}</span>
+            </div>
+          ))}
+        </div>
+        <button className="btn-primary mt-5 w-full" onClick={onRestart}>
+          새 게임 하기
+        </button>
+      </div>
+    </div>
+  );
+}
