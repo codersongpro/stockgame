@@ -19,21 +19,14 @@ body {
   box-sizing: border-box;
 }
 
-/* ambient city agents (pedestrians / cars crossing the campus) */
-@keyframes drive-x {
-  0% { transform: translateX(-20px); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateX(var(--travel, 300px)); opacity: 0; }
+/* isometric campus agents — SVG shapes that slide along diagonal paths */
+@keyframes iso-agent-move {
+  from { transform: translate(0px, 0px); }
+  to   { transform: translate(var(--dx, 0px), var(--dy, 0px)); }
 }
-@keyframes walk-y {
-  0% { transform: translateY(-10px); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(var(--travel, 200px)); opacity: 0; }
+.iso-agent-anim {
+  animation: iso-agent-move var(--dur, 6s) linear infinite;
 }
-.agent-x { animation: drive-x linear infinite; }
-.agent-y { animation: walk-y linear infinite; }
 
 /* thin scrollbars for panels */
 .scroll-thin::-webkit-scrollbar {

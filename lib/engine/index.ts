@@ -4,11 +4,11 @@ import type {
   Level,
   PlacedBuilding,
 } from "./types";
-import { createRng, nextRange } from "./rng";
+import { createRng, nextRange, type RngState } from "./rng";
 import { getLevelConfig } from "./levels";
 import { getIndustry, INDUSTRIES } from "../data/industries";
 import { getCountry } from "../data/countries";
-import { COMPANY_PRESETS, PRESET_MAP } from "../data/companyPresets";
+import { COMPANY_PRESETS, PRESET_MAP, type CompanyPreset } from "../data/companyPresets";
 import { createMacro } from "./economy";
 import { createStocks } from "./market";
 import { createAssets } from "./assets";
@@ -33,6 +33,28 @@ export interface NewGameOptions {
 }
 
 let companyCounter = 0;
+
+/** Pick `count` presets with at most one per industry (guaranteed diversity). */
+function selectDiversePresets(
+  rng: RngState,
+  presets: CompanyPreset[],
+  excludeId: string | undefined,
+  count: number,
+): CompanyPreset[] {
+  const pool = presets.filter((p) => p.id !== excludeId);
+  const byIndustry = new Map<string, CompanyPreset[]>();
+  for (const p of pool) {
+    if (!byIndustry.has(p.industryId)) byIndustry.set(p.industryId, []);
+    byIndustry.get(p.industryId)!.push(p);
+  }
+  const industries = shuffle(rng, [...byIndustry.keys()]);
+  const picked: CompanyPreset[] = [];
+  for (const ind of industries) {
+    if (picked.length >= count) break;
+    picked.push(shuffle(rng, byIndustry.get(ind)!)[0]);
+  }
+  return picked;
+}
 
 function starterBuildings(instant: boolean): PlacedBuilding[] {
   const mk = (type: PlacedBuilding["type"], x: number, y: number): PlacedBuilding => ({
@@ -113,11 +135,8 @@ export function createGame(opts: NewGameOptions): GameState {
     basedOn: opts.basedOn,
   });
 
-  // Build AI competitors from presets (excluding the player's chosen motif).
-  const aiPresets = shuffle(
-    rng,
-    COMPANY_PRESETS.filter((p) => p.id !== opts.basedOn),
-  ).slice(0, config.aiCount);
+  // Build AI competitors ensuring one company per industry (diverse competition).
+  const aiPresets = selectDiversePresets(rng, COMPANY_PRESETS, opts.basedOn, config.aiCount);
 
   const aiCompanies: Company[] = aiPresets.map((p) =>
     makeCompany({
