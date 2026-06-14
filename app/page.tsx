@@ -9,6 +9,7 @@ import { initAudio, playSfx } from "@/lib/audio";
 import { formatMoney } from "@/lib/format";
 import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
 import { getIndustry } from "@/lib/data/industries";
+import { MASCOT_IMG } from "@/lib/assetMap";
 
 const LEVELS: Level[] = ["elementary", "middle", "university"];
 const LEVEL_EMOJI: Record<Level, string> = {
@@ -53,7 +54,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-4 py-12">
-        <div className="animate-floaty text-7xl">🦄🏙️</div>
+        <img src={MASCOT_IMG} alt="유니콘 시티 마스코트" className="animate-floaty h-32 w-32 object-contain drop-shadow-xl" />
         <h1 className="mt-4 bg-gradient-to-r from-brand-300 to-pink-300 bg-clip-text text-center text-5xl font-black text-transparent">
           유니콘 시티
         </h1>

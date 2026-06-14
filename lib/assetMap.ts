@@ -10,7 +10,40 @@ export const BUILDING_IMG: Partial<Record<BuildingType, string>> = {
   gym:       "/assets/buildings/gym.png",
   daycare:   "/assets/buildings/daycare.png",
   clinic:    "/assets/buildings/clinic.png",
+  power:     "/assets/buildings/power.png",
+  hr:        "/assets/buildings/hr.png",
+  park:      "/assets/buildings/park.png",
+  dorm:      "/assets/buildings/dorm.png",
+  lab:       "/assets/buildings/lab.png",
 };
+
+// Management decision icons (one per slider label).
+export const MGMT_ICONS = {
+  price:      "/assets/icons/icon_price.png",
+  production: "/assets/icons/icon_production.png",
+  marketing:  "/assets/icons/icon_marketing.png",
+  rnd:        "/assets/icons/icon_rnd.png",
+  welfare:    "/assets/icons/icon_welfare.png",
+  safety:     "/assets/icons/icon_safety.png",
+} as const;
+
+// Economy indicator icons (for EconomyIndicators panel).
+export const ECONOMY_ICONS = {
+  gdp:       "/assets/icons/icon_gdp.png",
+  inflation: "/assets/icons/icon_inflation.png",
+  rate:      "/assets/icons/icon_rate.png",
+  sentiment: "/assets/icons/icon_sentiment.png",
+} as const;
+
+// Dashboard / finance icons.
+export const FINANCE_ICONS = {
+  cash:          "/assets/icons/icon_cash.png",
+  portfolio:     "/assets/icons/icon_portfolio.png",
+  companyValue:  "/assets/icons/icon_company_value.png",
+  debt:          "/assets/icons/icon_debt.png",
+} as const;
+
+export const MASCOT_IMG = "/assets/mascot/unicorn.png";
 
 // Per-role images used when no per-character image is assigned.
 export const ROLE_IMG: Partial<Record<CharacterRole, string>> = {

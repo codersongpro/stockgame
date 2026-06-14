@@ -13,6 +13,7 @@ import { getCountry } from "@/lib/data/countries";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
+import { MGMT_ICONS } from "@/lib/assetMap";
 
 export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
   const setDecisions = useGameStore((s) => s.setDecisions);
@@ -36,6 +37,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
         <h3 className="mb-4 text-base font-bold text-slate-800">🏢 경영 결정</h3>
 
         <Slider
+          icon={MGMT_ICONS.price}
           label="판매 가격"
           value={d.price}
           min={Math.round(industry.unitCost)}
@@ -45,6 +47,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ price: v })}
         />
         <Slider
+          icon={MGMT_ICONS.production}
           label="생산 목표 (수량)"
           value={d.productionTarget}
           min={0}
@@ -54,6 +57,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ productionTarget: v })}
         />
         <Slider
+          icon={MGMT_ICONS.marketing}
           label={<><Term term="마케팅" /> 예산</>}
           value={d.marketingBudget}
           min={0}
@@ -63,6 +67,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ marketingBudget: v })}
         />
         <Slider
+          icon={MGMT_ICONS.rnd}
           label={<><Term term="R&D" /> 예산</>}
           value={d.rndBudget}
           min={0}
@@ -72,6 +77,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ rndBudget: v })}
         />
         <Slider
+          icon={MGMT_ICONS.welfare}
           label={<><Term term="사기">복지</Term> 예산</>}
           value={d.welfareBudget ?? 0}
           min={0}
@@ -81,6 +87,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ welfareBudget: v })}
         />
         <Slider
+          icon={MGMT_ICONS.safety}
           label={<><Term term="안전">안전</Term> 예산</>}
           value={d.safetyBudget ?? 0}
           min={0}
@@ -147,6 +154,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
 }
 
 function Slider({
+  icon,
   label,
   value,
   min,
@@ -155,6 +163,7 @@ function Slider({
   format,
   onChange,
 }: {
+  icon?: string;
   label: React.ReactNode;
   value: number;
   min: number;
@@ -163,13 +172,14 @@ function Slider({
   format: (v: number) => string;
   onChange: (v: number) => void;
 }) {
-  // The slider is a convenient range, but the number box lets the user type any
-  // value above the preset max — the track simply grows to include it.
   const sliderMax = Math.max(max, value);
   return (
     <div className="mb-4">
       <div className="mb-1 flex items-center justify-between gap-2 text-sm">
-        <span className="font-semibold text-slate-600">{label}</span>
+        <span className="flex items-center gap-1.5 font-semibold text-slate-600">
+          {icon && <img src={icon} alt="" className="h-5 w-5 object-contain" />}
+          {label}
+        </span>
         <div className="flex items-center gap-1">
           <input
             type="number"

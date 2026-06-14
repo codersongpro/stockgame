@@ -13,7 +13,9 @@ import { getCountry } from "@/lib/data/countries";
 import { formatMoney, formatNum, changePct, formatPct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { CompanyCity } from "./CompanyCity";
+import { CampusStrip } from "./CampusStrip";
 import { Term } from "./Term";
+import { FINANCE_ICONS } from "@/lib/assetMap";
 
 export function Dashboard({ game }: { game: GameState }) {
   const p = game.companies.find((c) => c.id === game.playerCompanyId)!;
@@ -28,8 +30,14 @@ export function Dashboard({ game }: { game: GameState }) {
     <div className="space-y-4">
       {/* Hero */}
       <div className="card overflow-hidden">
-        <div className="bg-gradient-to-br from-brand-600 to-indigo-500 p-5 text-white">
-          <div className="flex items-center gap-2 text-sm opacity-90">
+        <div className="relative overflow-hidden bg-gradient-to-br from-brand-600 to-indigo-500 p-5 text-white">
+          {/* Company skyline backdrop */}
+          <CampusStrip
+            buildings={p.buildings}
+            className="absolute inset-x-0 bottom-0 h-20"
+            opacity={0.22}
+          />
+          <div className="relative flex items-center gap-2 text-sm opacity-90">
             <span className="h-6 w-6 rounded" style={{ background: p.logoColor }} />
             {p.name}
             <span className="pill bg-white/20">{ctry.flag} {ind.emoji} {ind.name}</span>
@@ -48,9 +56,9 @@ export function Dashboard({ game }: { game: GameState }) {
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-4">
           <Cell label={<Term term="순위" />} value={`${rank}위 / ${game.companies.length}`} />
-          <Cell label={<Term term="현금" />} value={formatMoney(p.cash)} />
-          <Cell label={<Term term="기업가치" />} value={formatMoney(fundamentalValue(p))} />
-          <Cell label={<Term term="투자자산" />} value={formatMoney(portfolioValue(p, game))} />
+          <Cell icon={FINANCE_ICONS.cash}         label={<Term term="현금" />}    value={formatMoney(p.cash)} />
+          <Cell icon={FINANCE_ICONS.companyValue} label={<Term term="기업가치" />} value={formatMoney(fundamentalValue(p))} />
+          <Cell icon={FINANCE_ICONS.portfolio}    label={<Term term="투자자산" />} value={formatMoney(portfolioValue(p, game))} />
         </div>
       </div>
 
@@ -119,9 +127,10 @@ function OurStock({ game }: { game: GameState }) {
   );
 }
 
-function Cell({ label, value }: { label: React.ReactNode; value: string }) {
+function Cell({ icon, label, value }: { icon?: string; label: React.ReactNode; value: string }) {
   return (
     <div className="p-3 text-center">
+      {icon && <img src={icon} alt="" className="mx-auto mb-1 h-5 w-5 object-contain" />}
       <div className="text-[11px] text-slate-500">{label}</div>
       <div className="font-bold text-slate-800">{value}</div>
     </div>
