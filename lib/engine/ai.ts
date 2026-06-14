@@ -1,6 +1,7 @@
 import type { BuildingType, Character, Company, GameState } from "./types";
 import { getIndustry } from "../data/industries";
-import { productionCapacity } from "./company";
+import { getCountry } from "../data/countries";
+import { estimateDemand, productionCapacity } from "./company";
 import {
   buildBuilding,
   buyAsset,
@@ -20,52 +21,69 @@ import { type RngState, nextFloat, nextRange, pick } from "./rng";
 export function runAiTurn(state: GameState, company: Company): void {
   const rng = state.rng;
   const industry = getIndustry(company.industryId);
-  const aggression = 0.4 + nextFloat(rng) * 0.4; // per-AI personality
+  // Stronger, more driven competitors: higher baseline aggression so AIs keep
+  // investing in the things that win market share (quality, marketing, scale).
+  const aggression = 0.5 + nextFloat(rng) * 0.4; // per-AI personality
 
   // --- Operating decisions ---
   const capacity = productionCapacity(company, state.config);
-  // Price at base; only add a small premium when quality is genuinely high (>40)
-  // so that pricing above market is justified by quality-factor gains in demand.
+  // Price near the market, undercutting only slightly to win share and charging a
+  // quality premium when earned. Demand is now competitive (a share of the
+  // market), so steady, sustainable pricing beats a fixed list price over time.
   const moodAdj = 1 + state.macro.sentiment * 0.05;
-  const qualityPremium = Math.max(0, (company.quality - 40) / 500);
+  const qualityPremium = Math.max(0, (company.quality - 35) / 400);
+  const undercut = 0.97 + (1 - aggression) * 0.02; // 0.97–0.99 of base
   company.decisions.price = Math.max(
-    industry.unitCost * 1.2,
-    industry.basePrice * (1 + qualityPremium) * moodAdj,
+    industry.unitCost * 1.25,
+    industry.basePrice * (undercut + qualityPremium) * moodAdj,
   );
-  company.decisions.productionTarget = Math.round(capacity * (0.7 + aggression * 0.3));
+  // Produce to expected demand (not blindly to capacity): overstocking unsold
+  // goods is the classic way to bleed cash, so a smart AI builds just above what
+  // it can sell, capped by capacity. Existing inventory offsets what to make.
+  const country = getCountry(company.countryId);
+  const expectedDemand = estimateDemand(company, industry, country, state.macro, state.config);
+  const targetStock = expectedDemand * (1.02 + aggression * 0.06);
+  company.decisions.productionTarget = Math.round(
+    Math.max(0, Math.min(capacity, targetStock - company.inventory)),
+  );
 
-  // Use a 40k floor so early-game AI is competitive before revenue builds up;
-  // player's default is 30k so this keeps AI from being systematically under-funded.
-  const opBudget = Math.max(40_000, company.lastRevenue * 0.25);
-  company.decisions.marketingBudget = Math.round(opBudget * 0.5);
-  company.decisions.rndBudget = Math.round(opBudget * 0.5 * (0.5 + industry.rndDependence));
-  company.decisions.welfareBudget = Math.round(opBudget * 0.15);
+  // Reinvest into the things that drive share (quality, marketing, morale).
+  // Floors keep early-game AIs competitive; the revenue share scales them up.
+  // Kept sustainable so the wider field stays roughly break-even, not bankrupt.
+  const opBudget = Math.max(50_000, company.lastRevenue * 0.22);
+  company.decisions.marketingBudget = Math.round(opBudget * 0.4);
+  company.decisions.rndBudget = Math.round(opBudget * 0.4 * (0.6 + industry.rndDependence));
+  company.decisions.welfareBudget = Math.round(opBudget * 0.2);
 
-  // --- Expansion: lower threshold so AI keeps building through mid-game ---
-  // 900k was too high: at university start-cash of 1M, one building drops AI
-  // below the threshold permanently. 500k lets them expand throughout the game.
-  if (company.cash > 500_000 && company.debt < company.cash * 1.5 && nextFloat(rng) < 0.7) {
-    const cell = emptyCell(company, state.config.mapSize);
-    if (cell) {
-      const want = chooseBuilding(company, state);
-      if (want) buildBuilding(state, company, want, cell.x, cell.y);
-    } else {
-      // Map full -> try upgrading a random building.
-      const b = company.buildings.find((b) => b.turnsLeft <= 0);
-      if (b) upgradeBuilding(state, company, b.id);
-    }
+  // --- Expansion: build through the game, more when flush with cash. ---
+  if (company.cash > 500_000 && company.debt < company.cash * 1.4 && nextFloat(rng) < 0.62) {
+    expand(state, company);
+    // A cash-rich AI puts a second building down the same quarter to compound.
+    if (company.cash > 1_800_000 && nextFloat(rng) < 0.45) expand(state, company);
   }
 
-  // --- Hiring: grab an affordable talent for a free role ---
-  if (company.cash > 350_000 && company.debt < company.cash && company.hired.length < 5 && nextFloat(rng) < 0.45) {
+  // --- Hiring: keep a solid bench of strong talent ---
+  if (company.cash > 350_000 && company.debt < company.cash && company.hired.length < 5 && nextFloat(rng) < 0.5) {
     const affordable = state.talentPool
-      .filter((c) => c.salary < Math.max(15_000, company.lastRevenue * 0.25))
+      .filter((c) => c.salary < Math.max(18_000, company.lastRevenue * 0.25))
       .sort((a, b) => statSum(b) - statSum(a));
     if (affordable.length) hireCharacter(state, company, affordable[0].id);
   }
 
-  // --- Investing: only deploy genuinely spare cash; take profits sometimes ---
-  if (company.cash > 600_000 && nextFloat(rng) < 0.45) investSpareCash(state, company, aggression, rng);
+  // --- Investing: deploy genuinely spare cash; take profits sometimes ---
+  if (company.cash > 550_000 && nextFloat(rng) < 0.45) investSpareCash(state, company, aggression, rng);
+}
+
+/** Build the most useful available building, or upgrade if the map is full. */
+function expand(state: GameState, company: Company): void {
+  const cell = emptyCell(company, state.config.mapSize);
+  if (cell) {
+    const want = chooseBuilding(company, state);
+    if (want) buildBuilding(state, company, want, cell.x, cell.y);
+  } else {
+    const b = company.buildings.find((b) => b.turnsLeft <= 0);
+    if (b) upgradeBuilding(state, company, b.id);
+  }
 }
 
 function statSum(c: Character): number {

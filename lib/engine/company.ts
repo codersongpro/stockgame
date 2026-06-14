@@ -44,12 +44,15 @@ export function productionCapacity(company: Company, config: LevelConfig): numbe
   return BASE_CAPACITY + caps.productionCapacity + company.employees * 20;
 }
 
-/** Estimate market demand at the company's current decisions. */
-export function estimateDemand(
+/**
+ * How strongly a company pulls customers, from its own decisions and stats
+ * (price, marketing, quality, reputation). This is the company-specific part of
+ * demand, normalised around ~1, so it can be compared across industries to model
+ * competition for a shared pool of customers.
+ */
+export function marketAttractiveness(
   company: Company,
   industry: IndustryDef,
-  country: CountryDef,
-  macro: MacroState,
   config: LevelConfig,
 ): number {
   const caps = aggregateBuildingCaps(company.buildings, config.adjacencyBonus);
@@ -80,14 +83,42 @@ export function estimateDemand(
   const qualityFactor = 1 + company.quality / 200;
   const reputationFactor = 0.7 + (company.reputation / 100) * 0.6;
 
+  return Math.max(0.01, priceFactor * marketingFactor * qualityFactor * reputationFactor);
+}
+
+/**
+ * Estimate market demand at the company's current decisions.
+ *
+ * `marketPressure` is the average attractiveness of all competitors this turn.
+ * When provided, demand is scaled by the company's share of that pull, so a
+ * static strategy steadily loses customers as rivals keep improving — standing
+ * still is no longer enough to stay on top. Omitted (e.g. UI previews) → no
+ * competitive pressure is applied.
+ */
+export function estimateDemand(
+  company: Company,
+  industry: IndustryDef,
+  country: CountryDef,
+  macro: MacroState,
+  config: LevelConfig,
+  marketPressure?: number,
+): number {
+  const ownPull = marketAttractiveness(company, industry, config);
+
+  // Competitive share: rewards staying ahead of the field and gently penalises
+  // falling behind as rivals improve. Bounded so it pressures without bankrupting
+  // a company that simply isn't the market leader.
+  const shareFactor =
+    marketPressure && marketPressure > 0
+      ? clamp(Math.pow(ownPull / marketPressure, 0.5), 0.72, 1.7)
+      : 1;
+
   const demand =
     industry.baseDemand *
     country.marketSize *
     demandMultiplier(macro) *
-    priceFactor *
-    marketingFactor *
-    qualityFactor *
-    reputationFactor;
+    ownPull *
+    shareFactor;
 
   return Math.max(0, Math.round(demand));
 }
@@ -97,6 +128,7 @@ export function runCompanyTurn(
   macro: MacroState,
   config: LevelConfig,
   rng: RngState,
+  marketPressure?: number,
 ): CompanyTurnResult {
   const industry = getIndustry(company.industryId);
   const country = getCountry(company.countryId);
@@ -124,7 +156,7 @@ export function runCompanyTurn(
   const productionCost = produced * unitCost;
 
   // --- Sales ---
-  const demand = estimateDemand(company, industry, country, macro, config);
+  const demand = estimateDemand(company, industry, country, macro, config, marketPressure);
   const unitsSold = Math.min(company.inventory, demand);
   company.inventory -= unitsSold;
   const revenue = unitsSold * d.price;

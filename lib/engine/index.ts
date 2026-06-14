@@ -19,7 +19,7 @@ import { shuffle } from "./rng";
 import { recordNetWorth } from "./ranking";
 
 export const GAME_VERSION = 1;
-export const DEFAULT_MAX_TURNS = 48;
+export const DEFAULT_MAX_TURNS = 100;
 
 export interface NewGameOptions {
   level: Level;
@@ -225,6 +225,7 @@ export { ROLE_LABELS, roleBonuses } from "./characters";
 export {
   productionCapacity,
   estimateDemand,
+  marketAttractiveness,
   defaultDecisions,
 } from "./company";
 export * from "./actions";

@@ -2,7 +2,8 @@ import type { GameState, NewsItem } from "./types";
 import { getCountry } from "../data/countries";
 import { PHASE_EMOJI, PHASE_LABELS, tickEconomy } from "./economy";
 import { runAiTurn } from "./ai";
-import { runCompanyTurn, type CompanyTurnResult } from "./company";
+import { marketAttractiveness, runCompanyTurn, type CompanyTurnResult } from "./company";
+import { getIndustry } from "../data/industries";
 import { tickStocks } from "./market";
 import { tickAssets } from "./assets";
 import { generateEvents } from "./events";
@@ -71,10 +72,18 @@ export function advanceTurn(state: GameState): TurnSummary {
     if (company.isAI) runAiTurn(state, company);
   }
 
-  // 3) Resolve every company's operating turn.
+  // 3) Resolve every company's operating turn. First measure the field's average
+  //    "pull" on customers so each company competes for a shared customer pool:
+  //    falling behind the average steadily costs you sales (see estimateDemand).
+  const pulls = state.companies.map((c) =>
+    marketAttractiveness(c, getIndustry(c.industryId), state.config),
+  );
+  const marketPressure =
+    pulls.length > 0 ? pulls.reduce((a, b) => a + b, 0) / pulls.length : 1;
+
   let playerResult: CompanyTurnResult | null = null;
   for (const company of state.companies) {
-    const result = runCompanyTurn(company, state.macro, state.config, state.rng);
+    const result = runCompanyTurn(company, state.macro, state.config, state.rng, marketPressure);
     if (company.id === state.playerCompanyId) playerResult = result;
   }
 
