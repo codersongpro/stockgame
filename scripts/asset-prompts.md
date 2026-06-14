@@ -1,200 +1,180 @@
 # 유니콘 시티 — 그래픽 에셋 제작 프롬프트 가이드
 
-아래 프롬프트들을 이미지 생성 AI(Midjourney, DALL·E, Stable Diffusion 등)에 붙여 넣어 에셋을 제작하세요.
-모든 이미지는 **흰 배경 또는 투명 배경**, **정사각형(512×512 또는 256×256)** 으로 제작하면 자동 전처리가 됩니다.
+이미지 생성 AI(Midjourney, DALL·E, Stable Diffusion 등)에 아래 프롬프트를 붙여 넣어 에셋을 제작하세요.
+공통 규칙:
+- **정사각 아이콘/캐릭터**: 512×512 또는 256×256, **흰색 또는 투명 배경**
+- **배너/씬 일러스트**: 비율 표기를 따르되 여백을 넉넉히
+- 흰 배경은 `scripts/process-assets.py`가 자동으로 투명 처리합니다(임계값 235).
 
 ---
 
-## 1. 건물 에셋 (아직 미제작 5종)
+## 현재 에셋 현황 (2026-06)
 
-현재 없는 건물 타입: `warehouse`, `power`, `hr`, `park`, `dorm`, `lab`
+이미 완성되어 게임에 반영된 에셋:
+- ✅ **건물 14종** — office, factory, rnd, store, warehouse, cafeteria, gym, daycare, clinic, power, hr, park, dorm, lab
+- ✅ **인재 초상 32종** (`talent_01~32`) — 인재시장/임원진
+- ✅ **유명인 초상 32종** (`famous_01~32`) — 방문 이벤트
+- ✅ **역할 이미지** (`role_*`) — ceo/cto/cmo/cfo/coo/chro 등
+- ✅ **경영결정 아이콘 6종** — price/production/marketing/rnd/welfare/safety
+- ✅ **경제지표 아이콘 4종** — gdp/inflation/rate/sentiment
+- ✅ **재무 아이콘 4종** — cash/portfolio/company_value/debt
+- ✅ **기타 아이콘** — stock, news
+- ✅ **마스코트** — `mascot/unicorn.png` (홈 히어로)
 
-### 공통 스타일 가이드
-```
-Isometric pixel-art building icon, cute cartoon style, vibrant colors,
-white background, no shadow, top-down 45-degree isometric view,
-clean lines, game asset style similar to [이미 제작된 건물들과 같은 스타일]
-```
-
-### 창고 (warehouse)
-```
-Isometric cartoon warehouse building icon, large gray industrial storage
-building with loading docks, forklift nearby, boxes stacked outside,
-orange accent details, white background, cute game asset style
-```
-
-### 발전소 (power)
-```
-Isometric cartoon power plant / electrical substation icon, yellow and blue
-colors, lightning bolt symbol on the wall, energy meter, white background,
-cute chibi game building style
-```
-
-### 인사센터 / HR 건물 (hr)
-```
-Isometric cartoon HR office building icon, warm beige/cream colors,
-people silhouettes in windows, "HR" or person icon on signboard,
-welcoming entrance, white background, cute game asset style
-```
-
-### 공원 (park)
-```
-Isometric cartoon park / green space icon, lush trees, benches, flower beds,
-winding path, bright greens, white background, cute chibi game art style,
-top-down isometric view
-```
-
-### 기숙사 / 사원 숙소 (dorm)
-```
-Isometric cartoon dormitory / apartment building icon, multiple floors,
-small windows with warm light, cozy feel, pastel colors,
-white background, cute game asset style
-```
-
-### 고급 연구소 (lab)
-```
-Isometric cartoon advanced research laboratory icon, sleek modern design,
-glass and steel, glowing blue accents, science equipment visible,
-different from the R&D building (which is purple), white background,
-cute chibi game building style
-```
+아래 1~6번이 **아직 이모지로 대체 중이라 추가 제작이 필요한 부분**입니다.
+우선순위는 ⭐(높음)~☆(낮음)로 표기했습니다.
 
 ---
 
-## 2. UI 아이콘 (추가 필요)
+## 1. ⭐ 이벤트 팝업 배너 일러스트
 
-아이콘은 128×128px, 투명 배경 PNG로 제작하세요.
+분기 진행 시 뜨는 속보/실적 팝업(`app/play/page.tsx`의 `EventPopup`·`ResultsPopup`)은
+지금 큰 이모지(📣 📊 📉)로 헤더를 채웁니다. 톤별 와이드 배너로 교체하면 임팩트가 큽니다.
 
-### 경영 결정 아이콘
-```
-Simple flat icon set (128×128 each, transparent background):
-- 판매가격 아이콘: price tag with Korean won symbol ₩
-- 생산량 아이콘: factory gear + box
-- 마케팅 아이콘: megaphone with colorful stars
-- R&D 아이콘: microscope / flask / lightbulb
-- 복지 아이콘: heart with people inside
-- 안전 아이콘: hard hat / shield with checkmark
-Cute, colorful, minimal line-art icons, game UI style
-```
+배치 위치: `public/assets/banners/`
+권장 사이즈: **1280×400px (약 16:5)**, 양옆 여백 여유.
 
-### 경제 지표 아이콘
+### 호재 배너 (`banner_positive.png`)
 ```
-Simple flat icon set for economic indicators (128×128, transparent bg):
-- GDP 성장률: rising arrow with bar chart
-- 물가/인플레이션: price tag going up with flame
-- 기준금리: percentage symbol with bank building
-- 시장심리: heart pulse graph / sentiment meter
-Minimalist, clean, single color or two-tone, game UI style
+Wide cartoon banner illustration (1280x400), bull market celebration,
+a rising green stock chart arrow, gold coins and confetti raining,
+cheerful chibi business people clapping, bright green and gold palette,
+Korean educational game art style, clean, not too busy
 ```
 
-### 게임 내 통화/자산 아이콘
+### 악재 배너 (`banner_negative.png`)
 ```
-Simple flat icons (128×128, transparent):
-- 현금: stack of Korean won coins (₩)
-- 투자자산: pie chart with growth arrow
-- 기업가치: building with star rating
-- 부채: chain / weight with negative symbol
-Cute cartoon style, game UI asset
+Wide cartoon banner illustration (1280x400), bear market mood,
+a falling red/blue stock chart arrow, a worried but cute chibi businessperson,
+soft rainy blue-gray palette, still friendly cartoon (not scary),
+Korean educational game art style
+```
+
+### 중립/속보 배너 (`banner_neutral.png`)
+```
+Wide cartoon banner illustration (1280x400), breaking-news broadcast scene,
+a cute news anchor or microphone with "속보" ribbon, neutral slate-blue palette,
+Korean educational game art style, clean and simple
+```
+
+### 분기 실적 보고 배경 (`banner_report.png`)
+```
+Wide cartoon banner (1280x400), modern Korean office conference room,
+presentation screen showing bar/line charts, floor-to-ceiling city-view windows,
+warm professional cream and light-blue palette, webtoon style
 ```
 
 ---
 
-## 3. 캐릭터 — 임원진 (CharacterRole 6종 추가 스타일)
+## 2. ⭐ 경제 국면 아이콘 6종
 
-현재 6종의 역할 이미지가 있지만 다양한 외모로 더 제작 가능합니다.
-아래 프롬프트로 각 역할별 **대안 이미지 2세트**를 추가 제작하면 게임에서 
-더 다양한 임원 얼굴이 나타납니다.
+경제 국면은 현재 이모지(🚀 🙂 📉 🔥 🧊 🌫️)입니다 (`lib/engine/economy.ts`의 `PHASE_EMOJI`,
+`components/EconomyIndicators.tsx`에서 표시). 일관된 아이콘 세트로 교체하면 좋습니다.
 
-각 역할별 스타일 가이드 (4×2 그리드, 512×512):
+배치 위치: `public/assets/icons/`
+사이즈: **128×128px, 투명 배경**, 동일한 라인/채색 톤.
+
 ```
-4 columns × 2 rows grid of chibi anime-style character portraits,
-Korean webtoon art style, clean white background, circular colorful badge
-behind each character, diverse characters (different genders, skin tones, hair),
+A set of 6 flat round economy-state icons (128x128 each, transparent background),
+consistent cute game-UI style, two-tone with a soft circular badge behind:
+- boom (호황): rocket / upward green arrow, energetic
+- normal (안정): calm smiling sun or steady balance scale
+- recession (경기침체): downward red arrow / drooping graph
+- inflation (인플레이션): flame with a rising price tag
+- deflation (디플레이션): ice / snowflake with a falling price tag
+- stagflation (스태그플레이션): fog cloud with a flat-but-hot mixed symbol
+Minimalist, clean, matching the existing economy indicator icons
+```
+파일명: `phase_boom.png`, `phase_normal.png`, `phase_recession.png`, `phase_inflation.png`, `phase_deflation.png`, `phase_stagflation.png`
 
-Row 1 (CEO variants): executive suit, confident pose, with leadership props
-Row 2 (CTO variants): tech/developer look, glasses optional, with tech props
-- similar to existing talent character grid style
-- each portrait 256×256px within the grid
+---
+
+## 3. ⭐ 하단 탭 아이콘 7종
+
+`app/play/page.tsx`의 탭바는 이모지(🏠🏙️📈👔📰🏆🌍)입니다. 픽셀/아이소메트릭 톤에 맞춘
+아이콘으로 교체하면 통일감이 생깁니다.
+
+배치 위치: `public/assets/icons/`
+사이즈: **96×96px, 투명 배경**, 선택/비선택 상태에서 단색 틴트가 잘 먹도록 단순하게.
+
+```
+A set of 7 simple flat navigation icons (96x96, transparent background),
+single-shape silhouettes that read well when tinted one color:
+- 대시보드(home): house / dashboard gauge
+- 회사(company): isometric office building cluster
+- 투자(invest): line chart with upward arrow
+- 인재(talent): person with tie / ID badge
+- 뉴스(news): newspaper
+- 순위(rank): trophy
+- 방문(visit): globe / world map pin
+Clean minimal game-UI icon set, consistent stroke weight
+```
+파일명: `tab_home.png`, `tab_company.png`, `tab_invest.png`, `tab_talent.png`, `tab_news.png`, `tab_rank.png`, `tab_visit.png`
+
+---
+
+## 4. ☆ 대시보드 퀵팩트 / 결과·게임오버 일러스트
+
+### 4-1. 퀵팩트 미니카드 아이콘 (Dashboard `Mini`: 💵 📈 🏗️ 👔)
+사이즈 96×96, 투명 배경. 위 탭 아이콘과 같은 톤.
+- 지난 매출: 지폐 다발 / ₩
+- 지난 이익: 위/아래 화살표가 있는 미니 차트
+- 건물 수: 크레인 + 건물
+- 임원 수: 넥타이 / 사원증
+
+### 4-2. 결과·게임오버 히어로 (`ResultsPopup`/`GameOver`)
+세로 일러스트 또는 정사각, 512×512 권장.
+```
+Two celebratory cartoon scenes (512x512, transparent), Korean game style:
+- win: a cute unicorn mascot holding a #1 gold trophy, confetti, rainbow
+- end (non-win): the unicorn mascot waving "수고했어요", friendly encouraging
+Matching the existing unicorn mascot design
+```
+파일명: `result_win.png`, `result_end.png`
+
+---
+
+## 5. ☆ 스플래시 / 로딩 / OG 이미지
+
+홈 화면·로딩·SNS 공유 미리보기에 사용.
+
+### 스플래시 (`splash.png`, 1920×1080 또는 1080×1920)
+```
+Game splash illustration, "유니콘 시티" title prominent,
+isometric cityscape skyline of cute company buildings, the unicorn mascot
+front and center, vibrant gradient sky (indigo to pink), Korean educational
+business game, exciting and colorful, cartoon style
+```
+
+### OG / 썸네일 (`og.png`, 1200×630)
+```
+Social share card (1200x630), "유니콘 시티 — 회사를 키우고 투자하는 경제 게임",
+isometric building skyline + unicorn mascot + a small rising stock chart,
+bright friendly palette, large readable Korean title text
 ```
 
 ---
 
-## 4. 특수 이벤트 배경 / 씬 카드
+## 6. ☆ 캐릭터/건물 다양성 확장 (선택)
 
-분기 보고서나 특수 이벤트에 사용할 와이드 일러스트:
-
-### 분기 보고서 배경
-```
-Wide landscape illustration (16:9 ratio, 1280×720px), Korean corporate office
-interior, floor-to-ceiling windows with city view, conference room with
-presentation screen showing charts, warm professional atmosphere,
-cartoon/webtoon style, light blue and cream color palette
-```
-
-### 주가 상승 이벤트
-```
-Wide banner illustration (1280×320px), bull market celebration scene,
-cartoon stock chart going up with gold coins raining, confetti,
-happy cartoon business people, green and gold color palette, game banner style
-```
-
-### 주가 하락 이벤트
-```
-Wide banner illustration (1280×320px), bear market scene, cartoon stock chart
-going down with worried cartoon business person, blue/gray rainy mood,
-game banner style, not too dark (still cartoon fun)
-```
-
-### 방문자 환영 배경
-```
-Wide banner illustration (1280×320px), company lobby reception scene,
-red carpet entrance, banner reading "환영합니다", smiling staff,
-bright cheerful colors, cartoon/webtoon style
-```
-
----
-
-## 5. 로딩 화면 / 스플래시
-
-```
-Game splash screen illustration (1080×1920 mobile or 1920×1080 desktop),
-"유니콘 시티" logo prominently displayed, cityscape background with
-isometric buildings and a unicorn mascot character, Korean business game,
-colorful and exciting, cartoon style, vibrant gradient sky background
-```
-
----
-
-## 6. 마스코트 캐릭터 제안
-
-```
-Cute unicorn mascot character (transparent background, 512×512),
-wearing a business suit and CEO badge, holding a stock chart tablet,
-chibi style, rainbow horn, smiling, game mascot style,
-Korean educational game character design
-```
+현재 톤이 충분하다면 생략 가능. 더 다양한 얼굴/건물이 필요할 때만.
+- 역할 이미지 대안 세트(역할별 2종 추가) — 4×2 그리드, 512×512, 기존 talent 그리드와 동일 톤
+- 신규 건물 타입(예: HQ 본사 타워, 물류센터 대형, 데이터센터) — 기존 아이소메트릭 건물과 동일 스타일
 
 ---
 
 ## 처리 방법
 
-에셋을 생성한 후 `/scripts/process-assets.py` 스크립트로 전처리하세요:
+생성한 이미지는 `scripts/process-assets.py`로 전처리합니다.
 
 ```bash
-# 건물 에셋 처리 (단일 파일)
-python3 scripts/process-assets.py --input image.png --output public/assets/buildings/warehouse.png --size 300
+# 단일 아이콘/배너 (흰 배경 → 투명, 트림, 리사이즈)
+python3 scripts/process-assets.py --input raw.png --output public/assets/banners/banner_positive.png --size 1280
 
-# 그리드 이미지 분할 (4×2 그리드)
-python3 scripts/process-assets.py --input grid.png --cols 4 --rows 2 --output-dir public/assets/characters/ --names "name1,name2,..."
+# 그리드 분할 (예: 4×2 캐릭터 그리드)
+python3 scripts/process-assets.py --input grid.png --cols 4 --rows 2 \
+  --output-dir public/assets/characters/ --names "a,b,c,d,e,f,g,h"
 ```
 
-현재 완성된 에셋:
-- ✅ 건물 9종 (factory, rnd, office, store, cafeteria, gym, daycare, clinic, warehouse)
-- ✅ 캐릭터 32종 (talent_01~32) - 인재시장 다양한 얼굴
-- ✅ 유명인 32종 (famous_01~32) - 방문 이벤트 초상화
-- ✅ 역할 이미지 6종 (ceo, cto, cmo, cfo, coo, chro)
-- ✅ 아이콘 2종 (stock, news)
-- ⬜ 건물 5종 (warehouse 신형, power, hr, park, dorm, lab)
-- ⬜ UI 아이콘 세트
-- ⬜ 이벤트 배경 일러스트
-- ⬜ 마스코트 캐릭터
+새 에셋을 추가한 뒤에는 `lib/assetMap.ts`에 경로 상수를 등록하고 해당 컴포넌트에서
+이모지를 `<img>`로 교체하면 됩니다(기존 `MGMT_ICONS`/`BUILDING_IMG` 패턴 참고).
