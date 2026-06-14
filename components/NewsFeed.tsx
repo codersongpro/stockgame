@@ -34,7 +34,11 @@ function NewsCard({ n }: { n: NewsItem }) {
   return (
     <div className={`rounded-r-lg border-l-4 p-3 ${TONE_CLS[n.tone]}`}>
       <div className="flex items-start gap-2">
-        <span className="text-lg">{n.emoji}</span>
+        {n.portraitImg ? (
+          <img src={n.portraitImg} alt="" className="h-10 w-10 shrink-0 rounded-full bg-white object-contain" />
+        ) : (
+          <span className="text-lg">{n.emoji}</span>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <b className="text-sm text-slate-800">{n.title}</b>

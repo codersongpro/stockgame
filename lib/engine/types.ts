@@ -262,6 +262,8 @@ export interface NewsItem {
   emoji: string;
   /** Large portrait emoji for cut-in style popups (visitors / talent). */
   portrait?: string;
+  /** Pixel-art portrait image path (visitor events). */
+  portraitImg?: string;
   /** Companies/assets/industries referenced, for UI highlighting. */
   tags: string[];
 }
@@ -272,6 +274,8 @@ export interface VisitorInfo {
   name: string;
   emoji: string;
   turn: number;
+  /** Pixel-art portrait image path for 2D UI overlays. */
+  portraitImg?: string;
 }
 
 // ---------------------------------------------------------------------------

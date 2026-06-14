@@ -2,13 +2,13 @@
 
 import { useGameStore } from "@/store/gameStore";
 import { ROLE_LABELS } from "@/lib/engine";
-import type { Character, CharacterRole, Company, GameState } from "@/lib/engine";
+import type { Character, Company, GameState } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
-import { ROLE_IMG } from "@/lib/assetMap";
+import { TALENT_IMGS, idToIndex } from "@/lib/assetMap";
 
-/** Role-based pixel-art portrait, falling back to the character's emoji. */
-function Avatar({ role, emoji }: { role?: CharacterRole; emoji: string }) {
-  const img = role ? ROLE_IMG[role] : undefined;
+/** Per-character portrait using a deterministic talent image, falling back to emoji. */
+function Avatar({ characterId, emoji }: { characterId: string; emoji: string }) {
+  const img = TALENT_IMGS[idToIndex(characterId, TALENT_IMGS.length)];
   if (img) {
     return (
       <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100">
@@ -41,7 +41,7 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
           <div className="grid gap-2 sm:grid-cols-2">
             {company.hired.map((ch) => (
               <div key={ch.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                <Avatar role={ch.role ?? ch.preferredRole} emoji={ch.avatar} />
+                <Avatar characterId={ch.id} emoji={ch.avatar} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
                     <b className="truncate text-slate-800">{ch.name}</b>
@@ -110,7 +110,7 @@ function TalentCard({
   return (
     <div className="rounded-xl p-3 ring-1 ring-slate-200">
       <div className="flex items-center gap-3">
-        <Avatar role={ch.preferredRole} emoji={ch.avatar} />
+        <Avatar characterId={ch.id} emoji={ch.avatar} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <b className="truncate text-slate-800">{ch.name}</b>

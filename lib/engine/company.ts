@@ -57,7 +57,15 @@ export function estimateDemand(
   const price = Math.max(1, company.decisions.price);
 
   const priceRatio = industry.basePrice / price;
-  const priceFactor = Math.pow(Math.max(0.1, priceRatio), industry.demandElasticity);
+  // No artificial floor — demand falls naturally with price.
+  // Above 2× base price, an additional quadratic penalty kicks in so that
+  // raising price beyond the normal range cannot exploit inelastic demand
+  // to generate unlimited revenue.
+  const premiumPenalty =
+    price > industry.basePrice * 2
+      ? Math.pow((industry.basePrice * 2) / price, 2)
+      : 1;
+  const priceFactor = Math.pow(priceRatio, industry.demandElasticity) * premiumPenalty;
 
   const marketingFactor =
     1 +
