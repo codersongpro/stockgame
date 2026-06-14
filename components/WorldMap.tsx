@@ -5,7 +5,7 @@ import { fundamentalValue, type Company, type GameState } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { COUNTRIES, getCountry } from "@/lib/data/countries";
 import { formatMoney, formatNum } from "@/lib/format";
-import { CompanyMap } from "./CompanyMap";
+import { CompanyCity } from "./CompanyCity";
 import { Bar } from "./Sparkline";
 
 export function WorldMap({
@@ -107,7 +107,7 @@ function VisitCompany({
       </div>
       <div className="card p-3">
         <div className="mb-2 text-sm font-semibold text-slate-600">캠퍼스 (관전 모드)</div>
-        <CompanyMap game={game} company={company} readOnly />
+        <CompanyCity game={game} company={company} readOnly />
       </div>
     </div>
   );

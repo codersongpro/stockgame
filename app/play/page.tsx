@@ -9,7 +9,7 @@ import { formatMoney } from "@/lib/format";
 import { initAudio, isMuted, setMuted, startBgm, stopBgm } from "@/lib/audio";
 
 import { Dashboard } from "@/components/Dashboard";
-import { CompanyMap } from "@/components/CompanyMap";
+import { CompanyCity } from "@/components/CompanyCity";
 import { CompanyPanel } from "@/components/CompanyPanel";
 import { InvestmentDesk } from "@/components/InvestmentDesk";
 import { TalentMarket } from "@/components/TalentMarket";
@@ -168,7 +168,7 @@ export default function PlayPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="card p-4">
                 <h3 className="mb-3 text-base font-bold text-slate-800">🏙️ 우리 회사 캠퍼스</h3>
-                <CompanyMap game={game} company={player} />
+                <CompanyCity game={game} company={player} />
               </div>
               <CompanyPanel game={game} company={player} />
             </div>

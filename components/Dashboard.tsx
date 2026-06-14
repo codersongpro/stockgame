@@ -11,6 +11,7 @@ import { getIndustry } from "@/lib/data/industries";
 import { getCountry } from "@/lib/data/countries";
 import { formatMoney, changePct, formatPct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
+import { CompanyCity } from "./CompanyCity";
 
 export function Dashboard({ game }: { game: GameState }) {
   const p = game.companies.find((c) => c.id === game.playerCompanyId)!;
@@ -49,6 +50,15 @@ export function Dashboard({ game }: { game: GameState }) {
           <Cell label="기업가치" value={formatMoney(fundamentalValue(p))} />
           <Cell label="투자자산" value={formatMoney(portfolioValue(p, game))} />
         </div>
+      </div>
+
+      {/* Living campus overview */}
+      <div className="card p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-800">🏙️ 우리 회사 전경</h3>
+          <span className="text-[11px] text-slate-400">드래그로 둘러보기</span>
+        </div>
+        <CompanyCity game={game} company={p} readOnly overview />
       </div>
 
       {/* Quick facts */}
