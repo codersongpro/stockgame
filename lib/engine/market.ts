@@ -8,7 +8,7 @@ import { type RngState, nextGaussian, nextRange } from "./rng";
 // (derived from profit, cash, quality, reputation, assets) with sentiment and
 // a noisy random walk on top. Events apply discrete shocks via `shockStock`.
 
-const SHARES = 100_000; // shares outstanding per company (kept uniform)
+const SHARES = 1_000; // shares outstanding per company (kept uniform)
 
 /** Book/enterprise value of a company, independent of its share price. */
 export function fundamentalValue(company: Company): number {
