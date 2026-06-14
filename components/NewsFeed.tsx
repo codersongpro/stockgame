@@ -2,7 +2,8 @@
 
 import { LAYER_LABELS } from "@/lib/engine";
 import type { EventTone, GameState, NewsItem } from "@/lib/engine";
-import { ICON_NEWS } from "@/lib/assetMap";
+import { ICON_NEWS, BUILDING_IMG } from "@/lib/assetMap";
+import { CampusStrip } from "./CampusStrip";
 
 const TONE_CLS: Record<EventTone, string> = {
   positive: "border-l-bull bg-green-50",
@@ -20,7 +21,10 @@ export function NewsFeed({ game }: { game: GameState }) {
       </h3>
       <div className="max-h-[70vh] space-y-2 overflow-y-auto scroll-thin pr-1">
         {items.length === 0 && (
-          <p className="text-sm text-slate-400">아직 큰 사건이 없습니다. 턴을 진행해 보세요.</p>
+          <div className="relative overflow-hidden rounded-xl bg-slate-50 py-8 text-center">
+            <CampusStrip className="absolute inset-x-0 bottom-0 h-14" opacity={0.15} />
+            <p className="relative text-sm text-slate-400">아직 큰 사건이 없습니다. 턴을 진행해 보세요.</p>
+          </div>
         )}
         {items.map((n) => (
           <NewsCard key={n.id} n={n} />

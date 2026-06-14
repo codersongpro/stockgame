@@ -4,7 +4,8 @@ import { useGameStore } from "@/store/gameStore";
 import { ROLE_LABELS } from "@/lib/engine";
 import type { Character, Company, GameState } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
-import { TALENT_IMGS, idToIndex } from "@/lib/assetMap";
+import { TALENT_IMGS, idToIndex, BUILDING_IMG } from "@/lib/assetMap";
+import { CampusStrip } from "./CampusStrip";
 
 /** Per-character portrait using a deterministic talent image, falling back to emoji. */
 function Avatar({ characterId, emoji }: { characterId: string; emoji: string }) {
@@ -34,9 +35,15 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
     <div className="space-y-4">
       {/* Hired team */}
       <div className="card p-4">
-        <h3 className="mb-3 text-base font-bold text-slate-800">👔 우리 회사 임원진</h3>
+        <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
+          {BUILDING_IMG.hr && <img src={BUILDING_IMG.hr} alt="" className="h-7 w-7 object-contain" />}
+          우리 회사 임원진
+        </h3>
         {company.hired.length === 0 ? (
-          <p className="text-sm text-slate-400">아직 영입한 인재가 없습니다. 인재시장에서 영입하세요!</p>
+          <div className="relative overflow-hidden rounded-xl bg-slate-50 py-7 text-center">
+            <CampusStrip buildings={company.buildings} className="absolute inset-x-0 bottom-0 h-14" opacity={0.18} />
+            <p className="relative text-sm text-slate-400">아직 영입한 인재가 없습니다. 인재시장에서 영입하세요!</p>
+          </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {company.hired.map((ch) => (
@@ -74,7 +81,10 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
 
       {/* Talent pool */}
       <div className="card p-4">
-        <h3 className="mb-3 text-base font-bold text-slate-800">🧑‍💼 인재시장</h3>
+        <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
+          {BUILDING_IMG.store && <img src={BUILDING_IMG.store} alt="" className="h-7 w-7 object-contain" />}
+          인재시장
+        </h3>
         <div className="grid gap-2 sm:grid-cols-2">
           {game.talentPool.map((ch) => (
             <TalentCard
@@ -87,7 +97,10 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
           ))}
         </div>
         {game.talentPool.length === 0 && (
-          <p className="text-sm text-slate-400">지금은 영입 가능한 인재가 없습니다.</p>
+          <div className="relative overflow-hidden rounded-xl bg-slate-50 py-7 text-center">
+            <CampusStrip className="absolute inset-x-0 bottom-0 h-14" opacity={0.15} />
+            <p className="relative text-sm text-slate-400">지금은 영입 가능한 인재가 없습니다.</p>
+          </div>
         )}
       </div>
     </div>

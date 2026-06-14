@@ -13,7 +13,7 @@ import { getCountry } from "@/lib/data/countries";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
-import { MGMT_ICONS } from "@/lib/assetMap";
+import { MGMT_ICONS, BUILDING_IMG } from "@/lib/assetMap";
 
 export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
   const setDecisions = useGameStore((s) => s.setDecisions);
@@ -34,7 +34,10 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   return (
     <div className="space-y-4">
       <div className="card p-5">
-        <h3 className="mb-4 text-base font-bold text-slate-800">🏢 경영 결정</h3>
+        <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-800">
+          {BUILDING_IMG.office && <img src={BUILDING_IMG.office} alt="" className="h-7 w-7 object-contain" />}
+          경영 결정
+        </h3>
 
         <Slider
           icon={MGMT_ICONS.price}
@@ -107,7 +110,10 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
 
       {/* Company stats */}
       <div className="card p-5">
-        <h3 className="mb-3 text-base font-bold text-slate-800">📊 회사 상태</h3>
+        <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
+          {BUILDING_IMG.rnd && <img src={BUILDING_IMG.rnd} alt="" className="h-7 w-7 object-contain" />}
+          회사 상태
+        </h3>
         <StatBar label={<Term term="품질">품질 / 기술</Term>} value={company.quality} color="#6366f1" />
         <StatBar label={<Term term="평판" />} value={company.reputation} color="#0ea5e9" />
         <StatBar label={<Term term="사기">직원 사기</Term>} value={company.morale} color="#16a34a" />
@@ -117,7 +123,10 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
       {/* Finance */}
       {game.config.showAdvancedMetrics && (
         <div className="card p-5">
-          <h3 className="mb-3 text-base font-bold text-slate-800">💳 재무</h3>
+          <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
+            {BUILDING_IMG.office && <img src={BUILDING_IMG.office} alt="" className="h-7 w-7 object-contain" />}
+            재무
+          </h3>
           <div className="mb-1 flex justify-between text-sm">
             <span className="text-slate-500">부채</span>
             <span className="font-bold text-slate-800">{formatMoney(company.debt)}</span>

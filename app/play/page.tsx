@@ -19,6 +19,7 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { EconomyIndicators } from "@/components/EconomyIndicators";
 import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
+import { CampusStrip } from "@/components/CampusStrip";
 
 type Tab = "home" | "company" | "invest" | "talent" | "news" | "rank" | "visit";
 
@@ -128,8 +129,9 @@ export default function PlayPage() {
   return (
     <div className="min-h-screen bg-slate-100 pb-24">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5">
+      <header className="sticky top-0 z-30 overflow-hidden bg-white/90 shadow-sm backdrop-blur">
+        <CampusStrip buildings={player.buildings} className="absolute inset-x-0 bottom-0 h-12" opacity={0.07} />
+        <div className="relative mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className="h-8 w-8 rounded-lg" style={{ background: player.logoColor }} />
             <div className="leading-tight">
