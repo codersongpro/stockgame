@@ -16,6 +16,7 @@ import {
   buyStock,
   emptyCell,
   hireCharacter,
+  fireCharacter,
   repayLoan,
   sellAsset,
   sellStock,
@@ -53,6 +54,7 @@ interface GameStore {
   build: (type: BuildingType, x?: number, y?: number) => void;
   upgrade: (buildingId: string) => void;
   hire: (characterId: string) => void;
+  fire: (characterId: string) => void;
   tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => void;
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => void;
   loan: (amount: number, side: "borrow" | "repay") => void;
@@ -154,6 +156,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playSfx("hire");
     persist(game);
     set({ game: { ...game }, toast: { text: "인재 영입 성공!", tone: "good" } });
+  },
+
+  fire: (characterId) => {
+    const game = get().game;
+    if (!game) return;
+    const res = fireCharacter(game, player(game), characterId);
+    if (!res.ok) return showToast(set, res.error ?? "해고 실패", "bad");
+    playSfx("click");
+    persist(game);
+    set({ game: { ...game }, toast: { text: "해고 처리 완료", tone: "info" } });
   },
 
   tradeStock: (companyId, shares, side) => {

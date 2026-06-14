@@ -10,6 +10,7 @@ import { getCountry, COUNTRIES } from "../data/countries";
 import { shockStock, shockMarket } from "./market";
 import { shockAsset } from "./assets";
 import { adjustRivalry, adjustTension } from "./relations";
+import { generateCharacter } from "./characters";
 import {
   type RngState,
   nextFloat,
@@ -33,6 +34,8 @@ interface EventResult {
   title: string;
   body: string;
   tags: string[];
+  /** Large portrait emoji for a cut-in style popup. */
+  portrait?: string;
 }
 
 interface EventTemplate {
@@ -84,6 +87,14 @@ function applyThemeShock(state: GameState, tag: string, basePct: number): string
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
+
+function playerCompany(state: GameState): Company | null {
+  return state.companies.find((c) => c.id === state.playerCompanyId) ?? null;
+}
+
+const POLITICIAN_NAMES = ["김의장", "박장관", "이시장", "최총리", "정대변인", "강위원"];
+const CELEBRITY_NAMES = ["스타 루나", "배우 강하늘", "가수 제이", "인플루언서 미오", "셀럽 빈센트", "아이돌 하루"];
+const CEO_NAMES = ["라이벌 회장", "신흥 CEO", "거물 대표", "벤처 창업가", "재계 거물"];
 
 // --- catalog ---------------------------------------------------------------
 
@@ -575,6 +586,96 @@ const TEMPLATES: EventTemplate[] = [
       };
     },
   },
+
+  // ===== VISITOR (외부인 방문) =====
+  {
+    id: "politician_visit",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "🎩",
+    weight: () => 0.9,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const name = pick(rng, POLITICIAN_NAMES);
+      p.visitor = { kind: "politician", name, emoji: "🎩", turn: state.turn };
+      p.reputation = clamp(p.reputation + 4, 0, 100);
+      state.macro.sentiment = clamp(state.macro.sentiment + 0.05, -1, 1);
+      shockStock(state.stocks, p.id, 0.03);
+      return {
+        title: `${name}, ${p.name} 방문`,
+        body: `${name}이(가) 우리 회사를 찾아 격려했습니다. 규제 환경이 우호적으로 바뀌고 평판이 올랐습니다.`,
+        portrait: "🎩",
+        tags: ["visitor", "politician", p.id],
+      };
+    },
+  },
+  {
+    id: "ceo_visit",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "🤵",
+    weight: () => 0.9,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const rivals = state.companies.filter((c) => c.id !== p.id);
+      const name = rivals.length ? `${pick(rng, rivals).name} 회장` : pick(rng, CEO_NAMES);
+      p.visitor = { kind: "ceo", name, emoji: "🤵", turn: state.turn };
+      if (rivals.length) adjustRivalry(state.relations, p.id, pick(rng, rivals).id, -0.2);
+      p.reputation = clamp(p.reputation + 3, 0, 100);
+      shockStock(state.stocks, p.id, 0.04);
+      return {
+        title: `${name}, 협력 논의차 방문`,
+        body: `${name}이(가) ${p.name}을(를) 방문해 협업을 타진했습니다. 시장의 기대가 커집니다.`,
+        portrait: "🤵",
+        tags: ["visitor", "ceo", p.id],
+      };
+    },
+  },
+  {
+    id: "celebrity_visit",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "🌟",
+    weight: () => 1,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const name = pick(rng, CELEBRITY_NAMES);
+      p.visitor = { kind: "celebrity", name, emoji: "🌟", turn: state.turn };
+      p.reputation = clamp(p.reputation + 6, 0, 100);
+      p.morale = clamp(p.morale + 4, 0, 100);
+      const sponsorship = Math.round(p.lastRevenue * 0.05);
+      p.cash += sponsorship;
+      shockStock(state.stocks, p.id, 0.05);
+      return {
+        title: `유명인 ${name} 방문·홍보`,
+        body: `${name}이(가) ${p.name}을(를) 찾아 화제가 됐습니다. 평판과 직원 사기가 오르고 협찬 효과로 매출에 보탬이 됩니다.`,
+        portrait: "🌟",
+        tags: ["visitor", "celebrity", p.id],
+      };
+    },
+  },
+  {
+    id: "talent_walkin",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "✨",
+    weight: () => 1,
+    run: ({ state, rng }) => {
+      // A standout candidate shows up at the door — added to the market cheap.
+      const candidate = generateCharacter(rng, nextFloat(rng) < 0.5 ? "epic" : "legendary");
+      candidate.salary = Math.round(candidate.salary * 0.7); // walk-in discount
+      state.talentPool = [candidate, ...state.talentPool];
+      return {
+        title: `인재 ${candidate.name}, 직접 찾아오다`,
+        body: `${candidate.traitName} 성향의 ${candidate.name}(이)가 우리 회사에 관심을 보이며 직접 찾아왔습니다. 인재 탭에서 할인된 조건으로 영입할 수 있어요!`,
+        portrait: candidate.avatar,
+        tags: ["visitor", "talent"],
+      };
+    },
+  },
 ];
 
 function nextCrash(rng: RngState): number {
@@ -648,6 +749,7 @@ export function generateEvents(state: GameState): NewsItem[] {
       title: result.title,
       body: result.body,
       emoji: template.emoji,
+      portrait: result.portrait,
       tags: result.tags,
     };
     state.news.push(news);
@@ -667,4 +769,5 @@ export const LAYER_LABELS: Record<EventLayer, string> = {
   intercompany: "기업 간",
   internal: "회사 내부",
   market: "주식시장",
+  visitor: "외부 방문",
 };

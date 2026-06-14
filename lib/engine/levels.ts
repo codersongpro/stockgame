@@ -32,6 +32,7 @@ const ALL_LAYERS: EventLayer[] = [
   "intercompany",
   "internal",
   "market",
+  "visitor",
 ];
 
 export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
@@ -47,7 +48,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     eventIntensity: 0.6,
     enabledAssets: ["deposit", "etf"],
     enabledBuildings: ["factory", "store", "office", "park"],
-    enabledEventLayers: ["macro", "market", "internal"],
+    enabledEventLayers: ["macro", "market", "internal", "visitor"],
     showAdvancedMetrics: false,
     characterDepth: "simple",
     aiCount: 3,
@@ -64,7 +65,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     eventIntensity: 1.0,
     enabledAssets: ["deposit", "bond", "etf", "realestate", "gold", "oil"],
     enabledBuildings: ["factory", "rnd", "office", "warehouse", "store", "hr", "park"],
-    enabledEventLayers: ["macro", "monetary", "geopolitics", "intercompany", "internal", "market"],
+    enabledEventLayers: ["macro", "monetary", "geopolitics", "intercompany", "internal", "market", "visitor"],
     showAdvancedMetrics: true,
     characterDepth: "roles",
     aiCount: 4,

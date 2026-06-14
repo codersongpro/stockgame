@@ -14,6 +14,7 @@ const RARITY: Record<string, { label: string; cls: string }> = {
 
 export function TalentMarket({ game, company }: { game: GameState; company: Company }) {
   const hire = useGameStore((s) => s.hire);
+  const fire = useGameStore((s) => s.fire);
 
   return (
     <div className="space-y-4">
@@ -42,6 +43,15 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
                   연봉<br />
                   <b className="text-slate-600">{formatMoney(ch.salary)}</b>
                 </div>
+                <button
+                  className="btn-ghost shrink-0 !px-2.5 !py-1.5 text-xs !text-bear"
+                  onClick={() => {
+                    if (window.confirm(`${ch.name}을(를) 해고할까요?\n퇴직금 ${formatMoney(ch.salary)}이 지출되고 사기·평판이 소폭 하락합니다.`))
+                      fire(ch.id);
+                  }}
+                >
+                  해고
+                </button>
               </div>
             ))}
           </div>

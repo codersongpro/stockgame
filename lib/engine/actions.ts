@@ -115,6 +115,24 @@ export function hireCharacter(
   return { ok: true };
 }
 
+/** Dismiss a hired employee. Costs severance and dents morale/reputation. */
+export function fireCharacter(
+  _state: GameState,
+  company: Company,
+  characterId: string,
+): ActionResult {
+  const idx = company.hired.findIndex((c) => c.id === characterId);
+  if (idx < 0) return { ok: false, error: "해당 직원을 찾을 수 없습니다." };
+  const severance = Math.round(company.hired[idx].salary); // one-off payout
+  if (company.cash < severance) return { ok: false, error: "퇴직금을 지급할 현금이 부족합니다." };
+
+  company.cash -= severance;
+  company.hired.splice(idx, 1);
+  company.morale = Math.max(0, company.morale - 5);
+  company.reputation = Math.max(0, company.reputation - 2);
+  return { ok: true };
+}
+
 export function buyStock(
   state: GameState,
   company: Company,

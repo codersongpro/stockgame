@@ -220,6 +220,9 @@ export interface Company {
   netWorthHistory: number[];
 
   portfolio: Portfolio;
+
+  /** A notable visitor currently at the campus (cleared each turn). */
+  visitor?: VisitorInfo;
 }
 
 // ---------------------------------------------------------------------------
@@ -232,7 +235,8 @@ export type EventLayer =
   | "geopolitics"
   | "intercompany"
   | "internal"
-  | "market";
+  | "market"
+  | "visitor";
 
 export type EventTone = "positive" | "negative" | "neutral";
 
@@ -244,8 +248,18 @@ export interface NewsItem {
   title: string;
   body: string;
   emoji: string;
+  /** Large portrait emoji for cut-in style popups (visitors / talent). */
+  portrait?: string;
   /** Companies/assets/industries referenced, for UI highlighting. */
   tags: string[];
+}
+
+/** A notable outsider visiting a company's campus this quarter. */
+export interface VisitorInfo {
+  kind: "politician" | "ceo" | "celebrity";
+  name: string;
+  emoji: string;
+  turn: number;
 }
 
 // ---------------------------------------------------------------------------

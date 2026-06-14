@@ -8,8 +8,7 @@ import { tickAssets } from "./assets";
 import { generateEvents } from "./events";
 import { decayRelations } from "./relations";
 import { recordNetWorth } from "./ranking";
-import { refreshTalentPool } from "./characters";
-import { nextFloat } from "./rng";
+import { topUpTalentPool } from "./characters";
 
 export interface TurnSummary {
   turn: number;
@@ -32,6 +31,9 @@ export function advanceTurn(state: GameState): TurnSummary {
   );
 
   decayRelations(state.relations);
+
+  // Clear last turn's campus visitors; events this turn may set new ones.
+  for (const c of state.companies) c.visitor = undefined;
 
   // 1) Macro economy + central-bank policy.
   const { phaseChanged, rateChange } = tickEconomy(
@@ -86,10 +88,10 @@ export function advanceTurn(state: GameState): TurnSummary {
   // 6) Record net worth history for charts/leaderboard.
   recordNetWorth(state);
 
-  // 7) Occasionally refresh the talent pool.
-  if (nextFloat(state.rng) < 0.4) {
+  // 7) Keep the talent market steadily stocked every turn.
+  {
     const hiredIds = new Set(state.companies.flatMap((c) => c.hired.map((h) => h.id)));
-    state.talentPool = refreshTalentPool(state.talentPool, hiredIds, state.rng);
+    state.talentPool = topUpTalentPool(state.talentPool, hiredIds, state.rng);
   }
 
   // 8) Advance the clock.

@@ -236,7 +236,13 @@ function EventPopup({ events, onClose }: { events: NewsItem[]; onClose: () => vo
             return (
               <div key={ev.id} className={`rounded-xl bg-white p-3 ring-1 ${tone.ring}`}>
                 <div className="flex items-start gap-2.5">
-                  <span className="text-2xl leading-none">{ev.emoji}</span>
+                  {ev.portrait ? (
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-4xl shadow-inner">
+                      {ev.portrait}
+                    </span>
+                  ) : (
+                    <span className="text-2xl leading-none">{ev.emoji}</span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-bold text-slate-800">{ev.title}</span>
