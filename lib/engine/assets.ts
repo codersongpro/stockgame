@@ -94,6 +94,8 @@ export function shockAsset(
   const a = assets[id];
   if (!a) return;
   a.price = Math.max(1, a.price * (1 + pct));
+  // Sync this turn's bar so the shock shows immediately (see shockStock).
+  if (a.history.length) a.history[a.history.length - 1] = round2(a.price);
 }
 
 function round2(n: number): number {

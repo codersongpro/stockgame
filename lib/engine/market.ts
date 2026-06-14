@@ -154,7 +154,9 @@ export function tickStocks(
       gap * 0.25 + // mean-reversion toward fundamentals
       macro.sentiment * 0.03 +
       industry.trend;
-    const noise = nextGaussian(rng, 0, 0.04 * industry.volatility * config.volatility);
+    // Noise kept below typical event shocks (3–9%) so news clearly leads the
+    // move instead of being drowned out by random walk.
+    const noise = nextGaussian(rng, 0, 0.025 * industry.volatility * config.volatility);
 
     stock.price = Math.max(1, stock.price * (1 + drift + noise));
     stock.history.push(round2(stock.price));
@@ -179,7 +181,7 @@ function tickExternalStock(
 
   const gap = (anchor - stock.price) / stock.price;
   const drift = gap * 0.2 + macro.sentiment * 0.03 + trend;
-  const noise = nextGaussian(rng, 0, 0.045 * vol * config.volatility);
+  const noise = nextGaussian(rng, 0, 0.03 * vol * config.volatility);
 
   stock.price = Math.max(1, stock.price * (1 + drift + noise));
   stock.history.push(round2(stock.price));
@@ -195,6 +197,11 @@ export function shockStock(
   const s = stocks[companyId];
   if (!s) return;
   s.price = Math.max(1, s.price * (1 + pct));
+  // Events fire after tickStocks pushed this turn's bar, so sync the latest
+  // history point with the shocked price. Otherwise the news move only shows
+  // up next turn, blended with fresh noise/mean-reversion — making prices look
+  // like they react randomly rather than to the news.
+  if (s.history.length) s.history[s.history.length - 1] = round2(s.price);
 }
 
 /** Apply a market-wide shock to every stock (e.g. crash / rally). */
