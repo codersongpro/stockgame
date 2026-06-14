@@ -10,6 +10,7 @@ import { formatMoney } from "@/lib/format";
 import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
 import { getIndustry } from "@/lib/data/industries";
 import { MASCOT_IMG } from "@/lib/assetMap";
+import { HelpModal } from "@/components/HelpModal";
 
 const LEVELS: Level[] = ["elementary", "middle", "university"];
 const LEVEL_EMOJI: Record<Level, string> = {
@@ -28,6 +29,7 @@ export default function Home() {
   const router = useRouter();
   const [level, setLevel] = useState<Level>("middle");
   const [hasSave, setHasSave] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const loadSave = useGameStore((s) => s.loadSave);
   const checkSave = useGameStore((s) => s.hasSave);
 
@@ -184,6 +186,12 @@ export default function Home() {
           >
             ⏯️ 이어서 하기
           </button>
+          <button
+            onClick={() => { playSfx("click"); setShowHelp(true); }}
+            className="btn-ghost px-8 py-4 text-lg !text-slate-800"
+          >
+            📖 게임 방법
+          </button>
         </section>
 
         <section className="mt-6 grid w-full gap-3 sm:grid-cols-2">
@@ -204,6 +212,8 @@ export default function Home() {
           교육용 시뮬레이션 · 실제 투자 조언이 아닙니다
         </footer>
       </div>
+
+      {showHelp && <HelpModal open initialTab="manual" onClose={() => setShowHelp(false)} />}
     </main>
   );
 }

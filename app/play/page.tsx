@@ -20,6 +20,9 @@ import { EconomyIndicators } from "@/components/EconomyIndicators";
 import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
+import { HelpModal } from "@/components/HelpModal";
+
+const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
 type Tab = "home" | "company" | "invest" | "talent" | "news" | "rank" | "visit";
 
@@ -47,6 +50,7 @@ export default function PlayPage() {
   const [ready, setReady] = useState(false);
   const [eventPopup, setEventPopup] = useState<NewsItem[] | null>(null);
   const [resultsPopup, setResultsPopup] = useState<{ summary: TurnSummary; prevNw: number } | null>(null);
+  const [help, setHelp] = useState<null | "tutorial" | "manual" | "glossary">(null);
   const lockUntil = useRef(0);
 
   // Advance one quarter. Guards against (a) rapid double-clicks force-skipping
@@ -86,6 +90,15 @@ export default function PlayPage() {
       }
     }
     setReady(true);
+    // Show the tutorial automatically the first time a player reaches the game.
+    try {
+      if (!window.localStorage.getItem(TUTORIAL_SEEN_KEY)) {
+        setHelp("tutorial");
+        window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      }
+    } catch {
+      /* ignore storage errors */
+    }
   }, [loadSave, router]);
 
   // BGM follows market mood.
@@ -149,6 +162,9 @@ export default function PlayPage() {
             <div className="text-[10px] text-slate-500">현금</div>
             <div className="text-sm font-bold text-bull">{formatMoney(player.cash)}</div>
           </div>
+          <button onClick={() => setHelp("manual")} className="btn-ghost !px-2.5 !py-2" title="도움말">
+            ❓
+          </button>
           <button onClick={toggleMute} className="btn-ghost !px-2.5 !py-2" title="소리">
             {muted ? "🔇" : "🔊"}
           </button>
@@ -235,6 +251,11 @@ export default function PlayPage() {
 
       {/* Game over overlay */}
       {ended && <GameOver game={game} onRestart={() => router.push("/")} />}
+
+      {/* Help center (manual / tutorial / glossary) */}
+      {help !== null && (
+        <HelpModal open initialTab={help} onClose={() => setHelp(null)} />
+      )}
     </div>
   );
 }
