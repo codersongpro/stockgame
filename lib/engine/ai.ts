@@ -24,22 +24,27 @@ export function runAiTurn(state: GameState, company: Company): void {
 
   // --- Operating decisions ---
   const capacity = productionCapacity(company, state.config);
-  // Price near base, nudged by quality and market mood.
+  // Price at base; only add a small premium when quality is genuinely high (>40)
+  // so that pricing above market is justified by quality-factor gains in demand.
   const moodAdj = 1 + state.macro.sentiment * 0.05;
+  const qualityPremium = Math.max(0, (company.quality - 40) / 500);
   company.decisions.price = Math.max(
     industry.unitCost * 1.2,
-    industry.basePrice * (1 + company.quality / 400) * moodAdj,
+    industry.basePrice * (1 + qualityPremium) * moodAdj,
   );
   company.decisions.productionTarget = Math.round(capacity * (0.7 + aggression * 0.3));
 
-  // Spend on marketing/R&D from recent revenue (not raw cash) to avoid
-  // bleeding the balance sheet dry.
-  const opBudget = Math.max(20_000, company.lastRevenue * 0.2);
+  // Use a 40k floor so early-game AI is competitive before revenue builds up;
+  // player's default is 30k so this keeps AI from being systematically under-funded.
+  const opBudget = Math.max(40_000, company.lastRevenue * 0.25);
   company.decisions.marketingBudget = Math.round(opBudget * 0.5);
   company.decisions.rndBudget = Math.round(opBudget * 0.5 * (0.5 + industry.rndDependence));
+  company.decisions.welfareBudget = Math.round(opBudget * 0.15);
 
-  // --- Expansion: build or upgrade only with a healthy cash buffer ---
-  if (company.cash > 900_000 && company.debt < company.cash && nextFloat(rng) < 0.5) {
+  // --- Expansion: lower threshold so AI keeps building through mid-game ---
+  // 900k was too high: at university start-cash of 1M, one building drops AI
+  // below the threshold permanently. 500k lets them expand throughout the game.
+  if (company.cash > 500_000 && company.debt < company.cash * 1.5 && nextFloat(rng) < 0.7) {
     const cell = emptyCell(company, state.config.mapSize);
     if (cell) {
       const want = chooseBuilding(company, state);
@@ -52,9 +57,9 @@ export function runAiTurn(state: GameState, company: Company): void {
   }
 
   // --- Hiring: grab an affordable talent for a free role ---
-  if (company.cash > 500_000 && company.debt < company.cash && company.hired.length < 4 && nextFloat(rng) < 0.35) {
+  if (company.cash > 350_000 && company.debt < company.cash && company.hired.length < 5 && nextFloat(rng) < 0.45) {
     const affordable = state.talentPool
-      .filter((c) => c.salary < company.lastRevenue * 0.25)
+      .filter((c) => c.salary < Math.max(15_000, company.lastRevenue * 0.25))
       .sort((a, b) => statSum(b) - statSum(a));
     if (affordable.length) hireCharacter(state, company, affordable[0].id);
   }
@@ -70,11 +75,12 @@ function statSum(c: Character): number {
 function chooseBuilding(company: Company, state: GameState): BuildingType | null {
   const enabled = state.config.enabledBuildings;
   const capacity = productionCapacity(company, state.config);
-  // Prioritise capacity if production is bottlenecked, else diversify.
+  // Prioritise capacity if production is bottlenecked, then diversify into
+  // welfare/research/marketing buildings to grow quality and morale.
   const order: BuildingType[] =
     capacity < company.decisions.productionTarget * 1.1
-      ? ["factory", "warehouse", "store", "rnd", "office", "hr", "power", "park"]
-      : ["store", "rnd", "office", "factory", "warehouse", "hr", "power", "park"];
+      ? ["factory", "warehouse", "store", "rnd", "lab", "office", "hr", "power", "cafeteria", "gym", "park"]
+      : ["store", "rnd", "lab", "office", "factory", "warehouse", "hr", "cafeteria", "gym", "dorm", "power", "park"];
   return order.find((t) => enabled.includes(t)) ?? null;
 }
 
