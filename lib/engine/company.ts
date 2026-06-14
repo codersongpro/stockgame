@@ -106,8 +106,11 @@ export function runCompanyTurn(
   const unitCost = industry.unitCost * country.laborCost * (1 - efficiency);
 
   const wantToProduce = Math.max(0, Math.min(d.productionTarget, capacity));
-  // Don't produce more than cash can fund.
-  const affordableUnits = unitCost > 0 ? Math.floor(Math.max(0, company.cash * 0.7) / unitCost) : wantToProduce;
+  // Production can draw on cash PLUS a short-term working-capital line tied to
+  // recent sales. Previously a company at zero cash could produce nothing, which
+  // guaranteed an unrecoverable loss spiral (only fixed costs, no revenue).
+  const workingCapital = Math.max(company.cash * 0.7, company.lastRevenue * 0.6, 60_000);
+  const affordableUnits = unitCost > 0 ? Math.floor(Math.max(0, workingCapital) / unitCost) : wantToProduce;
   const produced = Math.max(0, Math.min(wantToProduce, affordableUnits));
   company.inventory += produced;
   const productionCost = produced * unitCost;
@@ -146,8 +149,10 @@ export function runCompanyTurn(
   const moraleTarget = 55 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000);
   company.morale = clamp(company.morale + (moraleTarget - company.morale) * 0.3, 0, 100);
 
-  // Reputation drifts with profitability and any positive bonuses.
-  const repDrift = (profit > 0 ? 1 : -1.5) + bonuses.reputationAdd + caps.reputation * 0.1;
+  // Reputation drifts with profitability and any positive bonuses. A single
+  // down quarter shouldn't tank reputation (that fed the loss spiral); the
+  // penalty is milder than the reward so recovery stays possible.
+  const repDrift = (profit > 0 ? 1 : -0.7) + bonuses.reputationAdd + caps.reputation * 0.1;
   company.reputation = clamp(company.reputation + repDrift * 0.5, 0, 100);
 
   // Safety eases toward a level set by R&D investment and morale.
@@ -159,10 +164,10 @@ export function runCompanyTurn(
   const canPay = company.cash > salaries;
   const quit = updateLoyalty(company, canPay, rng);
 
-  // Auto-borrow a little if cash goes negative (with a debt penalty).
+  // Auto-borrow a little if cash goes negative (with a small debt penalty).
   if (company.cash < 0) {
     const shortfall = -company.cash;
-    company.debt += shortfall * 1.05;
+    company.debt += shortfall * 1.03;
     company.cash = 0;
   }
 
