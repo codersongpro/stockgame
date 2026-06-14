@@ -38,6 +38,11 @@ function SetupInner() {
     [filterCountry],
   );
 
+  const rankPreview = useMemo(
+    () => [...COMPANY_PRESETS].sort((a, b) => b.scale - a.scale).slice(0, 5),
+    [],
+  );
+
   const selectPreset = (id: string) => {
     const p = COMPANY_PRESETS.find((x) => x.id === id)!;
     setBasedOn(id);
@@ -101,12 +106,6 @@ function SetupInner() {
   // --- Form phase ---
   const levelCfg = LEVEL_CONFIGS[level];
   const levelEmoji: Record<Level, string> = { elementary: "🧒", middle: "🧑‍🎓", university: "🎓" };
-
-  // Top competitors sorted by scale for rank preview (show top 5)
-  const rankPreview = useMemo(
-    () => [...COMPANY_PRESETS].sort((a, b) => b.scale - a.scale).slice(0, 5),
-    [],
-  );
 
   return (
     <Shell>
