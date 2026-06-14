@@ -24,6 +24,7 @@ import {
 } from "@/lib/engine/actions";
 import type { TurnSummary } from "@/lib/engine/tick";
 import { playSfx } from "@/lib/audio";
+import { formatMoney } from "@/lib/format";
 
 const SAVE_KEY = "uc-save-single";
 
@@ -164,7 +165,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!res.ok) return showToast(set, res.error ?? "거래 실패", "bad");
     playSfx(side === "buy" ? "buy" : "sell");
     persist(game);
-    set({ game: { ...game }, toast: { text: side === "buy" ? "매수 완료" : "매도 완료", tone: "good" } });
+    let text = side === "buy" ? "매수 완료" : "매도 완료";
+    if (side === "sell" && res.realized != null) {
+      const sign = res.realized >= 0 ? "+" : "−";
+      text = `매도 완료 · 실현 ${sign}${formatMoney(Math.abs(res.realized))}`;
+    }
+    set({ game: { ...game }, toast: { text, tone: "good" } });
   },
 
   tradeAsset: (assetClass, units, side) => {

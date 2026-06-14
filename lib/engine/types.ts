@@ -175,6 +175,8 @@ export interface AssetMarketItem {
 
 export interface Portfolio {
   stocks: Record<string, number>; // companyId -> shares held
+  /** companyId -> total acquisition cost (cost basis) for average-price display. */
+  stockCost?: Record<string, number>;
   assets: Partial<Record<AssetClass, number>>; // assetClass -> units held
 }
 

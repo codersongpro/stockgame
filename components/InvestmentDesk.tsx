@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGameStore } from "@/store/gameStore";
+import { avgCost } from "@/lib/engine";
 import type { AssetClass, Company, GameState } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { formatMoney, formatNum, changePct, formatPct } from "@/lib/format";
@@ -75,6 +76,12 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
 
       {tab === "stocks" ? (
         <div className="space-y-2">
+          <HoldingsPanel
+            game={game}
+            company={company}
+            companyById={companyById}
+            onPick={(id) => setSel({ kind: "stock", id })}
+          />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -212,6 +219,7 @@ function TradePanel({
   const held = isStock
     ? company.portfolio.stocks[sel.id] ?? 0
     : company.portfolio.assets[sel.id] ?? 0;
+  const stockAvg = isStock ? avgCost(company, sel.id) : 0;
   const cost = price * qty;
 
   return (
@@ -231,8 +239,14 @@ function TradePanel({
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-500">보유</span>
-          <span className="font-semibold text-slate-700">{formatNum(held)}</span>
+          <span className="font-semibold text-slate-700">{formatNum(held)}{isStock ? "주" : ""}</span>
         </div>
+        {isStock && held > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500">평단가</span>
+            <span className="font-semibold text-slate-700">{formatNum(Math.round(stockAvg))}</span>
+          </div>
+        )}
 
         <div className="mt-4 flex items-center gap-2">
           <button className="btn-ghost" onClick={() => setQty(Math.max(1, qty - 10))}>-10</button>
@@ -243,15 +257,114 @@ function TradePanel({
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-bold text-slate-800"
           />
           <button className="btn-ghost" onClick={() => setQty(qty + 10)}>+10</button>
+          {held > 0 && (
+            <button className="btn-ghost whitespace-nowrap" onClick={() => setQty(held)}>전량</button>
+          )}
         </div>
         <div className="mt-2 text-center text-sm text-slate-500">
-          예상 금액 <b className="text-slate-800">{formatMoney(cost)}</b>
+          {qty}{isStock ? "주" : "개"} 예상 금액 <b className="text-slate-800">{formatMoney(cost)}</b>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button className="btn-bull" onClick={() => onTrade("buy")}>매수</button>
-          <button className="btn-bear" onClick={() => onTrade("sell")} disabled={held <= 0}>매도</button>
+          <button
+            className="btn-bear"
+            onClick={() => onTrade("sell")}
+            disabled={held <= 0}
+          >
+            매도{isStock && held > 0 ? ` (${formatNum(Math.min(qty, held))}주)` : ""}
+          </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function HoldingsPanel({
+  game,
+  company,
+  companyById,
+  onPick,
+}: {
+  game: GameState;
+  company: Company;
+  companyById: Map<string, Company>;
+  onPick: (id: string) => void;
+}) {
+  const holdings = Object.entries(company.portfolio.stocks)
+    .filter(([, sh]) => sh > 0)
+    .map(([id, shares]) => {
+      const stock = game.stocks[id];
+      const c = companyById.get(id);
+      const price = stock?.price ?? 0;
+      const avg = avgCost(company, id);
+      const value = price * shares;
+      const pl = (price - avg) * shares;
+      const plPct = avg > 0 ? ((price - avg) / avg) * 100 : 0;
+      return {
+        id,
+        name: c?.name ?? stock?.name ?? id,
+        logoColor: c?.logoColor ?? stock?.logoColor ?? "#64748b",
+        industryId: c?.industryId ?? stock?.industryId ?? "tech",
+        shares, price, avg, value, pl, plPct,
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  if (holdings.length === 0) {
+    return (
+      <div className="card p-4 text-center text-sm text-slate-400">
+        아직 보유한 주식이 없습니다. 아래 목록에서 종목을 골라 매수해 보세요.
+      </div>
+    );
+  }
+
+  const totalValue = holdings.reduce((s, h) => s + h.value, 0);
+  const totalPl = holdings.reduce((s, h) => s + h.pl, 0);
+  const totalCost = totalValue - totalPl;
+  const totalPlPct = totalCost > 0 ? (totalPl / totalCost) * 100 : 0;
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5">
+        <h3 className="text-sm font-bold text-slate-800">📦 내 보유 주식</h3>
+        <div className="text-right text-xs">
+          <div className="font-bold text-slate-800">평가 {formatMoney(totalValue)}</div>
+          <div className={`font-semibold ${totalPl >= 0 ? "text-bull" : "text-bear"}`}>
+            {totalPl >= 0 ? "▲" : "▼"} {formatMoney(Math.abs(totalPl))} ({formatPct(totalPlPct)})
+          </div>
+        </div>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {holdings.map((h) => {
+          const ind = getIndustry(h.industryId);
+          return (
+            <button
+              key={h.id}
+              onClick={() => onPick(h.id)}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50"
+            >
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-sm"
+                style={{ background: h.logoColor + "22", color: h.logoColor }}
+              >
+                {ind.emoji}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-slate-800">{h.name}</div>
+                <div className="text-[11px] text-slate-500">
+                  {formatNum(h.shares)}주 · 평단 {formatNum(Math.round(h.avg))} → 현재 {formatNum(h.price)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold text-slate-800">{formatMoney(h.value)}</div>
+                <div className={`text-[11px] font-semibold ${h.pl >= 0 ? "text-bull" : "text-bear"}`}>
+                  {h.pl >= 0 ? "+" : "−"}{formatMoney(Math.abs(h.pl))} ({formatPct(h.plPct)})
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

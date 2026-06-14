@@ -14,6 +14,16 @@ import { autoAssignRole } from "./characters";
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /** Realized profit/loss on a stock sale (current proceeds − cost basis). */
+  realized?: number;
+}
+
+/** Average purchase price per share for a held stock (0 if none / unknown). */
+export function avgCost(company: Company, targetCompanyId: string): number {
+  const shares = company.portfolio.stocks[targetCompanyId] ?? 0;
+  if (shares <= 0) return 0;
+  const basis = company.portfolio.stockCost?.[targetCompanyId] ?? 0;
+  return basis / shares;
 }
 
 let buildingCounter = 0;
@@ -122,6 +132,10 @@ export function buyStock(
   company.cash -= cost;
   company.portfolio.stocks[targetCompanyId] =
     (company.portfolio.stocks[targetCompanyId] ?? 0) + shares;
+  // Track cost basis for average-price / realized-P&L display.
+  if (!company.portfolio.stockCost) company.portfolio.stockCost = {};
+  company.portfolio.stockCost[targetCompanyId] =
+    (company.portfolio.stockCost[targetCompanyId] ?? 0) + cost;
   return { ok: true };
 }
 
@@ -132,14 +146,26 @@ export function sellStock(
   shares: number,
 ): ActionResult {
   const held = company.portfolio.stocks[targetCompanyId] ?? 0;
-  if (shares <= 0 || shares > held) return { ok: false, error: "보유 수량이 부족합니다." };
+  if (shares <= 0 || held <= 0) return { ok: false, error: "보유 수량이 부족합니다." };
+  const sellShares = Math.min(shares, held); // never sell more than held
   const stock = state.stocks[targetCompanyId];
   if (!stock) return { ok: false, error: "종목을 찾을 수 없습니다." };
-  company.cash += stock.price * shares;
-  const remaining = held - shares;
-  if (remaining > 0) company.portfolio.stocks[targetCompanyId] = remaining;
-  else delete company.portfolio.stocks[targetCompanyId];
-  return { ok: true };
+
+  const proceeds = stock.price * sellShares;
+  const basis = company.portfolio.stockCost?.[targetCompanyId] ?? 0;
+  const costOfSold = held > 0 ? basis * (sellShares / held) : 0;
+  const realized = proceeds - costOfSold;
+
+  company.cash += proceeds;
+  const remaining = held - sellShares;
+  if (remaining > 0) {
+    company.portfolio.stocks[targetCompanyId] = remaining;
+    if (company.portfolio.stockCost) company.portfolio.stockCost[targetCompanyId] = basis - costOfSold;
+  } else {
+    delete company.portfolio.stocks[targetCompanyId];
+    if (company.portfolio.stockCost) delete company.portfolio.stockCost[targetCompanyId];
+  }
+  return { ok: true, realized };
 }
 
 export function buyAsset(
