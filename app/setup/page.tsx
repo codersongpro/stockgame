@@ -6,9 +6,12 @@ import { INDUSTRIES } from "@/lib/data/industries";
 import { COUNTRIES } from "@/lib/data/countries";
 import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
 import { STORY } from "@/lib/data/story";
+import { LEVEL_CONFIGS } from "@/lib/engine";
 import type { Level } from "@/lib/engine";
 import { useGameStore } from "@/store/gameStore";
 import { playSfx } from "@/lib/audio";
+import { formatMoney } from "@/lib/format";
+import { getIndustry } from "@/lib/data/industries";
 
 const COLORS = ["#6366f1", "#ef4444", "#16a34a", "#f59e0b", "#0ea5e9", "#db2777", "#7c3aed", "#0d9488"];
 
@@ -96,10 +99,72 @@ function SetupInner() {
   }
 
   // --- Form phase ---
+  const levelCfg = LEVEL_CONFIGS[level];
+  const levelEmoji: Record<Level, string> = { elementary: "🧒", middle: "🧑‍🎓", university: "🎓" };
+
+  // Top competitors sorted by scale for rank preview (show top 5)
+  const rankPreview = useMemo(
+    () => [...COMPANY_PRESETS].sort((a, b) => b.scale - a.scale).slice(0, 5),
+    [],
+  );
+
   return (
     <Shell>
       <div className="mx-auto max-w-3xl space-y-5">
         <h2 className="text-center text-2xl font-black text-white">회사를 설정하세요</h2>
+
+        {/* Difficulty + ranking banner */}
+        <div className="overflow-hidden rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/50">
+          {/* Difficulty row */}
+          <div className="flex items-center gap-3 border-b border-slate-700/50 px-4 py-3">
+            <span className="text-2xl">{levelEmoji[level]}</span>
+            <div className="flex-1">
+              <div className="text-sm font-bold text-white">{levelCfg.label} 난이도</div>
+              <div className="text-[11px] text-slate-400">{levelCfg.description}</div>
+            </div>
+            <div className="flex gap-3 text-right text-[11px]">
+              <div>
+                <div className="text-slate-500">시작 자금</div>
+                <div className="font-mono font-bold text-slate-200">{formatMoney(levelCfg.startingCash)}</div>
+              </div>
+              <div>
+                <div className="text-slate-500">경쟁사</div>
+                <div className="font-mono font-bold text-slate-200">{levelCfg.aiCount}개</div>
+              </div>
+              <div>
+                <div className="text-slate-500">캠퍼스</div>
+                <div className="font-mono font-bold text-slate-200">{levelCfg.mapSize}×{levelCfg.mapSize}</div>
+              </div>
+            </div>
+          </div>
+          {/* Rank preview */}
+          <div className="px-4 py-2">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">예상 경쟁사 순위 (규모 기준)</div>
+            <div className="flex items-end gap-2">
+              {rankPreview.map((p, i) => {
+                const ind = getIndustry(p.industryId);
+                const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+                return (
+                  <div key={p.id} className="flex flex-1 flex-col items-center gap-1 py-1">
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
+                      style={{ background: p.logoColor + "22" }}
+                    >
+                      {ind.emoji}
+                    </span>
+                    <span className="text-[9px] font-semibold text-slate-400 text-center leading-tight truncate w-full text-center">{p.name}</span>
+                    <span className="text-[11px]">{medal}</span>
+                  </div>
+                );
+              })}
+              <div className="flex flex-col items-center gap-1 py-1 opacity-40">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-700 text-lg">👤</span>
+                <span className="text-[9px] text-slate-500">내 회사</span>
+                <span className="text-[10px] text-slate-500">?위</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="card p-5">
           <label className="text-sm font-semibold text-slate-600">회사 이름</label>

@@ -33,7 +33,11 @@ interface Listing {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 
-export function InvestmentDesk({ game, company }: { game: GameState; company: Company }) {
+export function InvestmentDesk() {
+  const storeGame = useGameStore((s) => s.game);
+  const tradeStock = useGameStore((s) => s.tradeStock);
+  const tradeAsset = useGameStore((s) => s.tradeAsset);
+
   const [tab, setTab] = useState<"stocks" | "assets">("stocks");
   const [sel, setSel] = useState<Selection>(null);
   const [qty, setQty] = useState(10);
@@ -41,8 +45,10 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
   const [scope, setScope] = useState<"all" | "held" | "rivals">("all");
   const [sortBy, setSortBy] = useState<SortKey>("cap");
   const [sortAsc, setSortAsc] = useState(false);
-  const tradeStock = useGameStore((s) => s.tradeStock);
-  const tradeAsset = useGameStore((s) => s.tradeAsset);
+
+  if (!storeGame) return null;
+  const game = storeGame;
+  const company = game.companies.find((c) => c.id === game.playerCompanyId)!;
 
   const companyById = new Map(game.companies.map((c) => [c.id, c]));
   const pv = portfolioValue(company, game);

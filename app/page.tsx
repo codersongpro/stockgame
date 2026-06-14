@@ -6,12 +6,21 @@ import { LEVEL_CONFIGS } from "@/lib/engine";
 import type { Level } from "@/lib/engine";
 import { useGameStore } from "@/store/gameStore";
 import { initAudio, playSfx } from "@/lib/audio";
+import { formatMoney } from "@/lib/format";
+import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
+import { getIndustry } from "@/lib/data/industries";
 
 const LEVELS: Level[] = ["elementary", "middle", "university"];
 const LEVEL_EMOJI: Record<Level, string> = {
   elementary: "🧒",
   middle: "🧑‍🎓",
   university: "🎓",
+};
+
+const LEVEL_TAGS: Record<Level, string[]> = {
+  elementary: ["즉시 건설", "낮은 변동성", "쉬운 용어"],
+  middle: ["건설 대기", "인접 보너스", "금리·인플레"],
+  university: ["환율·암호화폐", "복합 이벤트", "완전 개방"],
 };
 
 export default function Home() {
@@ -36,6 +45,11 @@ export default function Home() {
     if (loadSave()) router.push("/play");
   };
 
+  const cfg = LEVEL_CONFIGS[level];
+
+  // Top companies sorted by scale — acts as a ranking preview
+  const topCompanies = [...COMPANY_PRESETS].sort((a, b) => b.scale - a.scale).slice(0, 8);
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-4 py-12">
@@ -54,7 +68,7 @@ export default function Home() {
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
             {LEVELS.map((lv) => {
-              const cfg = LEVEL_CONFIGS[lv];
+              const c = LEVEL_CONFIGS[lv];
               const active = level === lv;
               return (
                 <button
@@ -69,10 +83,18 @@ export default function Home() {
                       : "bg-slate-800/60 ring-transparent hover:bg-slate-800"
                   }`}
                 >
-                  <div className="text-3xl">{LEVEL_EMOJI[lv]}</div>
-                  <div className="mt-2 text-lg font-bold">{cfg.label}</div>
-                  <div className="mt-1 text-xs leading-relaxed text-slate-300">
-                    {cfg.description}
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl">{LEVEL_EMOJI[lv]}</span>
+                    {active && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">선택됨</span>}
+                  </div>
+                  <div className="mt-2 text-lg font-bold">{c.label}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-slate-300">{c.description}</div>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {LEVEL_TAGS[lv].map((tag) => (
+                      <span key={tag} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${active ? "bg-white/15 text-white" : "bg-slate-700 text-slate-400"}`}>
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 </button>
               );
@@ -80,8 +102,77 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Selected level details */}
+        <section className="mt-4 w-full rounded-2xl bg-slate-800/50 p-5 ring-1 ring-slate-700/50">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-xl">{LEVEL_EMOJI[level]}</span>
+            <span className="font-bold text-slate-200">{cfg.label} 난이도 상세</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCell icon="💰" label="시작 자금" value={formatMoney(cfg.startingCash)} />
+            <StatCell icon="🏢" label="경쟁사 수" value={`${cfg.aiCount}개사`} />
+            <StatCell icon="🗺️" label="캠퍼스 크기" value={`${cfg.mapSize}×${cfg.mapSize}`} />
+            <StatCell icon="📊" label="시장 변동성" value={cfg.volatility === 0.5 ? "낮음" : cfg.volatility === 1.0 ? "보통" : "높음"} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="text-[11px] text-slate-500">투자 가능 자산:</span>
+            {cfg.enabledAssets.map(a => (
+              <span key={a} className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-400">{a}</span>
+            ))}
+          </div>
+        </section>
+
+        {/* Competitor ranking preview */}
+        <section className="mt-4 w-full">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            예상 경쟁사 순위 (규모 기준)
+          </h2>
+          <div className="overflow-hidden rounded-2xl bg-slate-800/50 ring-1 ring-slate-700/50">
+            {topCompanies.map((p, i) => {
+              const ind = getIndustry(p.industryId);
+              const medalEmoji = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 px-4 py-2.5"
+                  style={{ borderBottom: i < topCompanies.length - 1 ? "1px solid rgba(148,163,184,0.07)" : undefined }}
+                >
+                  <span className="w-6 text-center text-sm font-bold text-slate-600">
+                    {medalEmoji ?? `${i + 1}`}
+                  </span>
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base"
+                    style={{ background: p.logoColor + "25" }}
+                  >
+                    {ind.emoji}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-slate-200">{p.name}</div>
+                    <div className="text-[10px] text-slate-500">{ind.name} · {p.blurb}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.round(p.scale * 2.5) }).map((_, j) => (
+                      <span
+                        key={j}
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: j < Math.round((p.scale - 1) * 5) ? p.logoColor : "rgba(148,163,184,0.15)" }}
+                      />
+                    ))}
+                    <span className="ml-1.5 text-[10px] font-mono text-slate-500">
+                      {p.scale >= 1.6 ? "초대형" : p.scale >= 1.4 ? "대형" : p.scale >= 1.2 ? "중형" : "소형"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="px-4 py-2.5 text-[11px] text-slate-600">
+              ⚡ 실제 게임에서는 선택한 난이도에 따라 {cfg.aiCount}개 기업이 참가합니다
+            </div>
+          </div>
+        </section>
+
         {/* Actions */}
-        <section className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+        <section className="mt-8 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
           <button onClick={startNew} className="btn-primary px-8 py-4 text-lg">
             🚀 새 게임 시작
           </button>
@@ -94,7 +185,7 @@ export default function Home() {
           </button>
         </section>
 
-        <section className="mt-8 grid w-full gap-3 sm:grid-cols-2">
+        <section className="mt-6 grid w-full gap-3 sm:grid-cols-2">
           <ModeCard
             emoji="🎮"
             title="싱글플레이"
@@ -113,6 +204,16 @@ export default function Home() {
         </footer>
       </div>
     </main>
+  );
+}
+
+function StatCell({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-slate-700/40 px-3 py-2.5">
+      <div className="text-sm">{icon}</div>
+      <div className="mt-1 text-[10px] text-slate-500">{label}</div>
+      <div className="text-sm font-bold text-slate-200">{value}</div>
+    </div>
   );
 }
 

@@ -189,7 +189,7 @@ export default function PlayPage() {
               <CompanyPanel game={game} company={player} />
             </div>
           )}
-          {tab === "invest" && <InvestmentDesk game={game} company={player} />}
+          {tab === "invest" && <InvestmentDesk />}
           {tab === "talent" && <TalentMarket game={game} company={player} />}
           {tab === "news" && <NewsFeed game={game} />}
           {tab === "rank" && <Leaderboard game={game} onVisit={goVisit} />}
