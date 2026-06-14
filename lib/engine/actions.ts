@@ -108,21 +108,49 @@ export function sellBuilding(
 interface CompanyActionDef {
   label: string;
   cost: number;
+  cat?: string;
+  desc?: string;
   apply: (company: Company) => void;
 }
 const clamp01 = (v: number) => Math.max(0, Math.min(100, v));
 export const COMPANY_ACTIONS: Record<string, CompanyActionDef> = {
-  inspect: { label: "라인 점검", cost: 40_000, apply: (c) => { c.safety = clamp01(c.safety + 7); } },
-  research: { label: "집중 연구", cost: 60_000, apply: (c) => { c.quality = clamp01(c.quality + 5); } },
-  promo: { label: "프로모션", cost: 50_000, apply: (c) => { c.reputation = clamp01(c.reputation + 5); } },
-  training: { label: "직원 교육", cost: 50_000, apply: (c) => { c.morale = clamp01(c.morale + 5); c.quality = clamp01(c.quality + 2); } },
+  // Legacy actions (kept for backward compat with BuildingInteriorModal)
+  inspect: { label: "라인 점검", cost: 40_000, cat: "safety", apply: (c) => { c.safety = clamp01(c.safety + 7); } },
+  research: { label: "집중 연구", cost: 60_000, cat: "rnd", apply: (c) => { c.quality = clamp01(c.quality + 5); } },
+  promo: { label: "프로모션", cost: 50_000, cat: "marketing", apply: (c) => { c.reputation = clamp01(c.reputation + 5); } },
+  training: { label: "직원 교육", cost: 50_000, cat: "welfare", apply: (c) => { c.morale = clamp01(c.morale + 5); c.quality = clamp01(c.quality + 2); } },
   welfare: {
-    label: "복지 강화", cost: 40_000,
+    label: "복지 강화", cost: 40_000, cat: "welfare",
     apply: (c) => {
       c.morale = clamp01(c.morale + 6);
       for (const h of c.hired) h.loyalty = Math.min(100, (h.loyalty ?? 70) + 6);
     },
   },
+
+  // Marketing category
+  mkt_basic:     { label: "기본 마케팅",      cost: 30_000,  cat: "marketing", desc: "소규모 마케팅 활동으로 브랜드 인지도가 소폭 상승했습니다.",           apply: (c) => { c.reputation = Math.min(100, c.reputation + 2); } },
+  mkt_active:    { label: "적극 마케팅",      cost: 80_000,  cat: "marketing", desc: "적극적인 마케팅 캠페인으로 브랜드 평판이 올랐습니다.",                apply: (c) => { c.reputation = Math.min(100, c.reputation + 5); } },
+  mkt_intensive: { label: "집중 캠페인",      cost: 150_000, cat: "marketing", desc: "집중 캠페인 실시로 소비자 인지도가 크게 향상됐습니다.",               apply: (c) => { c.reputation = Math.min(100, c.reputation + 10); } },
+  mkt_event:     { label: "특별 이벤트 행사", cost: 50_000,  cat: "marketing", desc: "특별 프로모션 이벤트로 화제를 모았습니다. 고객 반응 긍정적!",        apply: (c) => { c.reputation = Math.min(100, c.reputation + 8); } },
+
+  // R&D category
+  rnd_basic:  { label: "기초 연구", cost: 30_000,  cat: "rnd", desc: "기초 연구에 투자해 제품 품질이 개선되었습니다.",              apply: (c) => { c.quality = Math.min(100, c.quality + 3); } },
+  rnd_active: { label: "기술 개발", cost: 80_000,  cat: "rnd", desc: "기술 개발 프로젝트로 제품 경쟁력이 향상됐습니다.",           apply: (c) => { c.quality = Math.min(100, c.quality + 7); } },
+  rnd_patent: { label: "특허 출원", cost: 100_000, cat: "rnd", desc: "신기술 특허 출원! 기술 혁신 기업으로 주목받고 있습니다.", apply: (c) => { c.quality = Math.min(100, c.quality + 12); } },
+
+  // Welfare category
+  wlf_dinner:   { label: "직원 회식",       cost: 20_000, cat: "welfare", desc: "직원 회식으로 팀워크와 직원 사기가 올랐습니다!",               apply: (c) => { c.morale = Math.min(100, c.morale + 8); } },
+  wlf_training: { label: "사내 교육",       cost: 40_000, cat: "welfare", desc: "사내 교육 프로그램으로 직원 역량이 향상됐습니다.",             apply: (c) => { c.morale = Math.min(100, c.morale + 5); c.quality = Math.min(100, c.quality + 2); } },
+  wlf_workshop: { label: "워크숍/워케이션", cost: 60_000, cat: "welfare", desc: "워크숍을 통해 직원 만족도와 창의성이 높아졌습니다.",           apply: (c) => { c.morale = Math.min(100, c.morale + 12); } },
+
+  // Safety category
+  sft_inspect:  { label: "안전 점검",      cost: 15_000, cat: "safety", desc: "안전 점검 완료. 위험 요소를 사전에 제거했습니다.",             apply: (c) => { c.safety = Math.min(100, c.safety + 8); } },
+  sft_training: { label: "안전 교육 훈련", cost: 30_000, cat: "safety", desc: "안전 교육 훈련으로 임직원 안전 의식이 제고됐습니다.",         apply: (c) => { c.safety = Math.min(100, c.safety + 15); } },
+
+  // Extra management actions
+  csr:         { label: "ESG/CSR 활동", cost: 50_000, cat: "extra", desc: "ESG 경영 실천으로 기업 이미지와 사회적 평판이 상승했습니다.", apply: (c) => { c.reputation = Math.min(100, c.reputation + 10); } },
+  consulting:  { label: "외부 컨설팅",  cost: 80_000, cat: "extra", desc: "외부 컨설턴트 자문으로 경영 효율성이 개선됐습니다.",        apply: (c) => { c.quality = Math.min(100, c.quality + 5); c.reputation = Math.min(100, c.reputation + 3); } },
+  pr_campaign: { label: "언론 홍보",    cost: 40_000, cat: "extra", desc: "언론 홍보 활동으로 회사의 긍정적 이미지가 확산됐습니다.",   apply: (c) => { c.reputation = Math.min(100, c.reputation + 6); } },
 };
 
 /** Player-initiated cooperation with another company (from the visit screen). */
@@ -196,8 +224,18 @@ export function proposeDeal(
   return { ok: true, message: "협력이 성사되었습니다!" };
 }
 
+function getCatEmoji(cat?: string): string {
+  if (cat === "marketing") return "📣";
+  if (cat === "rnd") return "🔬";
+  if (cat === "welfare") return "😊";
+  if (cat === "safety") return "🦺";
+  return "📋";
+}
+
+let actionNewsCounter = 0;
+
 export function applyCompanyAction(
-  _state: GameState,
+  state: GameState,
   company: Company,
   actionId: string,
 ): ActionResult {
@@ -206,7 +244,22 @@ export function applyCompanyAction(
   if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
   company.cash -= def.cost;
   def.apply(company);
-  return { ok: true };
+
+  // Push news item for the action
+  if (def.desc) {
+    state.news.push({
+      id: `action-${state.turn}-${company.id}-${actionId}-${actionNewsCounter++}`,
+      turn: state.turn,
+      layer: "intercompany",
+      tone: "positive",
+      emoji: getCatEmoji(def.cat),
+      title: `${company.name} — ${def.label}`,
+      body: def.desc,
+      tags: [company.id, company.industryId ?? ""],
+    });
+  }
+
+  return { ok: true, message: `${def.label} 완료!` };
 }
 
 export function upgradeBuilding(

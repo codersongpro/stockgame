@@ -31,8 +31,8 @@ export function defaultDecisions(industry: IndustryDef): CompanyDecisions {
   return {
     price: industry.basePrice,
     productionTarget: industry.baseDemand,
-    marketingBudget: 15_000,
-    rndBudget: 15_000,
+    marketingBudget: 0,
+    rndBudget: 0,
     welfareBudget: 0,
     safetyBudget: 0,
   };

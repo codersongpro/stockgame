@@ -15,8 +15,63 @@ import { Bar } from "./Sparkline";
 import { Term } from "./Term";
 import { MGMT_ICONS, BUILDING_IMG } from "@/lib/assetMap";
 
+// Management action definitions for button-based UI
+const ACTION_SECTIONS = [
+  {
+    key: "marketing",
+    label: "마케팅",
+    icon: MGMT_ICONS.marketing,
+    actions: [
+      { id: "mkt_basic",     label: "기본 마케팅",     cost: 30_000 },
+      { id: "mkt_active",    label: "적극 마케팅",     cost: 80_000 },
+      { id: "mkt_intensive", label: "집중 캠페인",     cost: 150_000 },
+      { id: "mkt_event",     label: "특별 이벤트",     cost: 50_000 },
+    ],
+  },
+  {
+    key: "rnd",
+    label: "연구개발",
+    icon: MGMT_ICONS.rnd,
+    actions: [
+      { id: "rnd_basic",  label: "기초 연구", cost: 30_000 },
+      { id: "rnd_active", label: "기술 개발", cost: 80_000 },
+      { id: "rnd_patent", label: "특허 출원", cost: 100_000 },
+    ],
+  },
+  {
+    key: "welfare",
+    label: "직원 복지",
+    icon: MGMT_ICONS.welfare,
+    actions: [
+      { id: "wlf_dinner",   label: "직원 회식", cost: 20_000 },
+      { id: "wlf_training", label: "사내 교육", cost: 40_000 },
+      { id: "wlf_workshop", label: "워크숍",    cost: 60_000 },
+    ],
+  },
+  {
+    key: "safety",
+    label: "안전 관리",
+    icon: MGMT_ICONS.safety,
+    actions: [
+      { id: "sft_inspect",  label: "안전 점검", cost: 15_000 },
+      { id: "sft_training", label: "안전 교육", cost: 30_000 },
+    ],
+  },
+  {
+    key: "extra",
+    label: "기타 경영",
+    icon: undefined as string | undefined,
+    actions: [
+      { id: "csr",         label: "ESG활동",    cost: 50_000 },
+      { id: "consulting",  label: "외부컨설팅", cost: 80_000 },
+      { id: "pr_campaign", label: "언론홍보",   cost: 40_000 },
+    ],
+  },
+] as const;
+
 export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
   const setDecisions = useGameStore((s) => s.setDecisions);
+  const companyAction = useGameStore((s) => s.companyAction);
   const loan = useGameStore((s) => s.loan);
   const [loanAmt, setLoanAmt] = useState(0);
 
@@ -59,46 +114,41 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           format={(v) => `${formatNum(v)}개`}
           onChange={(v) => setDecisions({ productionTarget: v })}
         />
-        <Slider
-          icon={MGMT_ICONS.marketing}
-          label={<><Term term="마케팅" /> 예산</>}
-          value={d.marketingBudget}
-          min={0}
-          max={200000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ marketingBudget: v })}
-        />
-        <Slider
-          icon={MGMT_ICONS.rnd}
-          label={<><Term term="R&D" /> 예산</>}
-          value={d.rndBudget}
-          min={0}
-          max={200000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ rndBudget: v })}
-        />
-        <Slider
-          icon={MGMT_ICONS.welfare}
-          label={<><Term term="사기">복지</Term> 예산</>}
-          value={d.welfareBudget ?? 0}
-          min={0}
-          max={150000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ welfareBudget: v })}
-        />
-        <Slider
-          icon={MGMT_ICONS.safety}
-          label={<><Term term="안전">안전</Term> 예산</>}
-          value={d.safetyBudget ?? 0}
-          min={0}
-          max={150000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ safetyBudget: v })}
-        />
+
+        {/* Management action buttons */}
+        <div className="mt-4 space-y-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">경영 활동</div>
+          {ACTION_SECTIONS.map((section) => (
+            <div key={section.key}>
+              <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+                {section.icon && <img src={section.icon} alt="" className="h-4 w-4 object-contain" />}
+                {section.label}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {section.actions.map((action) => {
+                  const canAfford = company.cash >= action.cost;
+                  return (
+                    <button
+                      key={action.id}
+                      disabled={!canAfford}
+                      onClick={() => companyAction(action.id)}
+                      className={`rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${
+                        canAfford
+                          ? "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 active:bg-brand-200"
+                          : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                      }`}
+                    >
+                      <div className="font-semibold leading-tight">{action.label}</div>
+                      <div className={`mt-0.5 text-[10px] ${canAfford ? "text-brand-500" : "text-slate-400"}`}>
+                        {formatMoney(action.cost)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
           <Info label="생산 능력" value={`${formatNum(capacity)}개`} />
