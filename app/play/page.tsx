@@ -181,7 +181,7 @@ export default function PlayPage() {
         <div className="min-w-0">
           {tab === "home" && <Dashboard game={game} />}
           {tab === "company" && (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
               <div className="card p-4">
                 <h3 className="mb-3 text-base font-bold text-slate-800">🏙️ 우리 회사 캠퍼스</h3>
                 <CompanyCity game={game} company={player} />

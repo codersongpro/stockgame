@@ -5,6 +5,7 @@ import {
   playerRank,
   portfolioValue,
   fundamentalValue,
+  stockMetrics,
   type GameState,
 } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
@@ -82,11 +83,14 @@ function OurStock({ game }: { game: GameState }) {
   if (!stock) return null;
   const ch = changePct(stock.price, stock.history[stock.history.length - 2] ?? stock.price);
   const cap = stock.price * stock.sharesOutstanding;
-  const per = p.lastProfit > 0 ? cap / (p.lastProfit * 4) : null;
+  const m = stockMetrics(stock, p);
   return (
     <div className="card p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800">📈 우리 회사 <Term term="주가" /></h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
+          <img src="/assets/icons/stock.png" alt="" className="h-5 w-5 object-contain" />
+          우리 회사 <Term term="주가" />
+        </h3>
         <div className="text-right">
           <div className="text-lg font-black text-slate-800">{formatNum(stock.price)}</div>
           <div className={`text-xs font-bold ${ch >= 0 ? "text-bull" : "text-bear"}`}>{formatPct(ch)}</div>
@@ -100,7 +104,15 @@ function OurStock({ game }: { game: GameState }) {
         </div>
         <div className="rounded-lg bg-slate-50 p-2">
           <div className="text-slate-500"><Term term="PER" /></div>
-          <div className="font-bold text-slate-800">{per != null ? per.toFixed(1) : "—"}</div>
+          <div className="font-bold text-slate-800">{m.per != null ? m.per.toFixed(1) : "—"}</div>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-2">
+          <div className="text-slate-500"><Term term="PBR" /></div>
+          <div className="font-bold text-slate-800">{m.pbr != null ? m.pbr.toFixed(2) : "—"}</div>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-2">
+          <div className="text-slate-500"><Term term="ROE" /></div>
+          <div className="font-bold text-slate-800">{m.roe != null ? m.roe.toFixed(1) + "%" : "—"}</div>
         </div>
       </div>
     </div>

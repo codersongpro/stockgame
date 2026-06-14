@@ -11,6 +11,7 @@ import { formatMoney } from "@/lib/format";
 import { pickCityVoice } from "@/lib/data/cityVoices";
 import { getIndustry } from "@/lib/data/industries";
 import { BuildingInteriorModal } from "./BuildingInteriorModal";
+import { BUILDING_IMG } from "@/lib/assetMap";
 
 /* ── palette ─────────────────────────────────────────────────────────────── */
 // [body, roof, accent]
@@ -49,13 +50,16 @@ function blend(a: string, b: string, t: number): string {
 
 /* ── low-poly building ───────────────────────────────────────────────────── */
 function Building3D({
-  building, selected, tint,
-}: { building: PlacedBuilding; selected: boolean; tint?: string }) {
+  building, selected, tint, seed = 0,
+}: { building: PlacedBuilding; selected: boolean; tint?: string; seed?: number }) {
   const base = COLORS[building.type];
   // Brand-tint each company's buildings toward its logo color so campuses differ.
-  const body = tint ? blend(base[0], tint, 0.24) : base[0];
-  const roof = tint ? blend(base[1], tint, 0.14) : base[1];
-  const accent = base[2];
+  // A per-company seed jitters the blend strength so two companies with the same
+  // building type still look a little different.
+  const jitter = ((seed % 5) - 2) * 0.03; // -0.06 .. +0.06
+  const body = tint ? blend(base[0], tint, 0.24 + jitter) : base[0];
+  const roof = tint ? blend(base[1], tint, 0.14 + jitter * 0.5) : base[1];
+  const accent = tint ? blend(base[2], tint, 0.1 + Math.abs(jitter)) : base[2];
   const lvl = building.level;
   const underConstruction = building.turnsLeft > 0;
 
@@ -600,7 +604,7 @@ function Person({
   return (
     <group ref={ref}>
       <group onClick={(e) => { e.stopPropagation(); onClick(); }}>
-        <PersonModel kind={kind} seed={index} walking={act === "walk"} gait={a.phase * 6 + index} />
+        <PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />
       </group>
       {speaking && (
         <Html position={[0, 0.5, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
@@ -686,10 +690,11 @@ interface AgentPath {
   color: string; dur: number; phase: number; heading: number;
   kind?: PersonKind;
   activity?: Activity;
+  seed?: number;
   at: (t: number) => { x: number; z: number };
 }
 
-function buildPaths(n: number, childBias = false) {
+function buildPaths(n: number, childBias = false, companySeed = 0) {
   const half = (n * TILE) / 2;
   const CARS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4"];
   const ring = half + 0.45; // outer ring road radius (square)
@@ -722,11 +727,13 @@ function buildPaths(n: number, childBias = false) {
   for (let i = 0; i < pedCount; i++) {
     const horiz = i % 2 === 0;
     const lane = ((i % (n - 1)) - (n - 1) / 2) * (TILE * 0.78);
-    const kind = kindCycle[i % kindCycle.length];
-    const activity = actCycle[i % actCycle.length];
+    // Offset the cycles by the company seed so each campus has a different crowd mix.
+    const kind = kindCycle[(i + companySeed) % kindCycle.length];
+    const activity = actCycle[(i + companySeed) % actCycle.length];
     people.push({
       // strolling pace (ping-pong handled in <Person>)
       color: "#000000", dur: 18 + (i % 5) * 3, phase: (i * 0.5) % 2, heading: 0, kind, activity,
+      seed: companySeed * 7 + i * 13,
       at: (t) => horiz
         ? { x: -inner + 2 * inner * t, z: lane }
         : { x: lane, z: -inner + 2 * inner * t },
@@ -747,6 +754,8 @@ function Scene({
   const n = game.config.mapSize;
   const half = (n * TILE) / 2;
   const grass = PHASE_GRASS[game.macro.phase] ?? PHASE_GRASS.normal;
+  // Deterministic per-company seed so each campus's skyline & crowd look distinct.
+  const companySeed = [...company.id].reduce((a, c) => a + c.charCodeAt(0), 0);
   const [hover, setHover] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState<{ i: number; text: string } | null>(null);
 
@@ -756,7 +765,7 @@ function Scene({
   for (const b of company.buildings) grid.set(`${b.x},${b.y}`, b);
 
   const hasDaycare = company.buildings.some((b) => b.type === "daycare" && b.turnsLeft <= 0);
-  const { cars, people } = useMemo(() => buildPaths(n, hasDaycare), [n, hasDaycare]);
+  const { cars, people } = useMemo(() => buildPaths(n, hasDaycare, companySeed), [n, hasDaycare, companySeed]);
 
   const tileWorld = (gx: number, gy: number) => ({
     x: (gx - (n - 1) / 2) * TILE,
@@ -814,10 +823,15 @@ function Scene({
               {b && (
                 <group
                   position={[x, 0, z]}
-                  scale={[1, 0.9 + ((b.x * 7 + b.y * 13) % 5) * 0.06, 1]}
+                  scale={[1, 0.85 + ((b.x * 7 + b.y * 13 + companySeed) % 7) * 0.055, 1]}
                   onClick={(e) => { e.stopPropagation(); onCell(gx, gy); }}
                 >
-                  <Building3D building={b} selected={b.id === selectedBuildingId} tint={company.logoColor} />
+                  <Building3D
+                    building={b}
+                    selected={b.id === selectedBuildingId}
+                    tint={company.logoColor}
+                    seed={companySeed + b.x * 7 + b.y * 13}
+                  />
                 </group>
               )}
             </group>
@@ -883,13 +897,17 @@ export function CompanyMap3D({
   return (
     <div className="space-y-3">
       <div
-        className="overflow-hidden rounded-2xl"
-        style={{ height: overview ? 300 : 520, background: PHASE_BG[game.macro.phase] ?? PHASE_BG.normal }}
+        className="w-full overflow-hidden rounded-2xl"
+        style={{
+          aspectRatio: overview ? "16 / 10" : "16 / 9",
+          maxHeight: overview ? 320 : 560,
+          background: PHASE_BG[game.macro.phase] ?? PHASE_BG.normal,
+        }}
       >
         <Canvas
           shadows
           dpr={[1, 1.8]}
-          camera={{ position: [n * 0.92, n * 1.0, n * 1.12], fov: 34 }}
+          camera={{ position: [n * 1.15, n * 0.95, n * 1.2], fov: 40 }}
         >
           <color attach="background" args={[PHASE_BG[game.macro.phase] ?? PHASE_BG.normal]} />
           <Scene
@@ -931,7 +949,11 @@ export function CompanyMap3D({
                     active ? "bg-brand-50 ring-brand-500" : "bg-white ring-slate-200 hover:ring-slate-300"
                   } ${canAfford ? "" : "opacity-50"}`}
                 >
-                  <span className="text-xl">{d.emoji}</span>
+                  {BUILDING_IMG[d.type] ? (
+                    <img src={BUILDING_IMG[d.type]} alt="" className="h-9 w-9 object-contain" />
+                  ) : (
+                    <span className="text-xl">{d.emoji}</span>
+                  )}
                   <span className="text-[11px] font-semibold text-slate-700">{d.name}</span>
                   <span className="text-[10px] text-slate-500">{formatMoney(cost)}</span>
                 </button>

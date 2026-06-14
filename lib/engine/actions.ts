@@ -256,8 +256,9 @@ export function buyStock(
   const stock = state.stocks[targetCompanyId];
   if (!stock) return { ok: false, error: "종목을 찾을 수 없습니다." };
   const alreadyHeld = company.portfolio.stocks[targetCompanyId] ?? 0;
-  const maxBuyable = stock.sharesOutstanding - alreadyHeld;
-  if (maxBuyable <= 0) return { ok: false, error: "더 이상 매수할 수 없습니다." };
+  const float = stock.sharesOutstanding - (stock.treasury ?? 0); // tradable free float
+  const maxBuyable = float - alreadyHeld;
+  if (maxBuyable <= 0) return { ok: false, error: "유통 물량을 모두 보유 중입니다." };
   const actualShares = Math.min(shares, maxBuyable);
   const cost = stock.price * actualShares;
   if (company.cash < cost) return { ok: false, error: "현금이 부족합니다." };

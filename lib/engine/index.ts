@@ -216,7 +216,7 @@ export function createGame(opts: NewGameOptions): GameState {
 export * from "./types";
 export { advanceTurn } from "./tick";
 export { rankings, netWorth, portfolioValue, playerRank } from "./ranking";
-export { fundamentalValue } from "./market";
+export { fundamentalValue, stockMetrics, TREASURY_RATIO, type StockMetrics } from "./market";
 export { LEVEL_CONFIGS, getLevelConfig } from "./levels";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";

@@ -10,6 +10,42 @@ import { type RngState, nextGaussian, nextRange } from "./rng";
 
 const SHARES = 1_000; // shares outstanding per company (kept uniform)
 
+/** Every company holds the same fraction of its own shares as treasury stock,
+ * so only the remaining "free float" is buyable on the market (no 100% takeover). */
+export const TREASURY_RATIO = 0.3;
+const TREASURY = Math.round(SHARES * TREASURY_RATIO);
+
+/** Per-share metrics for the trading UI. Works for both real (Company-backed)
+ * and synthetic external listings. */
+export interface StockMetrics {
+  per: number | null;
+  pbr: number | null;
+  roe: number | null;
+}
+
+export function stockMetrics(stock: Stock, company?: Company): StockMetrics {
+  const cap = stock.price * stock.sharesOutstanding;
+  if (company) {
+    const book = fundamentalValue(company); // book value / equity proxy
+    const annual = company.lastProfit * 4; // annualised net profit
+    return {
+      per: annual > 0 ? cap / annual : null,
+      pbr: book > 0 ? cap / book : null,
+      roe: book > 0 ? (annual / book) * 100 : null,
+    };
+  }
+  // External listing (no Company): synthesise book from the anchor and earnings
+  // from a stable baseline ROE so the ratios stay plausible.
+  const book = (stock.anchor ?? stock.price) * stock.sharesOutstanding;
+  const r = stock.roeBase ?? 0.1;
+  const annual = book * r;
+  return {
+    per: annual > 0 ? cap / annual : null,
+    pbr: book > 0 ? cap / book : null,
+    roe: r * 100,
+  };
+}
+
 /** Book/enterprise value of a company, independent of its share price. */
 export function fundamentalValue(company: Company): number {
   const buildingsValue = company.buildings
@@ -42,6 +78,7 @@ export function createStocks(companies: Company[]): Record<string, Stock> {
       price: Math.max(5, price),
       history: [Math.max(5, price)],
       sharesOutstanding: SHARES,
+      treasury: TREASURY,
     };
   }
   return out;
@@ -78,12 +115,14 @@ export function createExternalStocks(
       price,
       history: [price],
       sharesOutstanding: SHARES,
+      treasury: TREASURY,
       external: true,
       name: p.name,
       logoColor: p.logoColor,
       industryId: p.industryId,
       countryId: p.countryId,
       anchor: fair,
+      roeBase: nextRange(rng, 0.05, 0.2),
     };
   }
   return out;

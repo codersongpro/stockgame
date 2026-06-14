@@ -11,6 +11,7 @@ import {
   type PlacedBuilding,
 } from "@/lib/engine";
 import { formatMoney, formatNum } from "@/lib/format";
+import { BUILDING_IMG } from "@/lib/assetMap";
 
 /* A simple 2D interior illustration per building type. */
 function Interior({ type }: { type: BuildingType }) {
@@ -137,7 +138,13 @@ export function BuildingInteriorModal({
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
         </div>
 
-        <Interior type={building.type} />
+        {BUILDING_IMG[building.type] ? (
+          <div className="flex items-center justify-center rounded-xl bg-gradient-to-b from-slate-50 to-slate-200 py-2">
+            <img src={BUILDING_IMG[building.type]} alt={def.name} className="h-32 object-contain" />
+          </div>
+        ) : (
+          <Interior type={building.type} />
+        )}
         <p className="mt-2 text-xs text-slate-500">{def.description}</p>
 
         {underConstruction ? (

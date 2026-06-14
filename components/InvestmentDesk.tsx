@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useGameStore } from "@/store/gameStore";
-import { avgCost, portfolioValue } from "@/lib/engine";
+import { avgCost, portfolioValue, stockMetrics } from "@/lib/engine";
 import type { AssetClass, Company, GameState } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { formatMoney, formatNum, changePct } from "@/lib/format";
@@ -16,7 +16,7 @@ type Selection =
   | { kind: "asset"; id: AssetClass }
   | null;
 
-type SortKey = "cap" | "price" | "change" | "per" | "name";
+type SortKey = "cap" | "price" | "change" | "per" | "pbr" | "roe" | "name";
 
 interface Listing {
   id: string;
@@ -29,6 +29,8 @@ interface Listing {
   change: number;
   cap: number;
   per: number | null;
+  pbr: number | null;
+  roe: number | null;
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -58,7 +60,7 @@ export function InvestmentDesk() {
     .map((s) => {
       const c = companyById.get(s.companyId);
       const cap = s.price * s.sharesOutstanding;
-      const annual = c ? c.lastProfit * 4 : 0;
+      const m = stockMetrics(s, c);
       const prev = s.history[s.history.length - 2] ?? s.price;
       return {
         id: s.companyId,
@@ -70,7 +72,9 @@ export function InvestmentDesk() {
         prevPrice: prev,
         change: changePct(s.price, prev),
         cap,
-        per: annual > 0 ? cap / annual : null,
+        per: m.per,
+        pbr: m.pbr,
+        roe: m.roe,
       };
     });
 
@@ -90,6 +94,8 @@ export function InvestmentDesk() {
         case "change": diff = b.change - a.change; break;
         case "name": diff = a.name.localeCompare(b.name, "ko"); break;
         case "per": diff = (a.per ?? Infinity) - (b.per ?? Infinity); break;
+        case "pbr": diff = (a.pbr ?? Infinity) - (b.pbr ?? Infinity); break;
+        case "roe": diff = (b.roe ?? -Infinity) - (a.roe ?? -Infinity); break;
         default: diff = b.cap - a.cap;
       }
       return sortAsc ? -diff : diff;
@@ -199,13 +205,15 @@ export function InvestmentDesk() {
                   <SortTh label="등락률" k="change" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
                   <SortTh label="시가총액" k="cap" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
                   <SortTh label="PER" k="per" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="PBR" k="pbr" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="ROE" k="roe" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
                   <th className="py-2 pr-4 text-right font-medium text-slate-600">차트</th>
                 </tr>
               </thead>
               <tbody>
                 {listings.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-700">
+                    <td colSpan={8} className="py-12 text-center text-slate-700">
                       종목이 없습니다
                     </td>
                   </tr>
@@ -267,6 +275,14 @@ export function InvestmentDesk() {
                       {/* PER */}
                       <td className="py-2.5 pr-3 text-right font-mono text-slate-600">
                         {l.per != null ? l.per.toFixed(1) : "—"}
+                      </td>
+                      {/* PBR */}
+                      <td className="py-2.5 pr-3 text-right font-mono text-slate-600">
+                        {l.pbr != null ? l.pbr.toFixed(2) : "—"}
+                      </td>
+                      {/* ROE */}
+                      <td className={`py-2.5 pr-3 text-right font-mono ${l.roe != null && l.roe >= 10 ? "text-emerald-400" : "text-slate-600"}`}>
+                        {l.roe != null ? l.roe.toFixed(1) + "%" : "—"}
                       </td>
                       {/* 차트 */}
                       <td className="py-2.5 pr-4">
@@ -555,10 +571,9 @@ function TradeModal({
   const priceChange = price - prevPrice;
 
   const cap = isStock && stock ? stock.price * stock.sharesOutstanding : 0;
-  const per =
-    isStock && stockCompany && stockCompany.lastProfit > 0
-      ? cap / (stockCompany.lastProfit * 4)
-      : null;
+  const metrics = isStock && stock ? stockMetrics(stock, stockCompany) : null;
+  const per = metrics?.per ?? null;
+  const float = isStock && stock ? stock.sharesOutstanding - (stock.treasury ?? 0) : 0;
 
   const indEmoji = isStock
     ? getIndustry(stockCompany?.industryId ?? "tech").emoji
@@ -633,20 +648,29 @@ function TradeModal({
         {/* ── Metrics ── */}
         {isStock && (
           <div
-            className="grid grid-cols-3 divide-x text-center"
             style={{ borderTop: "1px solid rgba(148,163,184,0.07)", borderBottom: "1px solid rgba(148,163,184,0.07)", background: "rgba(255,255,255,0.02)" }}
           >
-            <div className="px-2 py-2.5">
-              <div className="text-[10px] text-slate-600">시가총액</div>
-              <div className="font-mono text-xs font-semibold text-slate-300">{formatMoney(cap)}</div>
+            <div className="grid grid-cols-4 divide-x text-center">
+              <div className="px-2 py-2.5">
+                <div className="text-[10px] text-slate-600">시가총액</div>
+                <div className="font-mono text-xs font-semibold text-slate-300">{formatMoney(cap)}</div>
+              </div>
+              <div className="px-2 py-2.5">
+                <div className="text-[10px] text-slate-600">PER</div>
+                <div className="font-mono text-xs font-semibold text-slate-300">{per != null ? per.toFixed(1) + "배" : "—"}</div>
+              </div>
+              <div className="px-2 py-2.5">
+                <div className="text-[10px] text-slate-600">PBR</div>
+                <div className="font-mono text-xs font-semibold text-slate-300">{metrics?.pbr != null ? metrics.pbr.toFixed(2) + "배" : "—"}</div>
+              </div>
+              <div className="px-2 py-2.5">
+                <div className="text-[10px] text-slate-600">ROE</div>
+                <div className={`font-mono text-xs font-semibold ${metrics?.roe != null && metrics.roe >= 10 ? "text-emerald-400" : "text-slate-300"}`}>{metrics?.roe != null ? metrics.roe.toFixed(1) + "%" : "—"}</div>
+              </div>
             </div>
-            <div className="px-2 py-2.5">
-              <div className="text-[10px] text-slate-600">PER</div>
-              <div className="font-mono text-xs font-semibold text-slate-300">{per != null ? per.toFixed(1) + "배" : "—"}</div>
-            </div>
-            <div className="px-2 py-2.5">
-              <div className="text-[10px] text-slate-600">발행주수</div>
-              <div className="font-mono text-xs font-semibold text-slate-300">{formatNum(stock?.sharesOutstanding ?? 0)}</div>
+            <div className="px-3 pb-2 text-center font-mono text-[10px] text-slate-600">
+              유통주식 {formatNum(float)} / {formatNum(stock?.sharesOutstanding ?? 0)}주
+              <span className="ml-1 text-slate-700">(자사주 {formatNum((stock?.treasury ?? 0))})</span>
             </div>
           </div>
         )}

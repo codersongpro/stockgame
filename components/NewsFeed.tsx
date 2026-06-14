@@ -2,6 +2,7 @@
 
 import { LAYER_LABELS } from "@/lib/engine";
 import type { EventTone, GameState, NewsItem } from "@/lib/engine";
+import { ICON_NEWS } from "@/lib/assetMap";
 
 const TONE_CLS: Record<EventTone, string> = {
   positive: "border-l-bull bg-green-50",
@@ -13,7 +14,10 @@ export function NewsFeed({ game }: { game: GameState }) {
   const items = [...game.news].reverse();
   return (
     <div className="card p-4">
-      <h3 className="mb-3 text-base font-bold text-slate-800">📰 뉴스 & 사건</h3>
+      <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
+        <img src={ICON_NEWS} alt="" className="h-7 w-7 object-contain" />
+        뉴스 &amp; 사건
+      </h3>
       <div className="max-h-[70vh] space-y-2 overflow-y-auto scroll-thin pr-1">
         {items.length === 0 && (
           <p className="text-sm text-slate-400">아직 큰 사건이 없습니다. 턴을 진행해 보세요.</p>

@@ -149,6 +149,8 @@ export interface Stock {
   price: number;
   history: number[];
   sharesOutstanding: number;
+  /** Treasury shares held by the company itself (reduces free float). */
+  treasury?: number;
   /** Listings for companies not actively played (presets + extra fictional). */
   external?: boolean;
   name?: string;
@@ -157,6 +159,8 @@ export interface Stock {
   countryId?: string;
   /** Slowly drifting fundamental baseline used to mean-revert external prices. */
   anchor?: number;
+  /** Synthetic baseline return-on-equity for external listings (for PER/PBR/ROE). */
+  roeBase?: number;
 }
 
 export type AssetClass =

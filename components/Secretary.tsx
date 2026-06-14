@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { GameState } from "@/lib/engine";
 import { generateAdvice } from "@/lib/advisor";
+import { SECRETARY_IMG } from "@/lib/assetMap";
 
 const TONE: Record<string, string> = {
   warn: "bg-red-50 text-red-700",
@@ -20,7 +21,11 @@ export function Secretary({ game }: { game: GameState }) {
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-3 text-left text-white"
       >
-        <span className="animate-floaty text-2xl">🧑‍💼</span>
+        <img
+          src={SECRETARY_IMG}
+          alt="비서"
+          className="h-12 w-12 shrink-0 rounded-full bg-white/20 object-contain object-bottom"
+        />
         <div className="flex-1">
           <div className="text-sm font-bold">비서</div>
           <div className="text-[11px] opacity-90">대표님께 드리는 조언</div>
