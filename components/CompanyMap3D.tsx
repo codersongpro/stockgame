@@ -750,11 +750,10 @@ function Scene({
   const [hover, setHover] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState<{ i: number; text: string } | null>(null);
 
-  const grid = useMemo(() => {
-    const m = new Map<string, PlacedBuilding>();
-    for (const b of company.buildings) m.set(`${b.x},${b.y}`, b);
-    return m;
-  }, [company.buildings]);
+  // Build the lookup every render: company.buildings is mutated in place, so a
+  // memo keyed on the array reference would go stale and new builds wouldn't show.
+  const grid = new Map<string, PlacedBuilding>();
+  for (const b of company.buildings) grid.set(`${b.x},${b.y}`, b);
 
   const hasDaycare = company.buildings.some((b) => b.type === "daycare" && b.turnsLeft <= 0);
   const { cars, people } = useMemo(() => buildPaths(n, hasDaycare), [n, hasDaycare]);
