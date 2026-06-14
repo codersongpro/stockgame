@@ -61,8 +61,8 @@ interface GameStore {
   proposeDeal: (targetCompanyId: string, dealId: string) => void;
   hire: (characterId: string) => void;
   fire: (characterId: string) => void;
-  tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => void;
-  tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => void;
+  tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => boolean;
+  tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
   loan: (amount: number, side: "borrow" | "repay") => void;
   dismissToast: () => void;
 }
@@ -206,31 +206,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   tradeStock: (companyId, shares, side) => {
     const game = get().game;
-    if (!game) return;
+    if (!game) return false;
     const p = player(game);
     const res =
       side === "buy" ? buyStock(game, p, companyId, shares) : sellStock(game, p, companyId, shares);
-    if (!res.ok) return showToast(set, res.error ?? "거래 실패", "bad");
+    if (!res.ok) { showToast(set, res.error ?? "거래 실패", "bad"); return false; }
     playSfx(side === "buy" ? "buy" : "sell");
-    persist(game);
-    let text = side === "buy" ? "매수 완료" : "매도 완료";
+    // Spread companies array so every subscriber sees new references for the mutated player.
+    const companies = game.companies.map((c) => (c.id === p.id ? { ...p, portfolio: { ...p.portfolio, stocks: { ...p.portfolio.stocks }, stockCost: { ...p.portfolio.stockCost } } } : c));
+    let text = side === "buy" ? `매수 완료 · 잔고 ${formatMoney(p.cash)}` : "매도 완료";
     if (side === "sell" && res.realized != null) {
       const sign = res.realized >= 0 ? "+" : "−";
       text = `매도 완료 · 실현 ${sign}${formatMoney(Math.abs(res.realized))}`;
     }
-    set({ game: { ...game }, toast: { text, tone: "good" } });
+    const updated = { ...game, companies };
+    persist(updated);
+    set({ game: updated, toast: { text, tone: "good" } });
+    return true;
   },
 
   tradeAsset: (assetClass, units, side) => {
     const game = get().game;
-    if (!game) return;
+    if (!game) return false;
     const p = player(game);
     const res =
       side === "buy" ? buyAsset(game, p, assetClass, units) : sellAsset(game, p, assetClass, units);
-    if (!res.ok) return showToast(set, res.error ?? "거래 실패", "bad");
+    if (!res.ok) { showToast(set, res.error ?? "거래 실패", "bad"); return false; }
     playSfx(side === "buy" ? "buy" : "sell");
-    persist(game);
-    set({ game: { ...game }, toast: { text: side === "buy" ? "매수 완료" : "매도 완료", tone: "good" } });
+    const companies = game.companies.map((c) => (c.id === p.id ? { ...p, portfolio: { ...p.portfolio, assets: { ...p.portfolio.assets } } } : c));
+    const updated = { ...game, companies };
+    persist(updated);
+    set({ game: updated, toast: { text: side === "buy" ? `매수 완료 · 잔고 ${formatMoney(p.cash)}` : "매도 완료", tone: "good" } });
+    return true;
   },
 
   loan: (amount, side) => {

@@ -36,11 +36,16 @@ const config: Config = {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        ticker: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         floaty: "floaty 3s ease-in-out infinite",
         popin: "popin 0.25s ease-out",
         shimmer: "shimmer 2.5s linear infinite",
+        ticker: "ticker 40s linear infinite",
       },
     },
   },

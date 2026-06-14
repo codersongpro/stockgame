@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import { netWorth, playerRank, rankings, LAYER_LABELS } from "@/lib/engine";
 import type { NewsItem } from "@/lib/engine";
+import type { TurnSummary } from "@/lib/engine/tick";
 import { formatMoney } from "@/lib/format";
 import { initAudio, isMuted, setMuted, startBgm, stopBgm } from "@/lib/audio";
 
@@ -44,17 +45,32 @@ export default function PlayPage() {
   const [muted, setMutedState] = useState(false);
   const [ready, setReady] = useState(false);
   const [eventPopup, setEventPopup] = useState<NewsItem[] | null>(null);
+  const [resultsPopup, setResultsPopup] = useState<{ summary: TurnSummary; prevNw: number } | null>(null);
   const lockUntil = useRef(0);
 
   // Advance one quarter. Guards against (a) rapid double-clicks force-skipping
   // multiple turns and (b) skipping past an unacknowledged event popup.
   const handleNext = () => {
-    if (eventPopup) return; // must acknowledge events first
+    if (eventPopup || resultsPopup) return; // must acknowledge popups first
     const now = Date.now();
     if (now < lockUntil.current) return; // debounce accidental multi-advance
     lockUntil.current = now + 400;
+    // Record net worth before advancing so we can show the delta.
+    const prevGame = useGameStore.getState().game;
+    const prevPlayer = prevGame?.companies.find((c) => c.id === prevGame.playerCompanyId);
+    const prevNw = prevPlayer && prevGame ? netWorth(prevPlayer, prevGame) : 0;
     next();
-    const events = useGameStore.getState().lastSummary?.events ?? [];
+    const summary = useGameStore.getState().lastSummary;
+    if (summary?.playerResult) setResultsPopup({ summary, prevNw });
+    else {
+      const events = summary?.events ?? [];
+      if (events.length > 0) setEventPopup(events);
+    }
+  };
+
+  const handleResultsDismiss = () => {
+    const events = resultsPopup?.summary.events ?? [];
+    setResultsPopup(null);
     if (events.length > 0) setEventPopup(events);
   };
 
@@ -136,7 +152,7 @@ export default function PlayPage() {
           </button>
           <button
             onClick={handleNext}
-            disabled={ended || !!eventPopup}
+            disabled={ended || !!eventPopup || !!resultsPopup}
             className="btn-primary whitespace-nowrap"
           >
             {ended ? "게임 종료" : "다음 분기 ▶"}
@@ -200,6 +216,16 @@ export default function PlayPage() {
         </div>
       )}
 
+      {/* Quarterly results popup */}
+      {resultsPopup && (
+        <ResultsPopup
+          game={game}
+          summary={resultsPopup.summary}
+          prevNw={resultsPopup.prevNw}
+          onClose={handleResultsDismiss}
+        />
+      )}
+
       {/* Event popup */}
       {eventPopup && (
         <EventPopup events={eventPopup} onClose={() => setEventPopup(null)} />
@@ -207,6 +233,111 @@ export default function PlayPage() {
 
       {/* Game over overlay */}
       {ended && <GameOver game={game} onRestart={() => router.push("/")} />}
+    </div>
+  );
+}
+
+function ResultsPopup({
+  game,
+  summary,
+  prevNw,
+  onClose,
+}: {
+  game: ReturnType<typeof useGameStore.getState>["game"] & object;
+  summary: TurnSummary;
+  prevNw: number;
+  onClose: () => void;
+}) {
+  if (!game) return null;
+  const r = summary.playerResult!;
+  const player = game.companies.find((c) => c.id === game.playerCompanyId)!;
+  const nw = netWorth(player, game);
+  const nwDelta = nw - prevNw;
+  const rank = playerRank(game);
+  const stock = game.stocks[player.id];
+  const stockChange = stock
+    ? ((stock.price - (stock.history[stock.history.length - 2] ?? stock.price)) /
+        (stock.history[stock.history.length - 2] ?? stock.price)) *
+      100
+    : 0;
+
+  const rows: { label: string; value: string; tone?: "good" | "bad" | "neutral" }[] = [
+    { label: "매출", value: formatMoney(r.revenue), tone: r.revenue > 0 ? "good" : "neutral" },
+    { label: "판매량", value: `${r.unitsSold.toLocaleString()}개`, tone: "neutral" },
+    {
+      label: "영업 이익",
+      value: `${r.profit >= 0 ? "+" : ""}${formatMoney(r.profit)}`,
+      tone: r.profit >= 0 ? "good" : "bad",
+    },
+    {
+      label: "순자산 변동",
+      value: `${nwDelta >= 0 ? "+" : ""}${formatMoney(Math.round(nwDelta))}`,
+      tone: nwDelta >= 0 ? "good" : "bad",
+    },
+    { label: "현재 순자산", value: formatMoney(Math.round(nw)), tone: "neutral" },
+    { label: "현재 순위", value: `${rank}위 / ${game.companies.length}`, tone: rank <= 3 ? "good" : "neutral" },
+    {
+      label: "자사 주가",
+      value: stock ? `${stock.price.toFixed(0)} (${stockChange >= 0 ? "+" : ""}${stockChange.toFixed(1)}%)` : "—",
+      tone: stockChange >= 0 ? "good" : "bad",
+    },
+  ];
+  if (r.quitCount > 0) {
+    rows.push({ label: "퇴사 직원", value: `${r.quitCount}명`, tone: "bad" });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="card w-full max-w-sm animate-popin overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className={`px-5 py-4 text-white ${
+            r.profit >= 0
+              ? "bg-gradient-to-r from-emerald-600 to-teal-500"
+              : "bg-gradient-to-r from-slate-700 to-slate-600"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{r.profit >= 0 ? "📊" : "📉"}</span>
+            <div>
+              <div className="text-xs opacity-80">{game.turn}분기 실적 보고</div>
+              <div className="text-lg font-black">{player.name}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Results grid */}
+        <div className="divide-y divide-slate-100 px-5">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between py-2.5">
+              <span className="text-sm text-slate-500">{row.label}</span>
+              <span
+                className={`text-sm font-bold ${
+                  row.tone === "good"
+                    ? "text-emerald-600"
+                    : row.tone === "bad"
+                    ? "text-red-500"
+                    : "text-slate-800"
+                }`}
+              >
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 pb-5 pt-2">
+          <button
+            className="btn-primary w-full"
+            onClick={onClose}
+          >
+            확인 {summary.events.length > 0 ? `(뉴스 ${summary.events.length}건 ▶)` : "▶"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

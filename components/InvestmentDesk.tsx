@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import { useGameStore } from "@/store/gameStore";
-import { avgCost } from "@/lib/engine";
+import { avgCost, portfolioValue } from "@/lib/engine";
 import type { AssetClass, Company, GameState } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
-import { formatMoney, formatNum, changePct, formatPct } from "@/lib/format";
+import { formatMoney, formatNum, changePct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { PriceChart } from "./PriceChart";
-import { Term } from "./Term";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 type Selection =
   | { kind: "stock"; id: string }
   | { kind: "asset"; id: AssetClass }
   | null;
+
+type SortKey = "cap" | "price" | "change" | "per" | "name";
 
 interface Listing {
   id: string;
@@ -22,15 +25,13 @@ interface Listing {
   industryId: string;
   external: boolean;
   price: number;
+  prevPrice: number;
   change: number;
   cap: number;
   per: number | null;
 }
 
-type SortKey = "cap" | "price" | "change" | "per" | "name";
-const SORT_LABELS: Record<SortKey, string> = {
-  cap: "시가총액", price: "주가", change: "등락률", per: "PER", name: "이름",
-};
+// ── Main ───────────────────────────────────────────────────────────────────────
 
 export function InvestmentDesk({ game, company }: { game: GameState; company: Company }) {
   const [tab, setTab] = useState<"stocks" | "assets">("stocks");
@@ -39,19 +40,20 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<"all" | "held" | "rivals">("all");
   const [sortBy, setSortBy] = useState<SortKey>("cap");
+  const [sortAsc, setSortAsc] = useState(false);
   const tradeStock = useGameStore((s) => s.tradeStock);
   const tradeAsset = useGameStore((s) => s.tradeAsset);
 
   const companyById = new Map(game.companies.map((c) => [c.id, c]));
-  const enabledAssets = game.config.enabledAssets;
+  const pv = portfolioValue(company, game);
 
-  // Every listing on the market: in-game competitors + external companies.
   const allListings: Listing[] = Object.values(game.stocks)
     .filter((s) => s.companyId !== company.id)
     .map((s) => {
       const c = companyById.get(s.companyId);
       const cap = s.price * s.sharesOutstanding;
       const annual = c ? c.lastProfit * 4 : 0;
+      const prev = s.history[s.history.length - 2] ?? s.price;
       return {
         id: s.companyId,
         name: c?.name ?? s.name ?? s.companyId,
@@ -59,7 +61,8 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
         industryId: c?.industryId ?? s.industryId ?? "tech",
         external: !c,
         price: s.price,
-        change: changePct(s.price, s.history[s.history.length - 2] ?? s.price),
+        prevPrice: prev,
+        change: changePct(s.price, prev),
         cap,
         per: annual > 0 ? cap / annual : null,
       };
@@ -75,133 +78,233 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
       return true;
     })
     .sort((a, b) => {
+      let diff = 0;
       switch (sortBy) {
-        case "price": return b.price - a.price;
-        case "change": return b.change - a.change;
-        case "name": return a.name.localeCompare(b.name, "ko");
-        case "per": {
-          const av = a.per ?? Infinity, bv = b.per ?? Infinity;
-          return av - bv;
-        }
-        case "cap":
-        default: return b.cap - a.cap;
+        case "price": diff = b.price - a.price; break;
+        case "change": diff = b.change - a.change; break;
+        case "name": diff = a.name.localeCompare(b.name, "ko"); break;
+        case "per": diff = (a.per ?? Infinity) - (b.per ?? Infinity); break;
+        default: diff = b.cap - a.cap;
       }
+      return sortAsc ? -diff : diff;
     });
 
+  function toggleSort(k: SortKey) {
+    if (sortBy === k) setSortAsc(!sortAsc);
+    else { setSortBy(k); setSortAsc(false); }
+  }
+
+  // Top 14 by cap for ticker
+  const tickerItems = [...allListings].sort((a, b) => b.cap - a.cap).slice(0, 14);
+
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <Tab active={tab === "stocks"} onClick={() => { setTab("stocks"); setSel(null); }}>
-          📈 주식
-        </Tab>
-        <Tab active={tab === "assets"} onClick={() => { setTab("assets"); setSel(null); }}>
-          💰 자산
-        </Tab>
+    <div
+      className="overflow-hidden rounded-2xl text-white shadow-2xl"
+      style={{ background: "#080e1a", border: "1px solid rgba(148,163,184,0.08)" }}
+    >
+      {/* ── Status bar ── */}
+      <div
+        className="flex items-center justify-between px-4 py-2"
+        style={{ background: "#060b14", borderBottom: "1px solid rgba(148,163,184,0.06)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+          <span className="font-mono text-[10px] tracking-[0.2em] text-slate-600">UNICORN MARKET</span>
+        </div>
+        <div className="flex items-center gap-5 font-mono text-xs">
+          <span>
+            <span className="text-slate-600">현금 </span>
+            <span className="font-bold text-slate-200">{formatMoney(company.cash)}</span>
+          </span>
+          <span>
+            <span className="text-slate-600">투자자산 </span>
+            <span className={`font-bold ${pv > 0 ? "text-emerald-400" : "text-slate-500"}`}>
+              {formatMoney(pv)}
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {/* ── Live ticker ── */}
+      <TickerBar items={tickerItems} />
+
+      {/* ── Tab bar ── */}
+      <div
+        className="flex gap-px px-3 pt-2"
+        style={{ background: "#0a1121", borderBottom: "1px solid rgba(148,163,184,0.06)" }}
+      >
+        {(["stocks", "assets"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => { setTab(t); setSel(null); }}
+            className={`rounded-t-lg px-4 py-2 text-xs font-bold transition-all ${
+              tab === t
+                ? "bg-slate-800 text-white"
+                : "text-slate-600 hover:text-slate-400"
+            }`}
+          >
+            {t === "stocks" ? "📈 주식 시장" : "💰 대체 자산"}
+          </button>
+        ))}
       </div>
 
       {tab === "stocks" ? (
-        <div className="space-y-2">
-          <HoldingsPanel
-            game={game}
-            company={company}
-            companyById={companyById}
-            onPick={(id) => setSel({ kind: "stock", id })}
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="🔎 종목·업종 검색"
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-800 outline-none focus:border-brand-500"
-          />
-          <div className="flex items-center gap-1.5 text-xs font-semibold">
-            <ScopeChip active={scope === "all"} onClick={() => setScope("all")}>전체 {allListings.length}</ScopeChip>
-            <ScopeChip active={scope === "rivals"} onClick={() => setScope("rivals")}>경쟁사</ScopeChip>
-            <ScopeChip active={scope === "held"} onClick={() => setScope("held")}>보유</ScopeChip>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortKey)}
-              className="ml-auto rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-            >
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
-                <option key={k} value={k}>{SORT_LABELS[k]}순</option>
-              ))}
-            </select>
+        <div>
+          {/* ── Portfolio ── */}
+          <PortfolioBar game={game} company={company} companyById={companyById} onPick={(id) => setSel({ kind: "stock", id })} />
+
+          {/* ── Filter row ── */}
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{ background: "#0a1121", borderBottom: "1px solid rgba(148,163,184,0.06)" }}
+          >
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="🔎 종목 · 업종 검색"
+              className="min-w-0 flex-1 rounded-md px-3 py-1.5 text-[11px] text-slate-200 placeholder-slate-700 outline-none focus:ring-1 focus:ring-blue-500"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+            />
+            {(["all", "rivals", "held"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScope(s)}
+                className={`shrink-0 rounded px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  scope === s
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-600 hover:text-slate-400"
+                }`}
+              >
+                {s === "all" ? "전체" : s === "rivals" ? "경쟁사" : "보유"}
+              </button>
+            ))}
           </div>
-          {game.level === "elementary" && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
-              <span><Term term="시가총액">시총</Term>: 회사 전체 값어치</span>
-              <span><Term term="PER" />: 비싼지 싼지 보는 값</span>
-              <span><Term term="등락률" />: 어제보다 오른 정도</span>
-            </div>
-          )}
-          <div className="card max-h-[60vh] divide-y divide-slate-100 overflow-y-auto scroll-thin">
-            {listings.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-slate-400">종목이 없습니다.</div>
-            )}
-            {listings.map((l) => {
-              const stock = game.stocks[l.id];
-              const ind = getIndustry(l.industryId);
-              const held = company.portfolio.stocks[l.id] ?? 0;
-              return (
-                <button
-                  key={l.id}
-                  onClick={() => setSel({ kind: "stock", id: l.id })}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
-                >
-                  <span
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-base"
-                    style={{ background: l.logoColor + "22", color: l.logoColor }}
-                  >
-                    {ind.emoji}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-slate-800">{l.name}</span>
-                      {!l.external && <span className="pill shrink-0 bg-brand-50 text-[10px] text-brand-600">경쟁사</span>}
-                      {held > 0 && <span className="pill shrink-0 bg-slate-100 text-[10px] text-slate-500">보유 {formatNum(held)}</span>}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      시총 {formatMoney(l.cap)} · PER {l.per != null ? l.per.toFixed(1) : "—"}
-                    </div>
-                  </div>
-                  <Sparkline data={stock.history.slice(-20)} width={70} height={28} />
-                  <div className="w-24 text-right">
-                    <div className="font-bold text-slate-800">{formatNum(stock.price)}</div>
-                    <div className={`text-xs font-semibold ${l.change >= 0 ? "text-bull" : "text-bear"}`}>
-                      {formatPct(l.change)}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+
+          {/* ── Stock table ── */}
+          <div className="max-h-[54vh] overflow-y-auto scroll-thin">
+            <table className="w-full text-[11px]">
+              <thead
+                className="sticky top-0 z-10"
+                style={{ background: "#0a1121" }}
+              >
+                <tr style={{ borderBottom: "1px solid rgba(148,163,184,0.07)" }}>
+                  <th className="py-2 pl-4 text-left font-medium text-slate-600">종목</th>
+                  <SortTh label="현재가" k="price" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="등락률" k="change" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="시가총액" k="cap" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
+                  <SortTh label="PER" k="per" sort={sortBy} asc={sortAsc} onSort={toggleSort} />
+                  <th className="py-2 pr-4 text-right font-medium text-slate-600">차트</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listings.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-700">
+                      종목이 없습니다
+                    </td>
+                  </tr>
+                )}
+                {listings.map((l, idx) => {
+                  const stock = game.stocks[l.id];
+                  const held = company.portfolio.stocks[l.id] ?? 0;
+                  const ind = getIndustry(l.industryId);
+                  const up = l.change >= 0;
+                  return (
+                    <tr
+                      key={l.id}
+                      onClick={() => setSel({ kind: "stock", id: l.id })}
+                      className="cursor-pointer transition-colors"
+                      style={{
+                        background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.012)",
+                        borderBottom: "1px solid rgba(148,163,184,0.04)",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.012)")}
+                    >
+                      {/* 종목명 */}
+                      <td className="py-2.5 pl-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm"
+                            style={{ background: l.logoColor + "28" }}
+                          >
+                            {ind.emoji}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-slate-200">{l.name}</div>
+                            <div className="flex items-center gap-1 text-[10px]">
+                              {!l.external && (
+                                <span className="text-blue-500">경쟁</span>
+                              )}
+                              {held > 0 && (
+                                <span className="text-yellow-500">{formatNum(held)}주</span>
+                              )}
+                              {!held && l.external && (
+                                <span className="text-slate-700">{ind.name}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      {/* 현재가 */}
+                      <td className="py-2.5 pr-3 text-right font-mono font-semibold text-slate-100">
+                        {formatNum(Math.round(l.price))}
+                      </td>
+                      {/* 등락률 */}
+                      <td className={`py-2.5 pr-3 text-right font-mono font-bold ${up ? "text-emerald-400" : "text-red-400"}`}>
+                        {up ? "▲" : "▼"}&thinsp;{Math.abs(l.change).toFixed(2)}%
+                      </td>
+                      {/* 시가총액 */}
+                      <td className="py-2.5 pr-3 text-right font-mono text-slate-600">
+                        {formatMoney(l.cap)}
+                      </td>
+                      {/* PER */}
+                      <td className="py-2.5 pr-3 text-right font-mono text-slate-600">
+                        {l.per != null ? l.per.toFixed(1) : "—"}
+                      </td>
+                      {/* 차트 */}
+                      <td className="py-2.5 pr-4">
+                        <Sparkline data={stock?.history.slice(-20) ?? []} width={60} height={22} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       ) : (
-        <div className="card divide-y divide-slate-100">
-          {enabledAssets.map((id) => {
+        /* ── Asset list ── */
+        <div className="divide-y divide-slate-800/40">
+          {game.config.enabledAssets.map((id) => {
             const a = game.assets[id];
-            const ch = changePct(a.price, a.history[a.history.length - 2] ?? a.price);
+            const prev = a.history[a.history.length - 2] ?? a.price;
+            const ch = changePct(a.price, prev);
             const held = company.portfolio.assets[id] ?? 0;
+            const up = ch >= 0;
             return (
               <button
                 key={id}
                 onClick={() => setSel({ kind: "asset", id })}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-base">
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
                   {a.emoji}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-slate-800">{a.name}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="font-semibold text-slate-200">{a.name}</div>
+                  <div className="text-[11px] text-slate-600">
                     {held > 0 ? `보유 ${formatNum(held)}` : a.desc}
                   </div>
                 </div>
-                <Sparkline data={a.history.slice(-20)} width={70} height={28} />
-                <div className="w-24 text-right">
-                  <div className="font-bold text-slate-800">{formatNum(a.price)}</div>
-                  <div className={`text-xs font-semibold ${ch >= 0 ? "text-bull" : "text-bear"}`}>
-                    {formatPct(ch)}
+                <Sparkline data={a.history.slice(-20)} width={60} height={22} />
+                <div className="w-28 shrink-0 text-right">
+                  <div className="font-mono font-bold text-slate-100">{formatNum(Math.round(a.price))}</div>
+                  <div className={`font-mono text-[11px] font-semibold ${up ? "text-emerald-400" : "text-red-400"}`}>
+                    {up ? "▲" : "▼"}&thinsp;{Math.abs(ch).toFixed(2)}%
                   </div>
                 </div>
               </button>
@@ -210,9 +313,9 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
         </div>
       )}
 
-      {/* Trade modal */}
+      {/* ── Trade modal ── */}
       {sel && (
-        <TradePanel
+        <TradeModal
           game={game}
           company={company}
           sel={sel}
@@ -220,8 +323,10 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
           setQty={setQty}
           onClose={() => setSel(null)}
           onTrade={(side) => {
-            if (sel.kind === "stock") tradeStock(sel.id, qty, side);
-            else tradeAsset(sel.id, qty, side);
+            const ok = sel.kind === "stock"
+              ? tradeStock(sel.id, qty, side)
+              : tradeAsset(sel.id, qty, side);
+            if (ok) setSel(null); // close only on success
           }}
         />
       )}
@@ -229,115 +334,37 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
   );
 }
 
-function TradePanel({
-  game,
-  company,
-  sel,
-  qty,
-  setQty,
-  onClose,
-  onTrade,
-}: {
-  game: GameState;
-  company: Company;
-  sel: NonNullable<Selection>;
-  qty: number;
-  setQty: (n: number) => void;
-  onClose: () => void;
-  onTrade: (side: "buy" | "sell") => void;
-}) {
-  const isStock = sel.kind === "stock";
-  const stock = isStock ? game.stocks[sel.id] : null;
-  const stockCompany = isStock ? game.companies.find((c) => c.id === sel.id) : undefined;
-  const price = isStock ? stock!.price : game.assets[sel.id].price;
-  const name = isStock
-    ? stockCompany?.name ?? stock!.name ?? sel.id
-    : game.assets[sel.id].name;
-  const color = isStock
-    ? stockCompany?.logoColor ?? stock!.logoColor ?? "#0ea5e9"
-    : "#0ea5e9";
-  const history = isStock ? stock!.history : game.assets[sel.id].history;
-  const held = isStock
-    ? company.portfolio.stocks[sel.id] ?? 0
-    : company.portfolio.assets[sel.id] ?? 0;
-  const stockAvg = isStock ? avgCost(company, sel.id) : 0;
-  const cost = price * qty;
+// ── Ticker Bar ─────────────────────────────────────────────────────────────────
 
+function TickerBar({ items }: { items: Listing[] }) {
+  if (items.length === 0) return null;
+  const doubled = [...items, ...items]; // seamless loop
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md animate-popin rounded-t-2xl bg-white p-5 sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800">{name}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
-        </div>
-        <PriceChart data={history.slice(-40)} color={color} />
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <span className="text-slate-500">현재가</span>
-          <span className="font-bold text-slate-800">{formatNum(price)}</span>
-        </div>
-        {isStock && stock && (
-          <>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500"><Term term="시가총액">시가총액</Term></span>
-              <span className="font-semibold text-slate-700">{formatMoney(stock.price * stock.sharesOutstanding)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500"><Term term="PER" /></span>
-              <span className="font-semibold text-slate-700">
-                {stockCompany && stockCompany.lastProfit > 0
-                  ? (stock.price * stock.sharesOutstanding / (stockCompany.lastProfit * 4)).toFixed(1)
-                  : "—"}
+    <div
+      className="overflow-hidden py-1.5"
+      style={{ background: "#060b14", borderBottom: "1px solid rgba(148,163,184,0.06)" }}
+    >
+      <div className="flex animate-ticker gap-8 whitespace-nowrap" style={{ width: "max-content" }}>
+        {doubled.map((l, i) => {
+          const up = l.change >= 0;
+          return (
+            <span key={i} className="flex items-center gap-1.5 font-mono text-[11px]">
+              <span className="text-slate-600">{l.name}</span>
+              <span className="text-slate-300">{formatNum(Math.round(l.price))}</span>
+              <span className={up ? "text-emerald-400" : "text-red-400"}>
+                {up ? "▲" : "▼"}{Math.abs(l.change).toFixed(2)}%
               </span>
-            </div>
-          </>
-        )}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-500">보유</span>
-          <span className="font-semibold text-slate-700">{formatNum(held)}{isStock ? "주" : ""}</span>
-        </div>
-        {isStock && held > 0 && (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">평단가</span>
-            <span className="font-semibold text-slate-700">{formatNum(Math.round(stockAvg))}</span>
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center gap-2">
-          <button className="btn-ghost" onClick={() => setQty(Math.max(1, qty - 10))}>-10</button>
-          <input
-            type="number"
-            value={qty}
-            onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-bold text-slate-800"
-          />
-          <button className="btn-ghost" onClick={() => setQty(qty + 10)}>+10</button>
-          {held > 0 && (
-            <button className="btn-ghost whitespace-nowrap" onClick={() => setQty(held)}>전량</button>
-          )}
-        </div>
-        <div className="mt-2 text-center text-sm text-slate-500">
-          {qty}{isStock ? "주" : "개"} 예상 금액 <b className="text-slate-800">{formatMoney(cost)}</b>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button className="btn-bull" onClick={() => onTrade("buy")}>매수</button>
-          <button
-            className="btn-bear"
-            onClick={() => onTrade("sell")}
-            disabled={held <= 0}
-          >
-            매도{isStock && held > 0 ? ` (${formatNum(Math.min(qty, held))}주)` : ""}
-          </button>
-        </div>
+            </span>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function HoldingsPanel({
+// ── Portfolio Bar ──────────────────────────────────────────────────────────────
+
+function PortfolioBar({
   game,
   company,
   companyById,
@@ -348,6 +375,8 @@ function HoldingsPanel({
   companyById: Map<string, Company>;
   onPick: (id: string) => void;
 }) {
+  const [open, setOpen] = useState(true);
+
   const holdings = Object.entries(company.portfolio.stocks)
     .filter(([, sh]) => sh > 0)
     .map(([id, shares]) => {
@@ -370,8 +399,11 @@ function HoldingsPanel({
 
   if (holdings.length === 0) {
     return (
-      <div className="card p-4 text-center text-sm text-slate-400">
-        아직 보유한 주식이 없습니다. 아래 목록에서 종목을 골라 매수해 보세요.
+      <div
+        className="px-4 py-3 text-[11px] text-slate-700"
+        style={{ borderBottom: "1px solid rgba(148,163,184,0.06)" }}
+      >
+        보유 주식 없음 · 아래 종목에서 매수해 보세요
       </div>
     );
   }
@@ -382,71 +414,371 @@ function HoldingsPanel({
   const totalPlPct = totalCost > 0 ? (totalPl / totalCost) * 100 : 0;
 
   return (
-    <div className="card overflow-hidden">
-      <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5">
-        <h3 className="text-sm font-bold text-slate-800">📦 내 보유 주식</h3>
-        <div className="text-right text-xs">
-          <div className="font-bold text-slate-800">평가 {formatMoney(totalValue)}</div>
-          <div className={`font-semibold ${totalPl >= 0 ? "text-bull" : "text-bear"}`}>
-            {totalPl >= 0 ? "▲" : "▼"} {formatMoney(Math.abs(totalPl))} ({formatPct(totalPlPct)})
-          </div>
+    <div style={{ borderBottom: "1px solid rgba(148,163,184,0.07)" }}>
+      {/* Summary header */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-4 py-2.5 transition-colors hover:bg-white/[0.02]"
+      >
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="font-semibold text-slate-400">내 보유 주식</span>
+          <span
+            className="rounded px-1.5 py-0.5 font-mono text-[10px] text-slate-500"
+            style={{ background: "rgba(255,255,255,0.05)" }}
+          >
+            {holdings.length}종목
+          </span>
         </div>
-      </div>
-      <div className="divide-y divide-slate-100">
-        {holdings.map((h) => {
-          const ind = getIndustry(h.industryId);
-          return (
-            <button
-              key={h.id}
-              onClick={() => onPick(h.id)}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50"
-            >
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-sm"
-                style={{ background: h.logoColor + "22", color: h.logoColor }}
+        <div className="flex items-center gap-3 font-mono text-[11px]">
+          <span className="font-semibold text-slate-300">{formatMoney(totalValue)}</span>
+          <span className={`font-bold ${totalPl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+            {totalPl >= 0 ? "+" : ""}{formatMoney(Math.round(totalPl))}
+            <span className="ml-1 font-semibold opacity-80">
+              ({totalPl >= 0 ? "+" : ""}{totalPlPct.toFixed(2)}%)
+            </span>
+          </span>
+          <span className="text-slate-700 text-[10px]">{open ? "▲" : "▼"}</span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="divide-y divide-slate-800/30">
+          {holdings.map((h) => {
+            const ind = getIndustry(h.industryId);
+            const up = h.pl >= 0;
+            return (
+              <button
+                key={h.id}
+                onClick={() => onPick(h.id)}
+                className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors"
+                style={{ background: "rgba(255,255,255,0.015)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.015)")}
               >
-                {ind.emoji}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-slate-800">{h.name}</div>
-                <div className="text-[11px] text-slate-500">
-                  {formatNum(h.shares)}주 · 평단 {formatNum(Math.round(h.avg))} → 현재 {formatNum(h.price)}
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm"
+                  style={{ background: h.logoColor + "28" }}
+                >
+                  {ind.emoji}
+                </span>
+                <div className="min-w-0 flex-1 text-[11px]">
+                  <div className="font-semibold text-slate-300">{h.name}</div>
+                  <div className="font-mono text-slate-600">
+                    {formatNum(h.shares)}주 · 평단 {formatNum(Math.round(h.avg))}
+                    <span className="mx-1 text-slate-800">→</span>
+                    {formatNum(Math.round(h.price))}
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-bold text-slate-800">{formatMoney(h.value)}</div>
-                <div className={`text-[11px] font-semibold ${h.pl >= 0 ? "text-bull" : "text-bear"}`}>
-                  {h.pl >= 0 ? "+" : "−"}{formatMoney(Math.abs(h.pl))} ({formatPct(h.plPct)})
+                <div className="text-right text-[11px]">
+                  <div className="font-mono font-semibold text-slate-300">{formatMoney(h.value)}</div>
+                  <div className={`font-mono font-bold ${up ? "text-emerald-400" : "text-red-400"}`}>
+                    {up ? "+" : ""}{formatMoney(Math.round(h.pl))}
+                    <span className="ml-1 opacity-70">({h.plPct >= 0 ? "+" : ""}{h.plPct.toFixed(1)}%)</span>
+                  </div>
                 </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-function ScopeChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+// ── Sort Header ────────────────────────────────────────────────────────────────
+
+function SortTh({
+  label, k, sort, asc, onSort,
+}: {
+  label: string;
+  k: SortKey;
+  sort: SortKey;
+  asc: boolean;
+  onSort: (k: SortKey) => void;
+}) {
+  const active = sort === k;
   return (
-    <button
-      onClick={onClick}
-      className={`pill ${active ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+    <th
+      onClick={() => onSort(k)}
+      className={`cursor-pointer select-none py-2 pr-3 text-right text-[11px] font-medium transition-colors ${
+        active ? "text-blue-400" : "text-slate-600 hover:text-slate-400"
+      }`}
     >
-      {children}
-    </button>
+      {label}
+      {active && <span className="ml-0.5 text-[9px]">{asc ? "▲" : "▼"}</span>}
+    </th>
   );
 }
 
-function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+// ── Trade Modal ────────────────────────────────────────────────────────────────
+
+function TradeModal({
+  game,
+  company,
+  sel,
+  qty,
+  setQty,
+  onClose,
+  onTrade,
+}: {
+  game: GameState;
+  company: Company;
+  sel: NonNullable<Selection>;
+  qty: number;
+  setQty: (n: number) => void;
+  onClose: () => void;
+  onTrade: (side: "buy" | "sell") => void;
+}) {
+  const isStock = sel.kind === "stock";
+  const stock = isStock ? game.stocks[sel.id] : null;
+  const stockCompany = isStock ? game.companies.find((c) => c.id === sel.id) : undefined;
+  const asset = !isStock ? game.assets[sel.id as AssetClass] : null;
+
+  const price = isStock ? stock!.price : asset!.price;
+  const name = isStock ? stockCompany?.name ?? stock!.name ?? sel.id : asset!.name;
+  const color = isStock ? stockCompany?.logoColor ?? stock!.logoColor ?? "#3b82f6" : "#f59e0b";
+  const history = isStock ? stock!.history : asset!.history;
+  const held = isStock
+    ? (company.portfolio.stocks[sel.id] ?? 0)
+    : (company.portfolio.assets[sel.id as AssetClass] ?? 0);
+  const stockAvg = isStock ? avgCost(company, sel.id) : 0;
+
+  const prevPrice = history[history.length - 2] ?? price;
+  const change = changePct(price, prevPrice);
+  const up = change >= 0;
+  const priceChange = price - prevPrice;
+
+  const cap = isStock && stock ? stock.price * stock.sharesOutstanding : 0;
+  const per =
+    isStock && stockCompany && stockCompany.lastProfit > 0
+      ? cap / (stockCompany.lastProfit * 4)
+      : null;
+
+  const indEmoji = isStock
+    ? getIndustry(stockCompany?.industryId ?? "tech").emoji
+    : asset!.emoji;
+
+  const orderQty = isStock ? qty : qty;
+  const orderValue = Math.round(price * orderQty);
+  const sellQty = Math.min(orderQty, held);
+
+  // P&L on held position
+  const heldPl = isStock && held > 0 ? (price - stockAvg) * held : 0;
+  const heldPlPct = stockAvg > 0 ? ((price - stockAvg) / stockAvg) * 100 : 0;
+
   return (
-    <button
-      onClick={onClick}
-      className={`flex-1 rounded-xl py-2 text-sm font-bold transition ${
-        active ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-      }`}
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={onClose}
     >
-      {children}
-    </button>
+      <div
+        className="w-full max-w-md animate-popin overflow-hidden rounded-t-2xl sm:rounded-2xl"
+        style={{ background: "#080e1a", boxShadow: "0 0 0 1px rgba(148,163,184,0.1), 0 25px 60px -10px rgba(0,0,0,0.9)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div
+          className="flex items-center gap-3 px-4 py-3"
+          style={{ background: "#0a1121", borderBottom: "1px solid rgba(148,163,184,0.07)" }}
+        >
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg"
+            style={{ background: color + "22" }}
+          >
+            {indEmoji}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-white">{name}</div>
+            <div className="text-[10px] text-slate-600">
+              {isStock ? (stockCompany ? "경쟁사 상장주" : "외부 상장주") : "대체 자산"}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-600 transition hover:bg-white/[0.04] hover:text-slate-400"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* ── Price hero ── */}
+        <div className="px-4 pt-4">
+          <div className="font-mono text-[2.6rem] font-black leading-none text-white">
+            {formatNum(Math.round(price))}
+          </div>
+          <div className={`mt-1.5 flex items-center gap-2 text-sm font-semibold ${up ? "text-emerald-400" : "text-red-400"}`}>
+            <span>{up ? "▲" : "▼"} {formatNum(Math.abs(Math.round(priceChange)))}</span>
+            <span className="text-slate-700">|</span>
+            <span>{up ? "+" : ""}{change.toFixed(2)}%</span>
+            <span className="text-slate-700">|</span>
+            <span className="text-slate-500 text-xs font-normal">전일 대비</span>
+          </div>
+        </div>
+
+        {/* ── Chart ── */}
+        <PriceChart
+          data={history.slice(-60)}
+          color={up ? "#22c55e" : "#ef4444"}
+          dark
+          className="mt-3 h-28"
+        />
+
+        {/* ── Metrics ── */}
+        {isStock && (
+          <div
+            className="grid grid-cols-3 divide-x text-center"
+            style={{ borderTop: "1px solid rgba(148,163,184,0.07)", borderBottom: "1px solid rgba(148,163,184,0.07)", background: "rgba(255,255,255,0.02)" }}
+          >
+            <div className="px-2 py-2.5">
+              <div className="text-[10px] text-slate-600">시가총액</div>
+              <div className="font-mono text-xs font-semibold text-slate-300">{formatMoney(cap)}</div>
+            </div>
+            <div className="px-2 py-2.5">
+              <div className="text-[10px] text-slate-600">PER</div>
+              <div className="font-mono text-xs font-semibold text-slate-300">{per != null ? per.toFixed(1) + "배" : "—"}</div>
+            </div>
+            <div className="px-2 py-2.5">
+              <div className="text-[10px] text-slate-600">발행주수</div>
+              <div className="font-mono text-xs font-semibold text-slate-300">{formatNum(stock?.sharesOutstanding ?? 0)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Holdings row ── */}
+        {held > 0 && (
+          <div
+            className="flex items-center gap-4 px-4 py-2.5 font-mono text-[11px]"
+            style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(148,163,184,0.05)" }}
+          >
+            <span>
+              <span className="text-slate-600">보유 </span>
+              <span className="font-bold text-white">{formatNum(held)}{isStock ? "주" : ""}</span>
+            </span>
+            {isStock && (
+              <>
+                <span>
+                  <span className="text-slate-600">평단 </span>
+                  <span className="font-bold text-white">{formatNum(Math.round(stockAvg))}</span>
+                </span>
+                <span>
+                  <span className="text-slate-600">평가손익 </span>
+                  <span className={`font-bold ${heldPl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {heldPl >= 0 ? "+" : ""}{formatMoney(Math.round(heldPl))}
+                    <span className="ml-1 opacity-80">({heldPlPct >= 0 ? "+" : ""}{heldPlPct.toFixed(1)}%)</span>
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Order panel ── */}
+        <div className="px-4 py-4">
+          {/* Quick qty presets */}
+          <div className="mb-3 flex gap-1.5">
+            {[1, 10, 100].map((n) => (
+              <button
+                key={n}
+                onClick={() => setQty(n)}
+                className="flex-1 rounded-lg py-2 text-[11px] font-semibold text-slate-400 transition hover:text-slate-200"
+                style={{ background: "rgba(255,255,255,0.04)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+              >
+                {n}{isStock ? "주" : ""}
+              </button>
+            ))}
+            {held > 0 && (
+              <button
+                onClick={() => setQty(held)}
+                className="flex-1 rounded-lg py-2 text-[11px] font-semibold text-yellow-500 transition"
+                style={{ background: "rgba(255,255,255,0.04)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+              >
+                전량
+              </button>
+            )}
+          </div>
+
+          {/* Qty stepper */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setQty(Math.max(1, qty - 1))}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-slate-400 transition hover:text-slate-200"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              value={qty}
+              min={1}
+              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+              className="flex-1 rounded-xl py-2.5 text-center font-mono text-2xl font-black text-white outline-none focus:ring-1 focus:ring-blue-500"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+            />
+            <button
+              onClick={() => setQty(qty + 1)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-slate-400 transition hover:text-slate-200"
+              style={{ background: "rgba(255,255,255,0.04)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+            >
+              +
+            </button>
+          </div>
+
+          {/* Order summary */}
+          <div
+            className="mt-3 rounded-xl px-4 py-3 text-[11px]"
+            style={{ background: "rgba(255,255,255,0.03)" }}
+          >
+            <div className="flex justify-between">
+              <span className="text-slate-600">주문 수량</span>
+              <span className="font-mono font-semibold text-slate-300">
+                {formatNum(qty)}{isStock ? "주" : ""}
+              </span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-slate-600">예상 금액</span>
+              <span className="font-mono font-bold text-white">{formatMoney(orderValue)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Buy / Sell buttons ── */}
+        <div className="grid grid-cols-2 gap-px" style={{ background: "rgba(148,163,184,0.08)" }}>
+          <button
+            onClick={() => onTrade("sell")}
+            disabled={held <= 0}
+            className="flex flex-col items-center justify-center py-4 font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed"
+            style={{ background: held > 0 ? "#dc2626" : "#1e293b", color: held > 0 ? "white" : "#334155" }}
+            onMouseEnter={(e) => { if (held > 0) e.currentTarget.style.background = "#ef4444"; }}
+            onMouseLeave={(e) => { if (held > 0) e.currentTarget.style.background = "#dc2626"; }}
+          >
+            <span className="text-lg tracking-widest">매 도</span>
+            <span className="text-[11px] font-normal opacity-80">
+              {held > 0
+                ? `${formatNum(sellQty)}주 · ${formatMoney(Math.round(price * sellQty))}`
+                : "보유 없음"}
+            </span>
+          </button>
+          <button
+            onClick={() => onTrade("buy")}
+            className="flex flex-col items-center justify-center py-4 font-black text-white transition active:scale-[0.98]"
+            style={{ background: "#1d4ed8" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#2563eb")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#1d4ed8")}
+          >
+            <span className="text-lg tracking-widest">매 수</span>
+            <span className="text-[11px] font-normal opacity-80">{formatMoney(orderValue)} 필요</span>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
