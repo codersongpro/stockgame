@@ -3,6 +3,7 @@
 import { PHASE_EMOJI, PHASE_LABELS } from "@/lib/engine";
 import type { GameState } from "@/lib/engine";
 import { getCountry } from "@/lib/data/countries";
+import { Term } from "./Term";
 
 export function EconomyIndicators({ game }: { game: GameState }) {
   const m = game.macro;
@@ -26,7 +27,7 @@ export function EconomyIndicators({ game }: { game: GameState }) {
       <div className="grid grid-cols-2 gap-2 text-sm">
         <Metric label="GDP 성장률" value={`${m.gdpGrowth.toFixed(1)}%`} />
         <Metric label="물가(인플레)" value={`${m.inflation.toFixed(1)}%`} />
-        <Metric label={`기준금리`} value={`${m.interestRate.toFixed(2)}%`} hint={country.centralBank} />
+        <Metric label="기준금리" value={`${m.interestRate.toFixed(2)}%`} hint={country.centralBank} />
         <Metric label="시장 심리" value={`${sentimentPct}`} hint={sentimentPct >= 50 ? "낙관" : "비관"} />
       </div>
     </div>
@@ -36,7 +37,7 @@ export function EconomyIndicators({ game }: { game: GameState }) {
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-xl bg-slate-50 p-3">
-      <div className="text-xs text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500"><Term term={label}>{label}</Term></div>
       <div className="text-lg font-bold text-slate-800">{value}</div>
       {hint && <div className="text-[10px] text-slate-400">{hint}</div>}
     </div>

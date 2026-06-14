@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useGameStore } from "@/store/gameStore";
 import { GLOSSARY } from "@/lib/data/glossary";
 
 /**
@@ -16,7 +15,6 @@ import { GLOSSARY } from "@/lib/data/glossary";
 const TOOLTIP_W = 220;
 
 export function Term({ term, children }: { term: string; children?: React.ReactNode }) {
-  const level = useGameStore((s) => s.game?.level);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; below: boolean } | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -56,8 +54,9 @@ export function Term({ term, children }: { term: string; children?: React.ReactN
     };
   }, [open]);
 
-  // Only interactive for young learners; otherwise render plain text.
-  if (level !== "elementary" || !explanation) return <>{text}</>;
+  // Interactive whenever a glossary explanation exists — at every level — so
+  // middle/high and adult players can also tap to learn stock & economy terms.
+  if (!explanation) return <>{text}</>;
 
   return (
     <>

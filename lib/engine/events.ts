@@ -846,6 +846,28 @@ const TEMPLATES: EventTemplate[] = [
     },
   },
   {
+    id: "scientist_visit",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "🔬",
+    weight: () => 0.9,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const name = pick(rng, ["노벨상 수상자", "유명 과학자", "AI 석학", "수석 연구원"]);
+      p.visitor = { kind: "ceo", name, emoji: "🔬", turn: state.turn };
+      p.quality = clamp(p.quality + 6, 0, 100);
+      p.reputation = clamp(p.reputation + 3, 0, 100);
+      shockStock(state.stocks, p.id, 0.04);
+      return {
+        title: `${name}, ${p.name} 자문 방문`,
+        body: `${name}이(가) 우리 연구진과 협업해 기술 자문을 제공했습니다. 품질과 평판이 올랐습니다.`,
+        portrait: "🔬",
+        tags: ["visitor", "scientist", p.id],
+      };
+    },
+  },
+  {
     id: "foreign_delegation",
     layer: "visitor",
     tone: "positive",
