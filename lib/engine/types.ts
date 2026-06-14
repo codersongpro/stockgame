@@ -195,6 +195,8 @@ export interface CompanyDecisions {
   productionTarget: number; // units to attempt to produce
   marketingBudget: number;
   rndBudget: number;
+  welfareBudget: number; // raises employee morale
+  safetyBudget: number; // raises workplace safety
 }
 
 export interface Company {

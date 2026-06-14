@@ -8,6 +8,7 @@ import { getIndustry } from "@/lib/data/industries";
 import { formatMoney, formatNum, changePct, formatPct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { PriceChart } from "./PriceChart";
+import { Term } from "./Term";
 
 type Selection =
   | { kind: "stock"; id: string }
@@ -20,7 +21,16 @@ interface Listing {
   logoColor: string;
   industryId: string;
   external: boolean;
+  price: number;
+  change: number;
+  cap: number;
+  per: number | null;
 }
+
+type SortKey = "cap" | "price" | "change" | "per" | "name";
+const SORT_LABELS: Record<SortKey, string> = {
+  cap: "시가총액", price: "주가", change: "등락률", per: "PER", name: "이름",
+};
 
 export function InvestmentDesk({ game, company }: { game: GameState; company: Company }) {
   const [tab, setTab] = useState<"stocks" | "assets">("stocks");
@@ -28,6 +38,7 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
   const [qty, setQty] = useState(10);
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<"all" | "held" | "rivals">("all");
+  const [sortBy, setSortBy] = useState<SortKey>("cap");
   const tradeStock = useGameStore((s) => s.tradeStock);
   const tradeAsset = useGameStore((s) => s.tradeAsset);
 
@@ -39,12 +50,18 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
     .filter((s) => s.companyId !== company.id)
     .map((s) => {
       const c = companyById.get(s.companyId);
+      const cap = s.price * s.sharesOutstanding;
+      const annual = c ? c.lastProfit * 4 : 0;
       return {
         id: s.companyId,
         name: c?.name ?? s.name ?? s.companyId,
         logoColor: c?.logoColor ?? s.logoColor ?? "#64748b",
         industryId: c?.industryId ?? s.industryId ?? "tech",
         external: !c,
+        price: s.price,
+        change: changePct(s.price, s.history[s.history.length - 2] ?? s.price),
+        cap,
+        per: annual > 0 ? cap / annual : null,
       };
     });
 
@@ -58,9 +75,17 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
       return true;
     })
     .sort((a, b) => {
-      // Rivals first, then by price desc for a stable, useful order.
-      if (a.external !== b.external) return a.external ? 1 : -1;
-      return game.stocks[b.id].price - game.stocks[a.id].price;
+      switch (sortBy) {
+        case "price": return b.price - a.price;
+        case "change": return b.change - a.change;
+        case "name": return a.name.localeCompare(b.name, "ko");
+        case "per": {
+          const av = a.per ?? Infinity, bv = b.per ?? Infinity;
+          return av - bv;
+        }
+        case "cap":
+        default: return b.cap - a.cap;
+      }
     });
 
   return (
@@ -88,11 +113,27 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
             placeholder="🔎 종목·업종 검색"
             className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-800 outline-none focus:border-brand-500"
           />
-          <div className="flex gap-1.5 text-xs font-semibold">
+          <div className="flex items-center gap-1.5 text-xs font-semibold">
             <ScopeChip active={scope === "all"} onClick={() => setScope("all")}>전체 {allListings.length}</ScopeChip>
             <ScopeChip active={scope === "rivals"} onClick={() => setScope("rivals")}>경쟁사</ScopeChip>
             <ScopeChip active={scope === "held"} onClick={() => setScope("held")}>보유</ScopeChip>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="ml-auto rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+            >
+              {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+                <option key={k} value={k}>{SORT_LABELS[k]}순</option>
+              ))}
+            </select>
           </div>
+          {game.level === "elementary" && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+              <span><Term term="시가총액">시총</Term>: 회사 전체 값어치</span>
+              <span><Term term="PER" />: 비싼지 싼지 보는 값</span>
+              <span><Term term="등락률" />: 어제보다 오른 정도</span>
+            </div>
+          )}
           <div className="card max-h-[60vh] divide-y divide-slate-100 overflow-y-auto scroll-thin">
             {listings.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-slate-400">종목이 없습니다.</div>
@@ -100,7 +141,6 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
             {listings.map((l) => {
               const stock = game.stocks[l.id];
               const ind = getIndustry(l.industryId);
-              const ch = changePct(stock.price, stock.history[stock.history.length - 2] ?? stock.price);
               const held = company.portfolio.stocks[l.id] ?? 0;
               return (
                 <button
@@ -118,16 +158,17 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-semibold text-slate-800">{l.name}</span>
                       {!l.external && <span className="pill shrink-0 bg-brand-50 text-[10px] text-brand-600">경쟁사</span>}
+                      {held > 0 && <span className="pill shrink-0 bg-slate-100 text-[10px] text-slate-500">보유 {formatNum(held)}</span>}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {held > 0 ? `보유 ${formatNum(held)}주` : ind.name}
+                      시총 {formatMoney(l.cap)} · PER {l.per != null ? l.per.toFixed(1) : "—"}
                     </div>
                   </div>
                   <Sparkline data={stock.history.slice(-20)} width={70} height={28} />
                   <div className="w-24 text-right">
                     <div className="font-bold text-slate-800">{formatNum(stock.price)}</div>
-                    <div className={`text-xs font-semibold ${ch >= 0 ? "text-bull" : "text-bear"}`}>
-                      {formatPct(ch)}
+                    <div className={`text-xs font-semibold ${l.change >= 0 ? "text-bull" : "text-bear"}`}>
+                      {formatPct(l.change)}
                     </div>
                   </div>
                 </button>
@@ -237,6 +278,22 @@ function TradePanel({
           <span className="text-slate-500">현재가</span>
           <span className="font-bold text-slate-800">{formatNum(price)}</span>
         </div>
+        {isStock && stock && (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500"><Term term="시가총액">시가총액</Term></span>
+              <span className="font-semibold text-slate-700">{formatMoney(stock.price * stock.sharesOutstanding)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500"><Term term="PER" /></span>
+              <span className="font-semibold text-slate-700">
+                {stockCompany && stockCompany.lastProfit > 0
+                  ? (stock.price * stock.sharesOutstanding / (stockCompany.lastProfit * 4)).toFixed(1)
+                  : "—"}
+              </span>
+            </div>
+          </>
+        )}
         <div className="flex items-center justify-between text-sm">
           <span className="text-slate-500">보유</span>
           <span className="font-semibold text-slate-700">{formatNum(held)}{isStock ? "주" : ""}</span>

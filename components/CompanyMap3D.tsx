@@ -9,6 +9,7 @@ import { BUILDING_LIST, buildingCostFor } from "@/lib/engine";
 import type { BuildingType, Company, GameState, PlacedBuilding } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
 import { pickCityVoice } from "@/lib/data/cityVoices";
+import { getIndustry } from "@/lib/data/industries";
 import { BuildingInteriorModal } from "./BuildingInteriorModal";
 
 /* ── palette ─────────────────────────────────────────────────────────────── */
@@ -41,11 +42,20 @@ const PHASE_GRASS: Record<string, string> = {
 
 const TILE = 1; // world units per grid cell
 
+/* Blend two hex colors (t=0 → a, t=1 → b). */
+function blend(a: string, b: string, t: number): string {
+  return new THREE.Color(a).lerp(new THREE.Color(b), t).getStyle();
+}
+
 /* ── low-poly building ───────────────────────────────────────────────────── */
 function Building3D({
-  building, selected,
-}: { building: PlacedBuilding; selected: boolean }) {
-  const [body, roof, accent] = COLORS[building.type];
+  building, selected, tint,
+}: { building: PlacedBuilding; selected: boolean; tint?: string }) {
+  const base = COLORS[building.type];
+  // Brand-tint each company's buildings toward its logo color so campuses differ.
+  const body = tint ? blend(base[0], tint, 0.24) : base[0];
+  const roof = tint ? blend(base[1], tint, 0.14) : base[1];
+  const accent = base[2];
   const lvl = building.level;
   const underConstruction = building.turnsLeft > 0;
 
@@ -418,105 +428,132 @@ const PERSON_PALETTE: Record<PersonKind, string[]> = {
 const HAIR = ["#3b2a1a", "#1f2937", "#6b3f1d", "#111827", "#7c2d12", "#facc15"];
 const HAT = ["#ef4444", "#1d4ed8", "#15803d", "#f59e0b"];
 
-function PersonModel({ kind, seed }: { kind: PersonKind; seed: number }) {
-  const color = PERSON_PALETTE[kind][seed % PERSON_PALETTE[kind].length];
-  const hair = HAIR[seed % HAIR.length];
-  // Deterministic accessories for outfit variety.
-  const hasHat = seed % 4 === 0;
-  const hasTie = kind === "man" && seed % 3 === 1;
-  const hasBag = kind !== "child" && seed % 5 === 2;
+const PANTS = ["#1e293b", "#334155", "#42302a", "#1f2937", "#3f3f46", "#374151"];
+
+/** Varied hairstyles, positioned relative to the head centre. */
+function Hair({ style, color }: { style: number; color: string }) {
+  switch (style % 6) {
+    case 1: // long, falling down the back
+      return (
+        <group>
+          <mesh position={[0, 0.02, 0]}><sphereGeometry args={[0.066, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={color} /></mesh>
+          <mesh position={[0, -0.04, -0.045]}><boxGeometry args={[0.1, 0.13, 0.04]} /><meshStandardMaterial color={color} /></mesh>
+        </group>
+      );
+    case 2: // top bun
+      return (
+        <group>
+          <mesh position={[0, 0.02, 0]}><sphereGeometry args={[0.064, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={color} /></mesh>
+          <mesh position={[0, 0.085, -0.02]}><sphereGeometry args={[0.032, 10, 10]} /><meshStandardMaterial color={color} /></mesh>
+        </group>
+      );
+    case 3: // spiky
+      return <mesh position={[0, 0.03, 0]}><coneGeometry args={[0.07, 0.09, 8]} /><meshStandardMaterial color={color} /></mesh>;
+    case 4: // ponytail
+      return (
+        <group>
+          <mesh position={[0, 0.02, 0]}><sphereGeometry args={[0.064, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={color} /></mesh>
+          <mesh position={[0, -0.01, -0.06]} rotation={[0.5, 0, 0]}><cylinderGeometry args={[0.018, 0.01, 0.13, 6]} /><meshStandardMaterial color={color} /></mesh>
+        </group>
+      );
+    case 5: // bald-ish / very short
+      return <mesh position={[0, 0.04, 0]}><sphereGeometry args={[0.06, 12, 12, 0, Math.PI * 2, 0, Math.PI / 3]} /><meshStandardMaterial color={color} /></mesh>;
+    default: // short cap
+      return <mesh position={[0, 0.025, 0]}><sphereGeometry args={[0.066, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={color} /></mesh>;
+  }
+}
+
+function PersonModel({
+  kind, seed, walking, gait,
+}: { kind: PersonKind; seed: number; walking: boolean; gait: number }) {
+  const shirt = PERSON_PALETTE[kind][seed % PERSON_PALETTE[kind].length];
+  const hairColor = HAIR[seed % HAIR.length];
+  const pants = PANTS[seed % PANTS.length];
+  const hairStyle = (seed * 3 + (kind === "woman" ? 1 : 0)) % 6;
+  const hasHat = seed % 5 === 0;
+  const hasTie = kind !== "child" && seed % 3 === 1;
+  const hasBag = kind !== "child" && seed % 4 === 2;
   const hasGlasses = seed % 6 === 3;
-  if (kind === "child") {
-    return (
-      <group scale={0.62}>
-        <mesh position={[0, 0.1, 0]} castShadow>
-          <cylinderGeometry args={[0.06, 0.07, 0.14, 8]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-        <mesh position={[0, 0.24, 0]}>
-          <sphereGeometry args={[0.07, 12, 12]} />
-          <meshStandardMaterial color="#fcd5b5" />
-        </mesh>
-        <mesh position={[0, 0.29, 0]}>
-          <sphereGeometry args={[0.075, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial color={hasHat ? HAT[seed % HAT.length] : hair} />
-        </mesh>
-        {hasGlasses && (
-          <mesh position={[0, 0.25, 0.07]}>
-            <boxGeometry args={[0.1, 0.025, 0.01]} />
-            <meshStandardMaterial color="#1f2937" />
-          </mesh>
-        )}
-      </group>
-    );
-  }
-  if (kind === "woman") {
-    return (
-      <group>
-        {/* skirt */}
-        <mesh position={[0, 0.1, 0]} castShadow>
-          <coneGeometry args={[0.1, 0.2, 10]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-        <mesh position={[0, 0.23, 0]}>
-          <cylinderGeometry args={[0.045, 0.05, 0.1, 8]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-        <mesh position={[0, 0.32, 0]}>
-          <sphereGeometry args={[0.06, 12, 12]} />
-          <meshStandardMaterial color="#fcd5b5" />
-        </mesh>
-        <mesh position={[0, 0.34, -0.02]}>
-          <sphereGeometry args={[0.075, 12, 12, 0, Math.PI * 2, 0, Math.PI / 1.5]} />
-          <meshStandardMaterial color={hair} />
-        </mesh>
-        {hasHat && (
-          <mesh position={[0, 0.4, 0]}>
-            <cylinderGeometry args={[0.09, 0.09, 0.02, 12]} />
-            <meshStandardMaterial color={HAT[seed % HAT.length]} />
-          </mesh>
-        )}
-        {hasBag && (
-          <mesh position={[0.09, 0.14, 0]}>
-            <boxGeometry args={[0.05, 0.09, 0.06]} />
-            <meshStandardMaterial color="#be185d" />
-          </mesh>
-        )}
-      </group>
-    );
-  }
-  // man
+  const isWoman = kind === "woman";
+  const scale = kind === "child" ? 0.66 : 1;
+
+  const root = useRef<THREE.Group>(null);
+  const legL = useRef<THREE.Group>(null);
+  const legR = useRef<THREE.Group>(null);
+  const armL = useRef<THREE.Group>(null);
+  const armR = useRef<THREE.Group>(null);
+
+  // Natural gait: legs and arms swing in opposition + a gentle body bob.
+  useFrame((state) => {
+    const sw = walking ? Math.sin(state.clock.elapsedTime * 7 + gait) * 0.55 : 0;
+    if (legL.current) legL.current.rotation.x = sw;
+    if (legR.current) legR.current.rotation.x = -sw;
+    if (armL.current) armL.current.rotation.x = -sw * 0.8;
+    if (armR.current) armR.current.rotation.x = sw * 0.8;
+    if (root.current) root.current.position.y = walking ? Math.abs(Math.sin(state.clock.elapsedTime * 7 + gait)) * 0.015 : 0;
+  });
+
+  const hipY = 0.11, shoulderY = 0.24, headY = 0.33;
+
   return (
-    <group>
-      <mesh position={[0, 0.13, 0]} castShadow>
-        <cylinderGeometry args={[0.06, 0.07, 0.22, 8]} />
-        <meshStandardMaterial color={color} />
+    <group ref={root} scale={scale}>
+      {/* legs (swing from the hip) */}
+      <group ref={legL} position={[-0.035, hipY, 0]}>
+        <mesh position={[0, -0.055, 0]} castShadow><boxGeometry args={[0.04, 0.11, 0.04]} /><meshStandardMaterial color={pants} /></mesh>
+      </group>
+      <group ref={legR} position={[0.035, hipY, 0]}>
+        <mesh position={[0, -0.055, 0]} castShadow><boxGeometry args={[0.04, 0.11, 0.04]} /><meshStandardMaterial color={pants} /></mesh>
+      </group>
+
+      {/* torso (skirt for women) */}
+      <mesh position={[0, (hipY + shoulderY) / 2, 0]} castShadow>
+        <boxGeometry args={[0.12, shoulderY - hipY + 0.02, 0.07]} />
+        <meshStandardMaterial color={shirt} />
       </mesh>
+      {isWoman && (
+        <mesh position={[0, hipY + 0.02, 0]} castShadow>
+          <coneGeometry args={[0.1, 0.13, 12]} />
+          <meshStandardMaterial color={shirt} />
+        </mesh>
+      )}
       {hasTie && (
-        <mesh position={[0, 0.16, 0.06]}>
-          <boxGeometry args={[0.02, 0.12, 0.01]} />
+        <mesh position={[0, shoulderY - 0.06, 0.037]}>
+          <boxGeometry args={[0.02, 0.1, 0.006]} />
           <meshStandardMaterial color="#ef4444" />
         </mesh>
       )}
       {hasBag && (
-        <mesh position={[0.08, 0.13, 0]}>
-          <boxGeometry args={[0.05, 0.1, 0.07]} />
-          <meshStandardMaterial color="#92400e" />
+        <mesh position={[0.085, (hipY + shoulderY) / 2, 0]} castShadow>
+          <boxGeometry args={[0.045, 0.09, 0.06]} />
+          <meshStandardMaterial color={isWoman ? "#be185d" : "#92400e"} />
         </mesh>
       )}
-      <mesh position={[0, 0.3, 0]}>
-        <sphereGeometry args={[0.06, 12, 12]} />
+
+      {/* arms (swing from the shoulder) */}
+      <group ref={armL} position={[-0.078, shoulderY, 0]}>
+        <mesh position={[0, -0.05, 0]} castShadow><boxGeometry args={[0.028, 0.1, 0.028]} /><meshStandardMaterial color={shirt} /></mesh>
+      </group>
+      <group ref={armR} position={[0.078, shoulderY, 0]}>
+        <mesh position={[0, -0.05, 0]} castShadow><boxGeometry args={[0.028, 0.1, 0.028]} /><meshStandardMaterial color={shirt} /></mesh>
+      </group>
+
+      {/* head + hair + accessories */}
+      <mesh position={[0, headY, 0]} castShadow>
+        <sphereGeometry args={[0.058, 14, 14]} />
         <meshStandardMaterial color="#fcd5b5" />
       </mesh>
-      <mesh position={[0, 0.33, 0]}>
-        <sphereGeometry args={[0.065, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color={hasHat ? HAT[seed % HAT.length] : hair} />
-      </mesh>
+      <group position={[0, headY, 0]}><Hair style={hairStyle} color={hairColor} /></group>
       {hasGlasses && (
-        <mesh position={[0, 0.31, 0.055]}>
-          <boxGeometry args={[0.09, 0.02, 0.01]} />
+        <mesh position={[0, headY - 0.005, 0.05]}>
+          <boxGeometry args={[0.085, 0.018, 0.008]} />
           <meshStandardMaterial color="#1f2937" />
         </mesh>
+      )}
+      {hasHat && (
+        <group position={[0, headY + 0.05, 0]}>
+          <mesh castShadow><cylinderGeometry args={[0.05, 0.055, 0.05, 12]} /><meshStandardMaterial color={HAT[seed % HAT.length]} /></mesh>
+          <mesh position={[0, -0.025, 0]}><cylinderGeometry args={[0.085, 0.085, 0.012, 12]} /><meshStandardMaterial color={HAT[seed % HAT.length]} /></mesh>
+        </group>
       )}
     </group>
   );
@@ -526,16 +563,20 @@ function Person({
   a, index, speaking, onClick,
 }: { a: AgentPath; index: number; speaking: string | null; onClick: () => void }) {
   const ref = useRef<THREE.Group>(null);
+  const act = a.activity ?? "walk";
   useFrame((state) => {
     if (!ref.current) return;
     const clk = state.clock.elapsedTime;
-    const act = a.activity ?? "walk";
     if (act === "walk") {
       const raw = (clk / a.dur + a.phase) % 2;
       const t = raw < 1 ? raw : 2 - raw; // ping-pong (stroll back and forth)
       const p = a.at(t);
       ref.current.position.set(p.x, 0, p.z);
-      ref.current.rotation.y = 0;
+      // Face the actual direction of travel so nobody moonwalks.
+      const A = a.at(0), B = a.at(1);
+      const dir = raw < 1 ? 1 : -1;
+      const vx = (B.x - A.x) * dir, vz = (B.z - A.z) * dir;
+      if (vx !== 0 || vz !== 0) ref.current.rotation.y = Math.atan2(vx, vz);
     } else {
       // Stationary daily-life action at the middle of its lane.
       const p = a.at(0.5);
@@ -559,7 +600,7 @@ function Person({
   return (
     <group ref={ref}>
       <group onClick={(e) => { e.stopPropagation(); onClick(); }}>
-        <PersonModel kind={kind} seed={index} />
+        <PersonModel kind={kind} seed={index} walking={act === "walk"} gait={a.phase * 6 + index} />
       </group>
       {speaking && (
         <Html position={[0, 0.5, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
@@ -572,6 +613,22 @@ function Person({
           </div>
         </Html>
       )}
+    </group>
+  );
+}
+
+/* Industry monument at a corner so each company's campus signals its sector. */
+function IndustryLandmark({ industryId, color, x, z }: { industryId: string; color: string; x: number; z: number }) {
+  const emoji = getIndustry(industryId).emoji;
+  return (
+    <group position={[x, 0, z]}>
+      <mesh position={[0, 0.16, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.26, 0.32, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <Html position={[0, 0.55, 0]} center distanceFactor={9}>
+        <div style={{ fontSize: 36, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.3))" }}>{emoji}</div>
+      </Html>
     </group>
   );
 }
@@ -758,9 +815,10 @@ function Scene({
               {b && (
                 <group
                   position={[x, 0, z]}
+                  scale={[1, 0.9 + ((b.x * 7 + b.y * 13) % 5) * 0.06, 1]}
                   onClick={(e) => { e.stopPropagation(); onCell(gx, gy); }}
                 >
-                  <Building3D building={b} selected={b.id === selectedBuildingId} />
+                  <Building3D building={b} selected={b.id === selectedBuildingId} tint={company.logoColor} />
                 </group>
               )}
             </group>
@@ -779,6 +837,8 @@ function Scene({
           onClick={() => setSpeaker({ i, text: pickCityVoice(company, game.macro.phase, { personKind: a.kind }) })}
         />
       ))}
+
+      <IndustryLandmark industryId={company.industryId} color={company.logoColor} x={-(half + 0.35)} z={half + 0.35} />
 
       {company.visitor && <VisitorAgent visitor={company.visitor} half={half} />}
 

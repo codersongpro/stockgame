@@ -9,7 +9,7 @@ import {
 } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { getCountry } from "@/lib/data/countries";
-import { formatMoney, changePct, formatPct } from "@/lib/format";
+import { formatMoney, formatNum, changePct, formatPct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { CompanyCity } from "./CompanyCity";
 import { Term } from "./Term";
@@ -53,6 +53,9 @@ export function Dashboard({ game }: { game: GameState }) {
         </div>
       </div>
 
+      {/* Our stock */}
+      <OurStock game={game} />
+
       {/* Living campus overview */}
       <div className="card p-3">
         <div className="mb-2 flex items-center justify-between">
@@ -68,6 +71,37 @@ export function Dashboard({ game }: { game: GameState }) {
         <Mini label={<Term term="이익">지난 이익</Term>} value={formatMoney(p.lastProfit)} emoji={p.lastProfit >= 0 ? "📈" : "📉"} />
         <Mini label="건물" value={`${p.buildings.length}개`} emoji="🏗️" />
         <Mini label="임원" value={`${p.hired.length}명`} emoji="👔" />
+      </div>
+    </div>
+  );
+}
+
+function OurStock({ game }: { game: GameState }) {
+  const p = game.companies.find((c) => c.id === game.playerCompanyId)!;
+  const stock = game.stocks[p.id];
+  if (!stock) return null;
+  const ch = changePct(stock.price, stock.history[stock.history.length - 2] ?? stock.price);
+  const cap = stock.price * stock.sharesOutstanding;
+  const per = p.lastProfit > 0 ? cap / (p.lastProfit * 4) : null;
+  return (
+    <div className="card p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-800">📈 우리 회사 <Term term="주가" /></h3>
+        <div className="text-right">
+          <div className="text-lg font-black text-slate-800">{formatNum(stock.price)}</div>
+          <div className={`text-xs font-bold ${ch >= 0 ? "text-bull" : "text-bear"}`}>{formatPct(ch)}</div>
+        </div>
+      </div>
+      <Sparkline data={stock.history.slice(-24)} width={280} height={36} />
+      <div className="mt-2 grid grid-cols-2 gap-2 text-center text-xs">
+        <div className="rounded-lg bg-slate-50 p-2">
+          <div className="text-slate-500"><Term term="시가총액">시가총액</Term></div>
+          <div className="font-bold text-slate-800">{formatMoney(cap)}</div>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-2">
+          <div className="text-slate-500"><Term term="PER" /></div>
+          <div className="font-bold text-slate-800">{per != null ? per.toFixed(1) : "—"}</div>
+        </div>
       </div>
     </div>
   );

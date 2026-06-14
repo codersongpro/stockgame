@@ -33,6 +33,8 @@ export function defaultDecisions(industry: IndustryDef): CompanyDecisions {
     productionTarget: industry.baseDemand,
     marketingBudget: 15_000,
     rndBudget: 15_000,
+    welfareBudget: 0,
+    safetyBudget: 0,
   };
 }
 
@@ -121,7 +123,10 @@ export function runCompanyTurn(
   const salaries = totalSalary(company);
   const interest = (company.debt * (macro.interestRate / 100)) / 4 * bonuses.financeCostMult;
   const fixedCosts = upkeep + salaries + interest;
-  const grossProfit = revenue - productionCost - d.marketingBudget - d.rndBudget - fixedCosts;
+  const welfareBudget = Math.max(0, d.welfareBudget ?? 0);
+  const safetyBudget = Math.max(0, d.safetyBudget ?? 0);
+  const grossProfit =
+    revenue - productionCost - d.marketingBudget - d.rndBudget - welfareBudget - safetyBudget - fixedCosts;
   const tax = grossProfit > 0 ? grossProfit * country.taxRate : 0;
   const profit = grossProfit - tax;
 
@@ -137,8 +142,8 @@ export function runCompanyTurn(
   const qualityGain = rndPower * 0.15 * (0.5 + industry.rndDependence) - 0.5; // slight decay
   company.quality = clamp(company.quality + qualityGain, 0, 100);
 
-  // Morale from HR buildings/leaders, minus stress if unpaid.
-  const moraleTarget = 55 + caps.morale + bonuses.moraleAdd;
+  // Morale from HR buildings/leaders + welfare spending, minus stress if unpaid.
+  const moraleTarget = 55 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000);
   company.morale = clamp(company.morale + (moraleTarget - company.morale) * 0.3, 0, 100);
 
   // Reputation drifts with profitability and any positive bonuses.
@@ -146,7 +151,8 @@ export function runCompanyTurn(
   company.reputation = clamp(company.reputation + repDrift * 0.5, 0, 100);
 
   // Safety eases toward a level set by R&D investment and morale.
-  const safetyTarget = 45 + company.morale * 0.2 + bonuses.safetyAdd + Math.min(20, d.rndBudget / 4000);
+  const safetyTarget =
+    45 + company.morale * 0.2 + bonuses.safetyAdd + Math.min(20, d.rndBudget / 4000) + Math.min(25, safetyBudget / 3500);
   company.safety = clamp(company.safety + (safetyTarget - company.safety) * 0.25, 0, 100);
 
   // --- Talent loyalty / quitting ---

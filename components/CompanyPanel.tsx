@@ -71,6 +71,24 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           format={(v) => formatMoney(v)}
           onChange={(v) => setDecisions({ rndBudget: v })}
         />
+        <Slider
+          label={<><Term term="사기">복지</Term> 예산</>}
+          value={d.welfareBudget ?? 0}
+          min={0}
+          max={150000}
+          step={5000}
+          format={(v) => formatMoney(v)}
+          onChange={(v) => setDecisions({ welfareBudget: v })}
+        />
+        <Slider
+          label={<><Term term="안전">안전</Term> 예산</>}
+          value={d.safetyBudget ?? 0}
+          min={0}
+          max={150000}
+          step={5000}
+          format={(v) => formatMoney(v)}
+          onChange={(v) => setDecisions({ safetyBudget: v })}
+        />
 
         <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
           <Info label="생산 능력" value={`${formatNum(capacity)}개`} />
@@ -147,9 +165,20 @@ function Slider({
 }) {
   return (
     <div className="mb-4">
-      <div className="mb-1 flex justify-between text-sm">
+      <div className="mb-1 flex items-center justify-between gap-2 text-sm">
         <span className="font-semibold text-slate-600">{label}</span>
-        <span className="font-bold text-brand-700">{format(value)}</span>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            value={Math.round(value)}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value))))}
+            className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-right font-bold text-brand-700 outline-none focus:border-brand-500"
+          />
+          <span className="text-xs text-slate-400">{format(value)}</span>
+        </div>
       </div>
       <input
         type="range"
