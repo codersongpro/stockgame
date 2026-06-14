@@ -82,3 +82,41 @@ export const COMPANY_PRESETS: CompanyPreset[] = [
 export const PRESET_MAP: Record<string, CompanyPreset> = Object.fromEntries(
   COMPANY_PRESETS.map((p) => [p.id, p]),
 );
+
+// Extra fictional listings that never appear as in-game competitors, but are
+// always investable on the market — so players can build a broad, diversified
+// portfolio across companies that "don't show up in this game".
+export const EXTRA_LISTINGS: CompanyPreset[] = [
+  // AI·반도체
+  { id: "x-quantix",   name: "퀀틱스반도체",  industryId: "ai",            countryId: "us", logoColor: "#0ea5e9", scale: 1.5, blurb: "AI 가속 반도체" },
+  { id: "x-tsensei",   name: "TS센세이",      industryId: "ai",            countryId: "kr", logoColor: "#7c3aed", scale: 1.4, blurb: "파운드리" },
+  { id: "x-deepmindr", name: "딥마인더",      industryId: "ai",            countryId: "us", logoColor: "#2563eb", scale: 1.6, blurb: "생성형 AI 연구" },
+  // IT·소프트웨어
+  { id: "x-cloudpeak", name: "클라우드픽",    industryId: "tech",          countryId: "us", logoColor: "#10b981", scale: 1.4, blurb: "클라우드 인프라" },
+  { id: "x-datagrid",  name: "데이터그리드",  industryId: "tech",          countryId: "in", logoColor: "#f59e0b", scale: 1.2, blurb: "데이터 플랫폼" },
+  { id: "x-bitnest",   name: "비트네스트",    industryId: "tech",          countryId: "kr", logoColor: "#ef4444", scale: 1.0, blurb: "보안 SaaS" },
+  // 전기차·배터리
+  { id: "x-voltway",   name: "볼트웨이",      industryId: "ev",            countryId: "us", logoColor: "#22c55e", scale: 1.3, blurb: "전기 상용차" },
+  { id: "x-cellforge", name: "셀포지",        industryId: "ev",            countryId: "cn", logoColor: "#0891b2", scale: 1.4, blurb: "배터리 셀" },
+  // 게임·엔터
+  { id: "x-pixelpop",  name: "픽셀팝",        industryId: "entertainment", countryId: "jp", logoColor: "#ec4899", scale: 1.1, blurb: "모바일 게임" },
+  { id: "x-streamly",  name: "스트림리",      industryId: "entertainment", countryId: "us", logoColor: "#f43f5e", scale: 1.2, blurb: "라이브 스트리밍" },
+  // 우주항공
+  { id: "x-orbital",   name: "오비탈다이내믹", industryId: "space",        countryId: "us", logoColor: "#1f2937", scale: 1.3, blurb: "위성 발사" },
+  // 로봇
+  { id: "x-mechwave",  name: "메크웨이브",    industryId: "robotics",      countryId: "de", logoColor: "#14b8a6", scale: 1.2, blurb: "협동로봇" },
+  // 제조
+  { id: "x-forgeco",   name: "포지코",        industryId: "manufacturing", countryId: "kr", logoColor: "#a16207", scale: 1.1, blurb: "정밀부품" },
+  // 식품
+  { id: "x-freshbite", name: "프레시바이트",  industryId: "food",          countryId: "us", logoColor: "#65a30d", scale: 1.1, blurb: "건강식품" },
+  // 패션·뷰티
+  { id: "x-luxede",    name: "럭세드",        industryId: "fashion",       countryId: "de", logoColor: "#9333ea", scale: 1.2, blurb: "명품 패션" },
+  // 에너지
+  { id: "x-sungrid",   name: "선그리드",      industryId: "energy",        countryId: "us", logoColor: "#facc15", scale: 1.2, blurb: "태양광" },
+  // 금융
+  { id: "x-meridian",  name: "메리디안뱅크",  industryId: "finance",       countryId: "us", logoColor: "#0369a1", scale: 1.4, blurb: "글로벌 은행" },
+  // 바이오
+  { id: "x-genecure",  name: "진큐어",        industryId: "bio",           countryId: "kr", logoColor: "#db2777", scale: 1.2, blurb: "유전자 치료" },
+  // 핀테크·블록체인
+  { id: "x-chainly",   name: "체인리",        industryId: "crypto_co",     countryId: "us", logoColor: "#6366f1", scale: 1.1, blurb: "블록체인 인프라" },
+];

@@ -10,7 +10,7 @@ import { getIndustry, INDUSTRIES } from "../data/industries";
 import { getCountry } from "../data/countries";
 import { COMPANY_PRESETS, PRESET_MAP, type CompanyPreset } from "../data/companyPresets";
 import { createMacro } from "./economy";
-import { createStocks } from "./market";
+import { createStocks, createExternalStocks } from "./market";
 import { createAssets } from "./assets";
 import { buildTalentPool } from "./characters";
 import { createRelations } from "./relations";
@@ -19,7 +19,7 @@ import { shuffle } from "./rng";
 import { recordNetWorth } from "./ranking";
 
 export const GAME_VERSION = 1;
-export const DEFAULT_MAX_TURNS = 24;
+export const DEFAULT_MAX_TURNS = 48;
 
 export interface NewGameOptions {
   level: Level;
@@ -183,7 +183,7 @@ export function createGame(opts: NewGameOptions): GameState {
     macro: createMacro(getCountry(opts.countryId), rng),
     companies,
     playerCompanyId: player.id,
-    stocks: createStocks(companies),
+    stocks: { ...createStocks(companies), ...createExternalStocks(companies, rng) },
     assets: createAssets(),
     talentPool: buildTalentPool(rng, 8),
     relations: createRelations(companies),

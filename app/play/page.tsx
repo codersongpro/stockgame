@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
-import { netWorth, playerRank, rankings } from "@/lib/engine";
+import { netWorth, playerRank, rankings, LAYER_LABELS } from "@/lib/engine";
+import type { NewsItem } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
 import { initAudio, isMuted, setMuted, startBgm, stopBgm } from "@/lib/audio";
 
@@ -42,6 +43,20 @@ export default function PlayPage() {
   const [visitId, setVisitId] = useState<string | null>(null);
   const [muted, setMutedState] = useState(false);
   const [ready, setReady] = useState(false);
+  const [eventPopup, setEventPopup] = useState<NewsItem[] | null>(null);
+  const lockUntil = useRef(0);
+
+  // Advance one quarter. Guards against (a) rapid double-clicks force-skipping
+  // multiple turns and (b) skipping past an unacknowledged event popup.
+  const handleNext = () => {
+    if (eventPopup) return; // must acknowledge events first
+    const now = Date.now();
+    if (now < lockUntil.current) return; // debounce accidental multi-advance
+    lockUntil.current = now + 400;
+    next();
+    const events = useGameStore.getState().lastSummary?.events ?? [];
+    if (events.length > 0) setEventPopup(events);
+  };
 
   // Hydrate from save if the store is empty (e.g. page refresh).
   useEffect(() => {
@@ -120,8 +135,8 @@ export default function PlayPage() {
             {muted ? "🔇" : "🔊"}
           </button>
           <button
-            onClick={next}
-            disabled={ended}
+            onClick={handleNext}
+            disabled={ended || !!eventPopup}
             className="btn-primary whitespace-nowrap"
           >
             {ended ? "게임 종료" : "다음 분기 ▶"}
@@ -185,8 +200,62 @@ export default function PlayPage() {
         </div>
       )}
 
+      {/* Event popup */}
+      {eventPopup && (
+        <EventPopup events={eventPopup} onClose={() => setEventPopup(null)} />
+      )}
+
       {/* Game over overlay */}
       {ended && <GameOver game={game} onRestart={() => router.push("/")} />}
+    </div>
+  );
+}
+
+const TONE_STYLE: Record<NewsItem["tone"], { ring: string; chip: string; label: string }> = {
+  positive: { ring: "ring-bull/40", chip: "bg-bull/10 text-bull", label: "호재" },
+  negative: { ring: "ring-bear/40", chip: "bg-bear/10 text-bear", label: "악재" },
+  neutral: { ring: "ring-slate-200", chip: "bg-slate-100 text-slate-500", label: "중립" },
+};
+
+function EventPopup({ events, onClose }: { events: NewsItem[]; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="card w-full max-w-md animate-popin p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-2xl">📣</span>
+          <h2 className="text-lg font-black text-slate-800">
+            이번 분기 속보 {events.length > 1 ? `(${events.length})` : ""}
+          </h2>
+        </div>
+        <div className="max-h-[55vh] space-y-2.5 overflow-y-auto scroll-thin">
+          {events.map((ev) => {
+            const tone = TONE_STYLE[ev.tone];
+            return (
+              <div key={ev.id} className={`rounded-xl bg-white p-3 ring-1 ${tone.ring}`}>
+                <div className="flex items-start gap-2.5">
+                  <span className="text-2xl leading-none">{ev.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-bold text-slate-800">{ev.title}</span>
+                      <span className={`pill text-[10px] ${tone.chip}`}>{tone.label}</span>
+                      <span className="pill bg-slate-100 text-[10px] text-slate-500">
+                        {LAYER_LABELS[ev.layer]}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm leading-snug text-slate-600">{ev.body}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button className="btn-primary mt-4 w-full" onClick={onClose}>
+          확인하고 계속 ▶
+        </button>
+      </div>
     </div>
   );
 }

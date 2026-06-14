@@ -50,7 +50,9 @@ describe("game lifecycle", () => {
     const g = newGame(7);
     expect(g.companies.filter((c) => c.isPlayer)).toHaveLength(1);
     expect(g.companies.filter((c) => c.isAI)).toHaveLength(g.config.aiCount);
-    expect(Object.keys(g.stocks)).toHaveLength(g.companies.length);
+    // Every in-game company is listed, plus the broader market (external listings).
+    for (const c of g.companies) expect(g.stocks[c.id]).toBeDefined();
+    expect(Object.keys(g.stocks).length).toBeGreaterThan(g.companies.length);
   });
 
   it("ends after maxTurns", () => {

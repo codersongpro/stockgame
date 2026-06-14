@@ -13,15 +13,54 @@ type Selection =
   | { kind: "asset"; id: AssetClass }
   | null;
 
+interface Listing {
+  id: string;
+  name: string;
+  logoColor: string;
+  industryId: string;
+  external: boolean;
+}
+
 export function InvestmentDesk({ game, company }: { game: GameState; company: Company }) {
   const [tab, setTab] = useState<"stocks" | "assets">("stocks");
   const [sel, setSel] = useState<Selection>(null);
   const [qty, setQty] = useState(10);
+  const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<"all" | "held" | "rivals">("all");
   const tradeStock = useGameStore((s) => s.tradeStock);
   const tradeAsset = useGameStore((s) => s.tradeAsset);
 
-  const others = game.companies.filter((c) => c.id !== company.id);
+  const companyById = new Map(game.companies.map((c) => [c.id, c]));
   const enabledAssets = game.config.enabledAssets;
+
+  // Every listing on the market: in-game competitors + external companies.
+  const allListings: Listing[] = Object.values(game.stocks)
+    .filter((s) => s.companyId !== company.id)
+    .map((s) => {
+      const c = companyById.get(s.companyId);
+      return {
+        id: s.companyId,
+        name: c?.name ?? s.name ?? s.companyId,
+        logoColor: c?.logoColor ?? s.logoColor ?? "#64748b",
+        industryId: c?.industryId ?? s.industryId ?? "tech",
+        external: !c,
+      };
+    });
+
+  const q = query.trim().toLowerCase();
+  const listings = allListings
+    .filter((l) => {
+      if (scope === "rivals" && l.external) return false;
+      if (scope === "held" && (company.portfolio.stocks[l.id] ?? 0) <= 0) return false;
+      if (q && !l.name.toLowerCase().includes(q) && !getIndustry(l.industryId).name.toLowerCase().includes(q))
+        return false;
+      return true;
+    })
+    .sort((a, b) => {
+      // Rivals first, then by price desc for a stable, useful order.
+      if (a.external !== b.external) return a.external ? 1 : -1;
+      return game.stocks[b.id].price - game.stocks[a.id].price;
+    });
 
   return (
     <div className="space-y-4">
@@ -35,40 +74,59 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
       </div>
 
       {tab === "stocks" ? (
-        <div className="card divide-y divide-slate-100">
-          {others.map((c) => {
-            const stock = game.stocks[c.id];
-            const ind = getIndustry(c.industryId);
-            const ch = changePct(stock.price, stock.history[stock.history.length - 2] ?? stock.price);
-            const held = company.portfolio.stocks[c.id] ?? 0;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSel({ kind: "stock", id: c.id })}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
-              >
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-base"
-                  style={{ background: c.logoColor + "22", color: c.logoColor }}
+        <div className="space-y-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="🔎 종목·업종 검색"
+            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-800 outline-none focus:border-brand-500"
+          />
+          <div className="flex gap-1.5 text-xs font-semibold">
+            <ScopeChip active={scope === "all"} onClick={() => setScope("all")}>전체 {allListings.length}</ScopeChip>
+            <ScopeChip active={scope === "rivals"} onClick={() => setScope("rivals")}>경쟁사</ScopeChip>
+            <ScopeChip active={scope === "held"} onClick={() => setScope("held")}>보유</ScopeChip>
+          </div>
+          <div className="card max-h-[60vh] divide-y divide-slate-100 overflow-y-auto scroll-thin">
+            {listings.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-slate-400">종목이 없습니다.</div>
+            )}
+            {listings.map((l) => {
+              const stock = game.stocks[l.id];
+              const ind = getIndustry(l.industryId);
+              const ch = changePct(stock.price, stock.history[stock.history.length - 2] ?? stock.price);
+              const held = company.portfolio.stocks[l.id] ?? 0;
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => setSel({ kind: "stock", id: l.id })}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
                 >
-                  {ind.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-slate-800">{c.name}</div>
-                  <div className="text-xs text-slate-500">
-                    {held > 0 ? `보유 ${formatNum(held)}주` : ind.name}
+                  <span
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-base"
+                    style={{ background: l.logoColor + "22", color: l.logoColor }}
+                  >
+                    {ind.emoji}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate font-semibold text-slate-800">{l.name}</span>
+                      {!l.external && <span className="pill shrink-0 bg-brand-50 text-[10px] text-brand-600">경쟁사</span>}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {held > 0 ? `보유 ${formatNum(held)}주` : ind.name}
+                    </div>
                   </div>
-                </div>
-                <Sparkline data={stock.history.slice(-20)} width={70} height={28} />
-                <div className="w-24 text-right">
-                  <div className="font-bold text-slate-800">{formatNum(stock.price)}</div>
-                  <div className={`text-xs font-semibold ${ch >= 0 ? "text-bull" : "text-bear"}`}>
-                    {formatPct(ch)}
+                  <Sparkline data={stock.history.slice(-20)} width={70} height={28} />
+                  <div className="w-24 text-right">
+                    <div className="font-bold text-slate-800">{formatNum(stock.price)}</div>
+                    <div className={`text-xs font-semibold ${ch >= 0 ? "text-bull" : "text-bear"}`}>
+                      {formatPct(ch)}
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="card divide-y divide-slate-100">
@@ -141,12 +199,16 @@ function TradePanel({
   onTrade: (side: "buy" | "sell") => void;
 }) {
   const isStock = sel.kind === "stock";
-  const price = isStock ? game.stocks[sel.id].price : game.assets[sel.id].price;
+  const stock = isStock ? game.stocks[sel.id] : null;
+  const stockCompany = isStock ? game.companies.find((c) => c.id === sel.id) : undefined;
+  const price = isStock ? stock!.price : game.assets[sel.id].price;
   const name = isStock
-    ? game.companies.find((c) => c.id === sel.id)!.name
+    ? stockCompany?.name ?? stock!.name ?? sel.id
     : game.assets[sel.id].name;
-  const color = isStock ? game.companies.find((c) => c.id === sel.id)!.logoColor : "#0ea5e9";
-  const history = isStock ? game.stocks[sel.id].history : game.assets[sel.id].history;
+  const color = isStock
+    ? stockCompany?.logoColor ?? stock!.logoColor ?? "#0ea5e9"
+    : "#0ea5e9";
+  const history = isStock ? stock!.history : game.assets[sel.id].history;
   const held = isStock
     ? company.portfolio.stocks[sel.id] ?? 0
     : company.portfolio.assets[sel.id] ?? 0;
@@ -192,6 +254,17 @@ function TradePanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function ScopeChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`pill ${active ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+    >
+      {children}
+    </button>
   );
 }
 

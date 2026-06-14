@@ -1,0 +1,149 @@
+import type { Company, EconomyPhase } from "../engine/types";
+
+// Flavour dialogue for the little people walking around a company campus.
+// Touching a pedestrian shows what they think about the company — lines are
+// chosen from pools that match the company's current state, so the chatter
+// reflects morale, reputation, finances and the macro mood. Lots of variety
+// on purpose: pools are large and a generic pool is always mixed in.
+
+type Pool = (c: Company) => string[];
+
+const HIGH_MORALE: Pool = (c) => [
+  `${c.name}에서 일하는 거 요즘 너무 즐거워요!`,
+  "팀 분위기가 최고예요. 출근이 기다려진다니까요.",
+  "복지가 좋아져서 동료들 표정이 다 밝아요.",
+  "야근이 줄었어요. 이런 회사 또 없죠.",
+  "사내 카페에서 커피 한 잔! 행복합니다 ☕",
+  "동료들이랑 점심 먹는 시간이 제일 좋아요.",
+];
+
+const LOW_MORALE: Pool = (c) => [
+  `${c.name}... 요즘 사기가 영 바닥이에요.`,
+  "또 야근이라니, 너무 지쳐요…",
+  "분위기가 가라앉아서 다들 말이 없어요.",
+  "이직 사이트를 자꾸 들여다보게 되네요.",
+  "휴게실이라도 좀 만들어 줬으면…",
+  "월급은 그대로인데 일은 자꾸 늘어요.",
+];
+
+const HIGH_REP: Pool = (c) => [
+  `${c.name} 다닌다고 하면 다들 부러워해요.`,
+  "우리 회사 평판이 진짜 좋아졌어요!",
+  "친구한테 입사 추천했어요. 자랑스럽거든요.",
+  "고객들이 우리 브랜드를 믿어줘서 뿌듯해요.",
+  "뉴스에 좋게 나와서 기분이 좋네요.",
+];
+
+const LOW_REP: Pool = (c) => [
+  `요즘 ${c.name} 이미지가 좀 안 좋아서 속상해요.`,
+  "사람들이 우리 회사를 안 좋게 봐서 걱정이에요.",
+  "평판 관리가 시급해 보여요.",
+  "고객 불만이 늘었다는 소문이…",
+  "친구한테 회사 얘기 꺼내기가 좀 그래요.",
+];
+
+const HIGH_QUALITY: Pool = (c) => [
+  "우리 제품 품질만큼은 자신 있어요!",
+  "신제품 반응이 정말 뜨거워요 🔥",
+  `${c.name} 기술력은 업계 최고죠.`,
+  "연구소에서 또 대단한 걸 만들었대요.",
+  "품질 좋다고 리뷰가 칭찬 일색이에요.",
+];
+
+const HIGH_DEBT: Pool = (c) => [
+  "회사 빚이 많다던데… 괜찮을까요?",
+  "대출 이자 얘기가 자꾸 들려서 불안해요.",
+  "재무팀이 요즘 바빠 보여요. 무슨 일이죠?",
+  "확장도 좋지만 빚은 좀 줄였으면…",
+];
+
+const RICH_CASH: Pool = (c) => [
+  `${c.name} 금고가 두둑하다던데요? 😎`,
+  "현금이 넉넉하니 보너스 기대해도 될까요?",
+  "투자 여력이 충분하다니 든든하네요.",
+  "재정이 탄탄해서 마음이 놓여요.",
+];
+
+const PROFIT: Pool = (c) => [
+  "이번 분기 실적이 좋았대요! 보너스 가즈아~",
+  `${c.name} 흑자라니 어깨가 으쓱해요.`,
+  "장사가 잘되니 회사에 활기가 도네요.",
+  "매출이 쭉쭉 오른다는 소식, 기분 좋아요.",
+];
+
+const LOSS: Pool = (c) => [
+  "적자라는 얘기에 다들 긴장하고 있어요…",
+  "이번 분기는 좀 힘들었나 봐요.",
+  "비용을 줄여야 한다는 말이 돌아요.",
+  `${c.name}, 다음 분기엔 반등하길!`,
+];
+
+const PHASE: Record<EconomyPhase, string[]> = {
+  boom: [
+    "경기가 좋으니 거리에 사람도 많네요!",
+    "다들 지갑을 여는 분위기예요. 호황이죠!",
+    "주가도 오르고, 살 맛 나는 요즘입니다.",
+  ],
+  normal: [
+    "오늘도 평범하지만 평화로운 하루네요.",
+    "꾸준한 게 최고죠. 무탈하게 일합니다.",
+    "특별한 일은 없지만 그게 좋아요.",
+  ],
+  recession: [
+    "불경기라 다들 허리띠를 졸라매요.",
+    "요즘 소비가 줄어서 거리가 한산해요.",
+    "어려운 시기지만 버텨봐야죠.",
+  ],
+  inflation: [
+    "물가가 너무 올라서 점심값이 무서워요.",
+    "월급 빼고 다 오른다더니 정말이네요.",
+    "장바구니 물가에 한숨이 나와요.",
+  ],
+  deflation: [
+    "물건값이 자꾸 떨어지니 묘하게 불안해요.",
+    "사람들이 소비를 미뤄서 가게가 조용해요.",
+    "싸지는 건 좋은데 경기가 걱정이에요.",
+  ],
+  stagflation: [
+    "경기는 나쁜데 물가는 오르고… 최악이에요.",
+    "월급은 그대론데 물가만 뛰니 힘드네요.",
+    "이런 시기엔 뭘 해도 어렵다더라고요.",
+  ],
+};
+
+const GENERIC: Pool = (c) => [
+  "안녕하세요! 좋은 하루 보내세요 😊",
+  `여기가 ${c.name} 캠퍼스군요. 멋지네요!`,
+  "점심 뭐 먹을지 고민 중이에요…",
+  "오늘 날씨 정말 좋네요.",
+  "퇴근하고 운동하러 갈 거예요!",
+  "이 동네 산책로가 참 예뻐요.",
+  "커피 한 잔의 여유, 최고죠.",
+  "버스 시간 맞추려고 뛰는 중이에요 🏃",
+  "새로 생긴 건물 구경하고 있었어요.",
+  "주말엔 좀 쉬고 싶네요~",
+];
+
+/**
+ * Pick one line that reflects the company's current state. `rand` defaults to
+ * Math.random so callers don't perturb the deterministic game RNG.
+ */
+export function pickCityVoice(
+  company: Company,
+  phase: EconomyPhase,
+  rand: () => number = Math.random,
+): string {
+  const pool: string[] = [...GENERIC(company), ...PHASE[phase]];
+
+  if (company.morale >= 65) pool.push(...HIGH_MORALE(company));
+  if (company.morale <= 40) pool.push(...LOW_MORALE(company));
+  if (company.reputation >= 65) pool.push(...HIGH_REP(company));
+  if (company.reputation <= 40) pool.push(...LOW_REP(company));
+  if (company.quality >= 60) pool.push(...HIGH_QUALITY(company));
+  if (company.debt > company.cash * 1.2) pool.push(...HIGH_DEBT(company));
+  if (company.cash > 1_500_000) pool.push(...RICH_CASH(company));
+  if (company.lastProfit > 0) pool.push(...PROFIT(company));
+  if (company.lastProfit < 0) pool.push(...LOSS(company));
+
+  return pool[Math.floor(rand() * pool.length)] ?? GENERIC(company)[0];
+}

@@ -1,7 +1,8 @@
 import type { Company, LevelConfig, MacroState, Stock } from "./types";
 import { BUILDINGS } from "./buildings";
 import { getIndustry } from "../data/industries";
-import { type RngState, nextGaussian } from "./rng";
+import { COMPANY_PRESETS, EXTRA_LISTINGS, type CompanyPreset } from "../data/companyPresets";
+import { type RngState, nextGaussian, nextRange } from "./rng";
 
 // Stock market: each company is investable. Prices track a fundamental value
 // (derived from profit, cash, quality, reputation, assets) with sentiment and
@@ -46,6 +47,48 @@ export function createStocks(companies: Company[]): Record<string, Stock> {
   return out;
 }
 
+const EXT_BASE_VALUE = 700_000; // synthetic enterprise value base for listings
+
+/**
+ * Build the broader market: every company preset that is NOT an active in-game
+ * competitor, plus extra fictional listings. These are fully investable but
+ * have no Company object, so prices follow a synthetic anchor + random walk.
+ */
+export function createExternalStocks(
+  companies: Company[],
+  rng: RngState,
+): Record<string, Stock> {
+  const taken = new Set(companies.map((c) => c.basedOn).filter(Boolean) as string[]);
+  const listings: CompanyPreset[] = [
+    ...COMPANY_PRESETS.filter((p) => !taken.has(p.id)),
+    ...EXTRA_LISTINGS,
+  ];
+  const out: Record<string, Stock> = {};
+  for (const p of listings) {
+    const industry = getIndustry(p.industryId);
+    const ev =
+      EXT_BASE_VALUE *
+      p.scale *
+      (1 + industry.trend * 6) *
+      nextRange(rng, 0.7, 1.4);
+    const fair = ev / SHARES;
+    const price = Math.max(5, round2(fair));
+    out[p.id] = {
+      companyId: p.id,
+      price,
+      history: [price],
+      sharesOutstanding: SHARES,
+      external: true,
+      name: p.name,
+      logoColor: p.logoColor,
+      industryId: p.industryId,
+      countryId: p.countryId,
+      anchor: fair,
+    };
+  }
+  return out;
+}
+
 /** Advance all stock prices one turn toward fundamentals plus market noise. */
 export function tickStocks(
   stocks: Record<string, Stock>,
@@ -58,7 +101,11 @@ export function tickStocks(
   for (const id of Object.keys(stocks)) {
     const stock = stocks[id];
     const company = byId.get(id);
-    if (!company) continue;
+    if (!company) {
+      // External listing (no Company): synthetic anchor + random walk.
+      if (stock.external) tickExternalStock(stock, macro, config, rng);
+      continue;
+    }
 
     const fair = fundamentalValue(company) / stock.sharesOutstanding;
     const gap = (fair - stock.price) / stock.price;
@@ -74,6 +121,30 @@ export function tickStocks(
     stock.history.push(round2(stock.price));
     if (stock.history.length > 60) stock.history.shift();
   }
+}
+
+/** Advance one external (no-Company) listing toward its drifting anchor. */
+function tickExternalStock(
+  stock: Stock,
+  macro: MacroState,
+  config: LevelConfig,
+  rng: RngState,
+): void {
+  const industry = stock.industryId ? getIndustry(stock.industryId) : null;
+  const trend = industry?.trend ?? 0.01;
+  const vol = industry?.volatility ?? 1;
+
+  // Anchor (fundamental baseline) drifts slowly with the industry trend.
+  const anchor = (stock.anchor ?? stock.price) * (1 + trend + nextGaussian(rng, 0, 0.01));
+  stock.anchor = anchor;
+
+  const gap = (anchor - stock.price) / stock.price;
+  const drift = gap * 0.2 + macro.sentiment * 0.03 + trend;
+  const noise = nextGaussian(rng, 0, 0.045 * vol * config.volatility);
+
+  stock.price = Math.max(1, stock.price * (1 + drift + noise));
+  stock.history.push(round2(stock.price));
+  if (stock.history.length > 60) stock.history.shift();
 }
 
 /** Apply a discrete shock (from an event) to a single stock. */

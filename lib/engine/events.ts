@@ -70,6 +70,14 @@ function applyThemeShock(state: GameState, tag: string, basePct: number): string
     c.reputation = clamp(c.reputation + (basePct > 0 ? 1 : -1), 0, 100);
     affected.push(c.id);
   }
+  // The broader market (external listings) also reacts to themes.
+  for (const id of Object.keys(state.stocks)) {
+    const stock = state.stocks[id];
+    if (!stock.external || !stock.industryId) continue;
+    const sens = getIndustry(stock.industryId).sensitivities[tag];
+    if (!sens) continue;
+    shockStock(state.stocks, id, basePct * sens);
+  }
   return affected;
 }
 

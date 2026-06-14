@@ -28,6 +28,34 @@ body {
   animation: iso-agent-move var(--dur, 6s) linear infinite;
 }
 
+/* drifting clouds over the campus */
+@keyframes cloud-drift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(var(--cloud-dx, 60px)); }
+}
+.cloud-drift {
+  animation: cloud-drift var(--cloud-dur, 40s) ease-in-out infinite alternate;
+}
+
+/* soft glow pulse for selected buildings / fresh construction */
+@keyframes iso-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.9; }
+}
+.iso-pulse {
+  animation: iso-pulse 1.8s ease-in-out infinite;
+}
+
+/* speech bubble pop-in for city pedestrians */
+@keyframes bubble-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.bubble-pop {
+  transform-origin: bottom center;
+  animation: bubble-pop 0.18s ease-out;
+}
+
 /* thin scrollbars for panels */
 .scroll-thin::-webkit-scrollbar {
   width: 8px;

@@ -143,6 +143,14 @@ export interface Stock {
   price: number;
   history: number[];
   sharesOutstanding: number;
+  /** Listings for companies not actively played (presets + extra fictional). */
+  external?: boolean;
+  name?: string;
+  logoColor?: string;
+  industryId?: string;
+  countryId?: string;
+  /** Slowly drifting fundamental baseline used to mean-revert external prices. */
+  anchor?: number;
 }
 
 export type AssetClass =
