@@ -163,6 +163,9 @@ function Slider({
   format: (v: number) => string;
   onChange: (v: number) => void;
 }) {
+  // The slider is a convenient range, but the number box lets the user type any
+  // value above the preset max — the track simply grows to include it.
+  const sliderMax = Math.max(max, value);
   return (
     <div className="mb-4">
       <div className="mb-1 flex items-center justify-between gap-2 text-sm">
@@ -172,9 +175,8 @@ function Slider({
             type="number"
             value={Math.round(value)}
             min={min}
-            max={max}
             step={step}
-            onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value))))}
+            onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
             className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-right font-bold text-brand-700 outline-none focus:border-brand-500"
           />
           <span className="text-xs text-slate-400">{format(value)}</span>
@@ -183,7 +185,7 @@ function Slider({
       <input
         type="range"
         min={min}
-        max={max}
+        max={sliderMax}
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
