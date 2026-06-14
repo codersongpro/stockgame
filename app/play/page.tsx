@@ -21,6 +21,7 @@ import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
+import { TAB_ICONS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
@@ -187,7 +188,13 @@ export default function PlayPage() {
                 tab === t.id ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <span>{t.emoji}</span>
+              <img
+                src={TAB_ICONS[t.id]}
+                alt={t.emoji}
+                className="h-6 w-6 object-contain"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; (e.currentTarget.nextSibling as HTMLElement | null)?.style.setProperty("display", "inline"); }}
+              />
+              <span style={{ display: "none" }}>{t.emoji}</span>
               {t.label}
             </button>
           ))}

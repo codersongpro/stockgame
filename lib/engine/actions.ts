@@ -7,8 +7,9 @@ import type {
 } from "./types";
 import { BUILDINGS, buildingCostFor } from "./buildings";
 import { autoAssignRole, generateCharacter } from "./characters";
-import { adjustRivalry } from "./relations";
+import { adjustRivalry, getRivalry } from "./relations";
 import { shockStock } from "./market";
+import { nextFloat } from "./rng";
 
 // Mutating player/AI actions that happen *between* turns (they don't advance
 // the clock). Single-sourced so the AI and the human player obey the same rules.
@@ -16,6 +17,8 @@ import { shockStock } from "./market";
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /** Human-readable outcome message (e.g. deal success/failure). */
+  message?: string;
   /** Realized profit/loss on a stock sale (current proceeds − cost basis). */
   realized?: number;
   /** Cash refunded when demolishing/selling a building. */
@@ -125,10 +128,10 @@ export const COMPANY_ACTIONS: Record<string, CompanyActionDef> = {
 /** Player-initiated cooperation with another company (from the visit screen). */
 interface DealDef { label: string; cost: number; }
 export const DEALS: Record<string, DealDef> = {
-  partner: { label: "전략적 제휴", cost: 120_000 },
-  license: { label: "기술 제휴", cost: 150_000 },
-  comarket: { label: "공동 마케팅", cost: 100_000 },
-  scout: { label: "인재 스카우트", cost: 200_000 },
+  partner: { label: "전략적 제휴", cost: 40_000 },
+  license: { label: "기술 제휴", cost: 60_000 },
+  comarket: { label: "공동 마케팅", cost: 30_000 },
+  scout: { label: "인재 스카우트", cost: 80_000 },
 };
 
 export function proposeDeal(
@@ -144,6 +147,23 @@ export function proposeDeal(
   if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
 
   company.cash -= def.cost;
+
+  // Compute success chance based on rivalry between companies.
+  const rivalry = getRivalry(state.relations, company.id, targetCompanyId);
+  let successChance = 0.65;
+  if (rivalry > 0.6) {
+    successChance = Math.max(0.3, 0.65 - rivalry * 0.4);
+  } else if (rivalry < 0.2) {
+    successChance = Math.min(0.9, 0.65 + 0.2);
+  }
+
+  // Roll for success/failure.
+  if (nextFloat(state.rng) > successChance) {
+    // Deal failed — refund 50% of cost.
+    company.cash += Math.round(def.cost * 0.5);
+    return { ok: true, message: "협상이 결렬되었습니다. 비용의 50%가 환불됩니다." };
+  }
+
   const bump = (c: Company, q = 0, r = 0) => {
     c.quality = Math.min(100, c.quality + q);
     c.reputation = Math.min(100, c.reputation + r);
@@ -173,7 +193,7 @@ export function proposeDeal(
       break;
     }
   }
-  return { ok: true };
+  return { ok: true, message: "협력이 성사되었습니다!" };
 }
 
 export function applyCompanyAction(

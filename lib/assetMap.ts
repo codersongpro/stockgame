@@ -76,3 +76,46 @@ export function idToIndex(id: string, len: number): number {
 export const SECRETARY_IMG = "/assets/characters/secretary.png";
 export const ICON_STOCK    = "/assets/icons/stock.png";
 export const ICON_NEWS     = "/assets/icons/news.png";
+
+// Economy phase icons
+export const PHASE_ICONS: Record<string, string> = {
+  boom:        "/assets/icons/phase_boom.png",
+  normal:      "/assets/icons/phase_normal.png",
+  recession:   "/assets/icons/phase_recession.png",
+  inflation:   "/assets/icons/phase_inflation.png",
+  deflation:   "/assets/icons/phase_deflation.png",
+  stagflation: "/assets/icons/phase_stagflation.png",
+};
+
+// Tab navigation icons
+export const TAB_ICONS = {
+  home:    "/assets/icons/tab_home.png",
+  company: "/assets/icons/tab_company.png",
+  invest:  "/assets/icons/tab_invest.png",
+  talent:  "/assets/icons/tab_talent.png",
+  news:    "/assets/icons/tab_news.png",
+  rank:    "/assets/icons/tab_rank.png",
+  visit:   "/assets/icons/tab_visit.png",
+} as const;
+
+// Quickfact dashboard icons
+export const FACT_ICONS = {
+  revenue:   "/assets/icons/fact_revenue.png",
+  profit:    "/assets/icons/fact_profit.png",
+  buildings: "/assets/icons/fact_buildings.png",
+  staff:     "/assets/icons/fact_staff.png",
+} as const;
+
+// Result/game-over illustrations
+export const RESULT_ICONS = {
+  win: "/assets/icons/result_win.png",
+  end: "/assets/icons/result_end.png",
+} as const;
+
+// Event banners
+export const BANNER_IMGS = {
+  positive: "/assets/banners/banner_positive.png",
+  negative: "/assets/banners/banner_negative.png",
+  neutral:  "/assets/banners/banner_neutral.png",
+  report:   "/assets/banners/banner_report.png",
+} as const;
