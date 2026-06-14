@@ -587,6 +587,88 @@ const TEMPLATES: EventTemplate[] = [
     },
   },
 
+  // ===== MORE INTERCOMPANY (회사 간 교류) =====
+  {
+    id: "joint_venture",
+    layer: "intercompany",
+    tone: "positive",
+    emoji: "🏗️",
+    weight: ({ state }) => (state.companies.length > 2 ? 1 : 0),
+    run: ({ state, rng }) => {
+      const a = pick(rng, state.companies);
+      const others = state.companies.filter((c) => c.id !== a.id);
+      if (!others.length) return null;
+      const b = pick(rng, others);
+      adjustRivalry(state.relations, a.id, b.id, -0.3);
+      shockStock(state.stocks, a.id, 0.05);
+      shockStock(state.stocks, b.id, 0.05);
+      return {
+        title: "합작법인(JV) 설립",
+        body: `${a.name}와(과) ${b.name}이(가) 공동 출자로 합작법인을 세웁니다.`,
+        tags: ["intercompany", a.id, b.id],
+      };
+    },
+  },
+  {
+    id: "tech_transfer",
+    layer: "intercompany",
+    tone: "positive",
+    emoji: "🔧",
+    weight: () => 0.9,
+    run: ({ state, rng }) => {
+      const buyer = weightedCompany(state, rng, (c) => Math.max(0.1, 100 - c.quality));
+      if (!buyer) return null;
+      buyer.quality = clamp(buyer.quality + 6, 0, 100);
+      shockStock(state.stocks, buyer.id, 0.04);
+      return {
+        title: "기술 이전 계약",
+        body: `${buyer.name}이(가) 핵심 기술을 이전받아 품질을 끌어올립니다.`,
+        tags: ["intercompany", "tech", buyer.id],
+      };
+    },
+  },
+  {
+    id: "supply_contract",
+    layer: "intercompany",
+    tone: "positive",
+    emoji: "📑",
+    weight: ({ state }) => (state.companies.length > 2 ? 1 : 0),
+    run: ({ state, rng }) => {
+      const a = pick(rng, state.companies);
+      const others = state.companies.filter((c) => c.id !== a.id);
+      if (!others.length) return null;
+      const b = pick(rng, others);
+      shockStock(state.stocks, a.id, 0.03);
+      shockStock(state.stocks, b.id, 0.02);
+      return {
+        title: "장기 공급계약 체결",
+        body: `${a.name}이(가) ${b.name}과(와) 안정적인 공급계약을 맺었습니다.`,
+        tags: ["intercompany", a.id, b.id],
+      };
+    },
+  },
+  {
+    id: "patent_dispute",
+    layer: "intercompany",
+    tone: "negative",
+    emoji: "⚖️",
+    weight: ({ state }) => (state.companies.length > 2 ? 1 : 0),
+    run: ({ state, rng }) => {
+      const a = pick(rng, state.companies);
+      const rivals = state.companies.filter((c) => c.id !== a.id && c.industryId === a.industryId);
+      const b = rivals.length ? pick(rng, rivals) : pick(rng, state.companies.filter((c) => c.id !== a.id));
+      if (!b) return null;
+      adjustRivalry(state.relations, a.id, b.id, 0.35);
+      shockStock(state.stocks, a.id, -0.04);
+      shockStock(state.stocks, b.id, -0.04);
+      return {
+        title: "특허 분쟁 발생",
+        body: `${a.name}와(과) ${b.name}이(가) 특허 침해를 두고 법정 다툼에 들어갔습니다.`,
+        tags: ["intercompany", "patent", a.id, b.id],
+      };
+    },
+  },
+
   // ===== VISITOR (외부인 방문) =====
   {
     id: "politician_visit",

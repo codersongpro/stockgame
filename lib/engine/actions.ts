@@ -6,7 +6,9 @@ import type {
   PlacedBuilding,
 } from "./types";
 import { BUILDINGS, buildingCostFor } from "./buildings";
-import { autoAssignRole } from "./characters";
+import { autoAssignRole, generateCharacter } from "./characters";
+import { adjustRivalry } from "./relations";
+import { shockStock } from "./market";
 
 // Mutating player/AI actions that happen *between* turns (they don't advance
 // the clock). Single-sourced so the AI and the human player obey the same rules.
@@ -16,6 +18,8 @@ export interface ActionResult {
   error?: string;
   /** Realized profit/loss on a stock sale (current proceeds − cost basis). */
   realized?: number;
+  /** Cash refunded when demolishing/selling a building. */
+  refund?: number;
 }
 
 /** Average purchase price per share for a held stock (0 if none / unknown). */
@@ -76,6 +80,112 @@ export function buildBuilding(
     turnsLeft: state.config.instantBuild ? 0 : BUILDINGS[type].buildTurns,
   };
   company.buildings.push(building);
+  return { ok: true };
+}
+
+/** Demolish/sell a building, refunding part of its construction cost. */
+export function sellBuilding(
+  state: GameState,
+  company: Company,
+  buildingId: string,
+): ActionResult {
+  const idx = company.buildings.findIndex((b) => b.id === buildingId);
+  if (idx < 0) return { ok: false, error: "건물을 찾을 수 없습니다." };
+  const b = company.buildings[idx];
+  // Refund 50% of the total spent across all of its levels.
+  let spent = 0;
+  for (let lvl = 1; lvl <= b.level; lvl++) spent += buildingCostFor(b.type, lvl);
+  const refund = Math.round(spent * 0.5);
+  company.cash += refund;
+  company.buildings.splice(idx, 1);
+  return { ok: true, refund };
+}
+
+/** Building-specific one-off management actions (cost → stat boost). */
+interface CompanyActionDef {
+  label: string;
+  cost: number;
+  apply: (company: Company) => void;
+}
+const clamp01 = (v: number) => Math.max(0, Math.min(100, v));
+export const COMPANY_ACTIONS: Record<string, CompanyActionDef> = {
+  inspect: { label: "라인 점검", cost: 40_000, apply: (c) => { c.safety = clamp01(c.safety + 7); } },
+  research: { label: "집중 연구", cost: 60_000, apply: (c) => { c.quality = clamp01(c.quality + 5); } },
+  promo: { label: "프로모션", cost: 50_000, apply: (c) => { c.reputation = clamp01(c.reputation + 5); } },
+  training: { label: "직원 교육", cost: 50_000, apply: (c) => { c.morale = clamp01(c.morale + 5); c.quality = clamp01(c.quality + 2); } },
+  welfare: {
+    label: "복지 강화", cost: 40_000,
+    apply: (c) => {
+      c.morale = clamp01(c.morale + 6);
+      for (const h of c.hired) h.loyalty = Math.min(100, (h.loyalty ?? 70) + 6);
+    },
+  },
+};
+
+/** Player-initiated cooperation with another company (from the visit screen). */
+interface DealDef { label: string; cost: number; }
+export const DEALS: Record<string, DealDef> = {
+  partner: { label: "전략적 제휴", cost: 120_000 },
+  license: { label: "기술 제휴", cost: 150_000 },
+  comarket: { label: "공동 마케팅", cost: 100_000 },
+  scout: { label: "인재 스카우트", cost: 200_000 },
+};
+
+export function proposeDeal(
+  state: GameState,
+  company: Company,
+  targetCompanyId: string,
+  dealId: string,
+): ActionResult {
+  const def = DEALS[dealId];
+  if (!def) return { ok: false, error: "알 수 없는 제안입니다." };
+  const target = findCompany(state, targetCompanyId);
+  if (!target || target.id === company.id) return { ok: false, error: "대상 회사를 찾을 수 없습니다." };
+  if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
+
+  company.cash -= def.cost;
+  const bump = (c: Company, q = 0, r = 0) => {
+    c.quality = Math.min(100, c.quality + q);
+    c.reputation = Math.min(100, c.reputation + r);
+  };
+  switch (dealId) {
+    case "partner":
+      adjustRivalry(state.relations, company.id, targetCompanyId, -0.25);
+      shockStock(state.stocks, company.id, 0.02);
+      shockStock(state.stocks, targetCompanyId, 0.02);
+      bump(company, 0, 3);
+      break;
+    case "license":
+      adjustRivalry(state.relations, company.id, targetCompanyId, -0.1);
+      bump(company, 5, 1);
+      shockStock(state.stocks, company.id, 0.02);
+      break;
+    case "comarket":
+      adjustRivalry(state.relations, company.id, targetCompanyId, -0.15);
+      bump(company, 0, 4);
+      shockStock(state.stocks, company.id, 0.02);
+      shockStock(state.stocks, targetCompanyId, 0.01);
+      break;
+    case "scout": {
+      const cand = generateCharacter(state.rng, "epic");
+      state.talentPool = [cand, ...state.talentPool];
+      adjustRivalry(state.relations, company.id, targetCompanyId, 0.2);
+      break;
+    }
+  }
+  return { ok: true };
+}
+
+export function applyCompanyAction(
+  _state: GameState,
+  company: Company,
+  actionId: string,
+): ActionResult {
+  const def = COMPANY_ACTIONS[actionId];
+  if (!def) return { ok: false, error: "알 수 없는 활동입니다." };
+  if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
+  company.cash -= def.cost;
+  def.apply(company);
   return { ok: true };
 }
 

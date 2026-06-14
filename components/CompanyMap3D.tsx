@@ -5,10 +5,11 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Html, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameStore } from "@/store/gameStore";
-import { BUILDINGS, BUILDING_LIST, buildingCostFor } from "@/lib/engine";
+import { BUILDING_LIST, buildingCostFor } from "@/lib/engine";
 import type { BuildingType, Company, GameState, PlacedBuilding } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
 import { pickCityVoice } from "@/lib/data/cityVoices";
+import { BuildingInteriorModal } from "./BuildingInteriorModal";
 
 /* ── palette ─────────────────────────────────────────────────────────────── */
 // [body, roof, accent]
@@ -21,6 +22,12 @@ const COLORS: Record<BuildingType, [string, string, string]> = {
   hr:        ["#eab308", "#fde047", "#a16207"],
   power:     ["#ef5350", "#f87171", "#991b1b"],
   park:      ["#34a853", "#4ade80", "#15803d"],
+  cafeteria: ["#fb923c", "#fdba74", "#c2410c"],
+  dorm:      ["#f9a8d4", "#fbcfe8", "#be185d"],
+  gym:       ["#2dd4bf", "#5eead4", "#0f766e"],
+  daycare:   ["#facc15", "#fde68a", "#b45309"],
+  clinic:    ["#f1f5f9", "#e2e8f0", "#ef4444"],
+  lab:       ["#818cf8", "#a5b4fc", "#4338ca"],
 };
 
 const PHASE_BG: Record<string, string> = {
@@ -205,6 +212,129 @@ function Building3D({
         </group>
       );
     }
+    case "cafeteria": {
+      const h = 0.45 + lvl * 0.15;
+      return (
+        <group>
+          <RoundedBox args={[0.78, h, 0.78]} radius={0.04} position={[0, h / 2, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color={body} emissive={emissive} emissiveIntensity={selected ? 0.4 : 0} />
+          </RoundedBox>
+          {/* striped awning */}
+          <mesh position={[0, 0.3, 0.42]} rotation={[Math.PI / 6, 0, 0]} castShadow>
+            <boxGeometry args={[0.8, 0.04, 0.24]} />
+            <meshStandardMaterial color="#ef4444" />
+          </mesh>
+          <mesh position={[0, h + 0.14, 0]}>
+            <cylinderGeometry args={[0.12, 0.12, 0.04, 16]} />
+            <meshStandardMaterial color="#fde047" emissive="#fde047" emissiveIntensity={0.4} />
+          </mesh>
+        </group>
+      );
+    }
+    case "dorm": {
+      const h = 0.5 + lvl * 0.2;
+      return (
+        <group>
+          <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[0.7, h, 0.7]} />
+            <meshStandardMaterial color={body} emissive={emissive} emissiveIntensity={selected ? 0.4 : 0} />
+          </mesh>
+          <mesh position={[0, h + 0.16, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <coneGeometry args={[0.58, 0.34, 4]} />
+            <meshStandardMaterial color={roof} />
+          </mesh>
+          {[-0.18, 0.18].map((x, i) => (
+            <mesh key={i} position={[x, h * 0.55, 0.36]}>
+              <boxGeometry args={[0.14, 0.14, 0.02]} />
+              <meshStandardMaterial color="#bfe3ff" emissive="#9cc7ff" emissiveIntensity={0.4} />
+            </mesh>
+          ))}
+        </group>
+      );
+    }
+    case "gym": {
+      const h = 0.42 + lvl * 0.12;
+      return (
+        <group>
+          <RoundedBox args={[0.78, h, 0.62]} radius={0.05} position={[0, h / 2, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color={body} emissive={emissive} emissiveIntensity={selected ? 0.4 : 0} />
+          </RoundedBox>
+          {/* dumbbell sign */}
+          <mesh position={[0, h + 0.12, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.34, 8]} />
+            <meshStandardMaterial color={accent} />
+          </mesh>
+          {[-0.18, 0.18].map((x, i) => (
+            <mesh key={i} position={[x, h + 0.12, 0]}>
+              <sphereGeometry args={[0.07, 8, 8]} />
+              <meshStandardMaterial color={accent} />
+            </mesh>
+          ))}
+        </group>
+      );
+    }
+    case "daycare": {
+      const h = 0.4 + lvl * 0.16;
+      return (
+        <group>
+          <RoundedBox args={[0.7, h, 0.7]} radius={0.08} position={[0, h / 2, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color={body} emissive={emissive} emissiveIntensity={selected ? 0.4 : 0} />
+          </RoundedBox>
+          <mesh position={[0, h + 0.12, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+            <coneGeometry args={[0.5, 0.3, 4]} />
+            <meshStandardMaterial color="#f472b6" />
+          </mesh>
+          {/* balloon */}
+          <mesh position={[0.28, h + 0.35, 0]}>
+            <sphereGeometry args={[0.08, 10, 10]} />
+            <meshStandardMaterial color="#ef4444" />
+          </mesh>
+        </group>
+      );
+    }
+    case "clinic": {
+      const h = 0.5 + lvl * 0.16;
+      return (
+        <group>
+          <RoundedBox args={[0.7, h, 0.7]} radius={0.04} position={[0, h / 2, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color={body} emissive={emissive} emissiveIntensity={selected ? 0.4 : 0} />
+          </RoundedBox>
+          {/* red cross */}
+          <mesh position={[0, h * 0.6, 0.36]}>
+            <boxGeometry args={[0.18, 0.06, 0.02]} />
+            <meshStandardMaterial color="#ef4444" />
+          </mesh>
+          <mesh position={[0, h * 0.6, 0.36]}>
+            <boxGeometry args={[0.06, 0.18, 0.02]} />
+            <meshStandardMaterial color="#ef4444" />
+          </mesh>
+          <mesh position={[0, h + 0.04, 0]}>
+            <boxGeometry args={[0.74, 0.08, 0.74]} />
+            <meshStandardMaterial color={accent} />
+          </mesh>
+        </group>
+      );
+    }
+    case "lab": {
+      const h = 0.6 + lvl * 0.3;
+      return (
+        <group>
+          <RoundedBox args={[0.66, h, 0.66]} radius={0.05} position={[0, h / 2, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color={body} emissive={emissive} emissiveIntensity={selected ? 0.4 : 0} metalness={0.2} />
+          </RoundedBox>
+          {Array.from({ length: lvl + 1 }).map((_, i) => (
+            <mesh key={i} position={[0, 0.35 + i * 0.4, 0.335]}>
+              <boxGeometry args={[0.54, 0.14, 0.02]} />
+              <meshStandardMaterial color="#c7d2fe" emissive="#818cf8" emissiveIntensity={0.5} />
+            </mesh>
+          ))}
+          <mesh position={[0, h + 0.1, 0]} castShadow>
+            <sphereGeometry args={[0.26, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color={roof} metalness={0.4} roughness={0.3} />
+          </mesh>
+        </group>
+      );
+    }
     case "park":
     default:
       return (
@@ -280,27 +410,157 @@ function Car({ a }: { a: AgentPath }) {
   );
 }
 
+const PERSON_PALETTE: Record<PersonKind, string[]> = {
+  man: ["#2563eb", "#0f766e", "#475569", "#7c3aed", "#b45309", "#1e293b"],
+  woman: ["#db2777", "#e11d48", "#9333ea", "#0ea5e9", "#16a34a", "#f97316"],
+  child: ["#f59e0b", "#84cc16", "#fb7185", "#22d3ee", "#a855f7", "#ef4444"],
+};
+const HAIR = ["#3b2a1a", "#1f2937", "#6b3f1d", "#111827", "#7c2d12", "#facc15"];
+const HAT = ["#ef4444", "#1d4ed8", "#15803d", "#f59e0b"];
+
+function PersonModel({ kind, seed }: { kind: PersonKind; seed: number }) {
+  const color = PERSON_PALETTE[kind][seed % PERSON_PALETTE[kind].length];
+  const hair = HAIR[seed % HAIR.length];
+  // Deterministic accessories for outfit variety.
+  const hasHat = seed % 4 === 0;
+  const hasTie = kind === "man" && seed % 3 === 1;
+  const hasBag = kind !== "child" && seed % 5 === 2;
+  const hasGlasses = seed % 6 === 3;
+  if (kind === "child") {
+    return (
+      <group scale={0.62}>
+        <mesh position={[0, 0.1, 0]} castShadow>
+          <cylinderGeometry args={[0.06, 0.07, 0.14, 8]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        <mesh position={[0, 0.24, 0]}>
+          <sphereGeometry args={[0.07, 12, 12]} />
+          <meshStandardMaterial color="#fcd5b5" />
+        </mesh>
+        <mesh position={[0, 0.29, 0]}>
+          <sphereGeometry args={[0.075, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color={hasHat ? HAT[seed % HAT.length] : hair} />
+        </mesh>
+        {hasGlasses && (
+          <mesh position={[0, 0.25, 0.07]}>
+            <boxGeometry args={[0.1, 0.025, 0.01]} />
+            <meshStandardMaterial color="#1f2937" />
+          </mesh>
+        )}
+      </group>
+    );
+  }
+  if (kind === "woman") {
+    return (
+      <group>
+        {/* skirt */}
+        <mesh position={[0, 0.1, 0]} castShadow>
+          <coneGeometry args={[0.1, 0.2, 10]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        <mesh position={[0, 0.23, 0]}>
+          <cylinderGeometry args={[0.045, 0.05, 0.1, 8]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        <mesh position={[0, 0.32, 0]}>
+          <sphereGeometry args={[0.06, 12, 12]} />
+          <meshStandardMaterial color="#fcd5b5" />
+        </mesh>
+        <mesh position={[0, 0.34, -0.02]}>
+          <sphereGeometry args={[0.075, 12, 12, 0, Math.PI * 2, 0, Math.PI / 1.5]} />
+          <meshStandardMaterial color={hair} />
+        </mesh>
+        {hasHat && (
+          <mesh position={[0, 0.4, 0]}>
+            <cylinderGeometry args={[0.09, 0.09, 0.02, 12]} />
+            <meshStandardMaterial color={HAT[seed % HAT.length]} />
+          </mesh>
+        )}
+        {hasBag && (
+          <mesh position={[0.09, 0.14, 0]}>
+            <boxGeometry args={[0.05, 0.09, 0.06]} />
+            <meshStandardMaterial color="#be185d" />
+          </mesh>
+        )}
+      </group>
+    );
+  }
+  // man
+  return (
+    <group>
+      <mesh position={[0, 0.13, 0]} castShadow>
+        <cylinderGeometry args={[0.06, 0.07, 0.22, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      {hasTie && (
+        <mesh position={[0, 0.16, 0.06]}>
+          <boxGeometry args={[0.02, 0.12, 0.01]} />
+          <meshStandardMaterial color="#ef4444" />
+        </mesh>
+      )}
+      {hasBag && (
+        <mesh position={[0.08, 0.13, 0]}>
+          <boxGeometry args={[0.05, 0.1, 0.07]} />
+          <meshStandardMaterial color="#92400e" />
+        </mesh>
+      )}
+      <mesh position={[0, 0.3, 0]}>
+        <sphereGeometry args={[0.06, 12, 12]} />
+        <meshStandardMaterial color="#fcd5b5" />
+      </mesh>
+      <mesh position={[0, 0.33, 0]}>
+        <sphereGeometry args={[0.065, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color={hasHat ? HAT[seed % HAT.length] : hair} />
+      </mesh>
+      {hasGlasses && (
+        <mesh position={[0, 0.31, 0.055]}>
+          <boxGeometry args={[0.09, 0.02, 0.01]} />
+          <meshStandardMaterial color="#1f2937" />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 function Person({
-  a, speaking, onClick,
-}: { a: AgentPath; speaking: string | null; onClick: () => void }) {
+  a, index, speaking, onClick,
+}: { a: AgentPath; index: number; speaking: string | null; onClick: () => void }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((state) => {
     if (!ref.current) return;
-    const raw = (state.clock.elapsedTime / a.dur + a.phase) % 2;
-    const t = raw < 1 ? raw : 2 - raw; // ping-pong
-    const p = a.at(t);
-    ref.current.position.set(p.x, 0, p.z);
+    const clk = state.clock.elapsedTime;
+    const act = a.activity ?? "walk";
+    if (act === "walk") {
+      const raw = (clk / a.dur + a.phase) % 2;
+      const t = raw < 1 ? raw : 2 - raw; // ping-pong (stroll back and forth)
+      const p = a.at(t);
+      ref.current.position.set(p.x, 0, p.z);
+      ref.current.rotation.y = 0;
+    } else {
+      // Stationary daily-life action at the middle of its lane.
+      const p = a.at(0.5);
+      const ph = a.phase * 6;
+      if (act === "exercise") {
+        ref.current.position.set(p.x, Math.abs(Math.sin(clk * 3 + ph)) * 0.08, p.z);
+        ref.current.rotation.y = 0;
+      } else if (act === "chat") {
+        ref.current.position.set(p.x, 0, p.z);
+        ref.current.rotation.y = Math.sin(clk * 1.5 + ph) * 0.4;
+      } else if (act === "wave") {
+        ref.current.position.set(p.x, Math.sin(clk * 2 + ph) * 0.02, p.z);
+        ref.current.rotation.y = Math.sin(clk * 4 + ph) * 0.15;
+      } else { // rest
+        ref.current.position.set(p.x, -0.04 + Math.sin(clk * 1.2 + ph) * 0.01, p.z);
+        ref.current.rotation.y = ph;
+      }
+    }
   });
+  const kind = a.kind ?? "man";
   return (
     <group ref={ref}>
-      <mesh position={[0, 0.12, 0]} castShadow onClick={(e) => { e.stopPropagation(); onClick(); }}>
-        <cylinderGeometry args={[0.06, 0.07, 0.18, 6]} />
-        <meshStandardMaterial color={a.color} />
-      </mesh>
-      <mesh position={[0, 0.27, 0]} onClick={(e) => { e.stopPropagation(); onClick(); }}>
-        <sphereGeometry args={[0.06, 10, 10]} />
-        <meshStandardMaterial color="#fcd5b5" />
-      </mesh>
+      <group onClick={(e) => { e.stopPropagation(); onClick(); }}>
+        <PersonModel kind={kind} seed={index} />
+      </group>
       {speaking && (
         <Html position={[0, 0.5, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
           <div style={{
@@ -363,15 +623,18 @@ function Tile({
 }
 
 /* ── agent path helpers ──────────────────────────────────────────────────── */
+type PersonKind = "man" | "woman" | "child";
+type Activity = "walk" | "chat" | "rest" | "exercise" | "wave";
 interface AgentPath {
   color: string; dur: number; phase: number; heading: number;
+  kind?: PersonKind;
+  activity?: Activity;
   at: (t: number) => { x: number; z: number };
 }
 
-function buildPaths(n: number) {
+function buildPaths(n: number, childBias = false) {
   const half = (n * TILE) / 2;
   const CARS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4"];
-  const PEDS = ["#ec4899", "#84cc16", "#f97316", "#0ea5e9", "#a855f7"];
   const ring = half + 0.45; // outer ring road radius (square)
 
   const cars: AgentPath[] = [];
@@ -379,25 +642,34 @@ function buildPaths(n: number) {
     { x: -ring, z: -ring }, { x: ring, z: -ring },
     { x: ring, z: ring }, { x: -ring, z: ring },
   ];
-  const carCount = Math.min(5, 2 + Math.floor(n / 2));
+  const carCount = Math.min(6, 2 + Math.floor(n / 2));
   for (let i = 0; i < carCount; i++) {
     const edge = i % 4;
     const p0 = corners[edge], p1 = corners[(edge + 1) % 4];
     const heading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
     cars.push({
-      color: CARS[i % CARS.length], dur: 7 + (i % 4), phase: (i * 0.37) % 1, heading,
+      // much slower, calmer traffic
+      color: CARS[i % CARS.length], dur: 20 + (i % 4) * 4, phase: (i * 0.37) % 1, heading,
       at: (t) => ({ x: p0.x + (p1.x - p0.x) * t, z: p0.z + (p1.z - p0.z) * t }),
     });
   }
 
   const people: AgentPath[] = [];
-  const pedCount = Math.min(9, 3 + Math.floor(n));
+  const pedCount = Math.min(12, 4 + n);
   const inner = half - 0.7;
+  const kindCycle: PersonKind[] = childBias
+    ? ["man", "woman", "child", "child", "woman", "man", "child"]
+    : ["man", "woman", "man", "woman", "child", "man", "woman"];
+  // Mix of strolling and stationary daily-life actions for a lively campus.
+  const actCycle: Activity[] = ["walk", "walk", "chat", "rest", "walk", "exercise", "wave", "walk"];
   for (let i = 0; i < pedCount; i++) {
     const horiz = i % 2 === 0;
-    const lane = ((i % (n - 1)) - (n - 1) / 2) * (TILE * 0.7);
+    const lane = ((i % (n - 1)) - (n - 1) / 2) * (TILE * 0.78);
+    const kind = kindCycle[i % kindCycle.length];
+    const activity = actCycle[i % actCycle.length];
     people.push({
-      color: PEDS[i % PEDS.length], dur: 5 + (i % 5), phase: (i * 0.5) % 2, heading: 0,
+      // strolling pace (ping-pong handled in <Person>)
+      color: "#000000", dur: 18 + (i % 5) * 3, phase: (i * 0.5) % 2, heading: 0, kind, activity,
       at: (t) => horiz
         ? { x: -inner + 2 * inner * t, z: lane }
         : { x: lane, z: -inner + 2 * inner * t },
@@ -427,7 +699,8 @@ function Scene({
     return m;
   }, [company.buildings]);
 
-  const { cars, people } = useMemo(() => buildPaths(n), [n]);
+  const hasDaycare = company.buildings.some((b) => b.type === "daycare" && b.turnsLeft <= 0);
+  const { cars, people } = useMemo(() => buildPaths(n, hasDaycare), [n, hasDaycare]);
 
   const tileWorld = (gx: number, gy: number) => ({
     x: (gx - (n - 1) / 2) * TILE,
@@ -501,8 +774,9 @@ function Scene({
         <Person
           key={`p${i}`}
           a={a}
+          index={i}
           speaking={speaker?.i === i ? speaker.text : null}
-          onClick={() => setSpeaker({ i, text: pickCityVoice(company, game.macro.phase) })}
+          onClick={() => setSpeaker({ i, text: pickCityVoice(company, game.macro.phase, { personKind: a.kind }) })}
         />
       ))}
 
@@ -529,7 +803,6 @@ export function CompanyMap3D({
   game: GameState; company: Company; readOnly?: boolean; overview?: boolean;
 }) {
   const build = useGameStore((s) => s.build);
-  const upgrade = useGameStore((s) => s.upgrade);
   const [selectedType, setSelectedType] = useState<BuildingType | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const n = game.config.mapSize;
@@ -552,12 +825,12 @@ export function CompanyMap3D({
     <div className="space-y-3">
       <div
         className="overflow-hidden rounded-2xl"
-        style={{ height: overview ? 260 : 420, background: PHASE_BG[game.macro.phase] ?? PHASE_BG.normal }}
+        style={{ height: overview ? 300 : 520, background: PHASE_BG[game.macro.phase] ?? PHASE_BG.normal }}
       >
         <Canvas
           shadows
           dpr={[1, 1.8]}
-          camera={{ position: [n * 1.1, n * 1.1, n * 1.3], fov: 38 }}
+          camera={{ position: [n * 0.92, n * 1.0, n * 1.12], fov: 34 }}
         >
           <color attach="background" args={[PHASE_BG[game.macro.phase] ?? PHASE_BG.normal]} />
           <Scene
@@ -573,21 +846,12 @@ export function CompanyMap3D({
       </div>
 
       {!readOnly && !overview && inspected && (
-        <div className="card flex items-center justify-between gap-3 p-3">
-          <div className="text-sm">
-            <span className="text-lg">{BUILDINGS[inspected.type].emoji}</span>{" "}
-            <b className="text-slate-800">{BUILDINGS[inspected.type].name}</b>{" "}
-            <span className="text-slate-500">Lv{inspected.level}</span>
-            <div className="text-xs text-slate-500">{BUILDINGS[inspected.type].description}</div>
-          </div>
-          {inspected.level < BUILDINGS[inspected.type].maxLevel ? (
-            <button className="btn-primary whitespace-nowrap" onClick={() => upgrade(inspected.id)}>
-              업그레이드 · {formatMoney(buildingCostFor(inspected.type, inspected.level + 1))}
-            </button>
-          ) : (
-            <span className="pill bg-slate-100 text-slate-500">최고 레벨</span>
-          )}
-        </div>
+        <BuildingInteriorModal
+          game={game}
+          company={company}
+          building={inspected}
+          onClose={() => setSelectedBuildingId(null)}
+        />
       )}
 
       {!readOnly && !overview && (

@@ -122,18 +122,80 @@ const GENERIC: Pool = (c) => [
   "버스 시간 맞추려고 뛰는 중이에요 🏃",
   "새로 생긴 건물 구경하고 있었어요.",
   "주말엔 좀 쉬고 싶네요~",
+  "회의가 방금 끝났어요. 휴~",
+  "동료랑 산책하며 아이디어 짜는 중이에요.",
+  "엘리베이터가 또 만원이네요 😅",
+  "오늘 발표 잘 끝나서 다행이에요.",
 ];
 
+const CHILD: Pool = (c) => [
+  "엄마 아빠 회사 구경 왔어요! 🧒",
+  `${c.name}는 진짜 크다! 우와~`,
+  "어린이집 친구들이랑 놀았어요!",
+  "아이스크림 먹고 싶어요 🍦",
+  "여기 분수 너무 멋져요!",
+  "커서 이 회사 사장님 될래요!",
+  "강아지처럼 뛰어다니고 싶어요 🐶",
+  "풍선 주세요~ 🎈",
+];
+
+const MAN: Pool = () => [
+  "이번 프로젝트 마감이 코앞이에요.",
+  "헬스장에서 한 세트 더 하고 왔어요 💪",
+  "주차 자리가 없어서 한참 돌았네요.",
+];
+const WOMAN: Pool = () => [
+  "신제품 기획안 발표 준비 중이에요.",
+  "오늘 팀 점심은 제가 쏘기로 했어요!",
+  "퇴근하고 친구 만나기로 했어요 ☕",
+];
+
+// Lines unlocked by welfare / research buildings on campus.
+const BUILDING_LINES: Partial<Record<string, string[]>> = {
+  cafeteria: ["오늘 구내식당 메뉴 대박이에요 🍱", "사내 식당 밥이 집밥보다 맛있어요!"],
+  gym: ["사내 헬스장 덕분에 건강해졌어요 🏋️", "점심엔 헬스장에서 운동해요!"],
+  dorm: ["사택이 회사 바로 옆이라 너무 편해요 🏠", "출퇴근이 5분이라 천국이에요."],
+  daycare: ["회사 어린이집에 아이를 맡겨서 든든해요 🧸", "아이가 회사 어린이집을 좋아해요!"],
+  clinic: ["의무실이 있어서 아플 때 안심돼요 🏥", "건강검진을 회사에서 받았어요."],
+  lab: ["연구동에서 밤새 실험했어요 🧪", "데이터센터 성능이 끝내줘요!"],
+  rnd: ["연구소에서 새 기술을 만들고 있어요 🔬"],
+  park: ["공원에서 점심 먹으니 기분 좋아요 🌳"],
+};
+
+interface VoiceOpts {
+  personKind?: "man" | "woman" | "child";
+  rand?: () => number;
+}
+
 /**
- * Pick one line that reflects the company's current state. `rand` defaults to
- * Math.random so callers don't perturb the deterministic game RNG.
+ * Pick one line that reflects the company's current state, the speaker, and the
+ * campus buildings. `rand` defaults to Math.random so callers don't perturb the
+ * deterministic game RNG.
  */
 export function pickCityVoice(
   company: Company,
   phase: EconomyPhase,
-  rand: () => number = Math.random,
+  opts: VoiceOpts = {},
 ): string {
+  const rand = opts.rand ?? Math.random;
+
+  // Children mostly say child-like things.
+  if (opts.personKind === "child") {
+    const kidPool = [...CHILD(company)];
+    if (rand() < 0.3) kidPool.push(...PHASE[phase]);
+    return kidPool[Math.floor(rand() * kidPool.length)] ?? CHILD(company)[0];
+  }
+
   const pool: string[] = [...GENERIC(company), ...PHASE[phase]];
+  if (opts.personKind === "man") pool.push(...MAN(company));
+  if (opts.personKind === "woman") pool.push(...WOMAN(company));
+
+  // Welfare / research buildings give people things to talk about.
+  const types = new Set(company.buildings.filter((b) => b.turnsLeft <= 0).map((b) => b.type));
+  for (const t of types) {
+    const lines = BUILDING_LINES[t];
+    if (lines) pool.push(...lines);
+  }
 
   if (company.morale >= 65) pool.push(...HIGH_MORALE(company));
   if (company.morale <= 40) pool.push(...LOW_MORALE(company));

@@ -71,7 +71,13 @@ export type BuildingType =
   | "store"
   | "power"
   | "hr"
-  | "park";
+  | "park"
+  | "cafeteria"
+  | "dorm"
+  | "gym"
+  | "daycare"
+  | "clinic"
+  | "lab";
 
 export interface CompanyCapabilities {
   productionCapacity: number;

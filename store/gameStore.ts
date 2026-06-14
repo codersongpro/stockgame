@@ -19,9 +19,12 @@ import {
   fireCharacter,
   repayLoan,
   sellAsset,
+  sellBuilding,
   sellStock,
   takeLoan,
   upgradeBuilding,
+  applyCompanyAction,
+  proposeDeal,
 } from "@/lib/engine/actions";
 import type { TurnSummary } from "@/lib/engine/tick";
 import { playSfx } from "@/lib/audio";
@@ -53,6 +56,9 @@ interface GameStore {
   setDecisions: (partial: Partial<CompanyDecisions>) => void;
   build: (type: BuildingType, x?: number, y?: number) => void;
   upgrade: (buildingId: string) => void;
+  demolish: (buildingId: string) => void;
+  companyAction: (actionId: string) => void;
+  proposeDeal: (targetCompanyId: string, dealId: string) => void;
   hire: (characterId: string) => void;
   fire: (characterId: string) => void;
   tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => void;
@@ -146,6 +152,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playSfx("build");
     persist(game);
     set({ game: { ...game }, toast: { text: "업그레이드 완료!", tone: "good" } });
+  },
+
+  demolish: (buildingId) => {
+    const game = get().game;
+    if (!game) return;
+    const res = sellBuilding(game, player(game), buildingId);
+    if (!res.ok) return showToast(set, res.error ?? "매각 실패", "bad");
+    playSfx("click");
+    persist(game);
+    set({ game: { ...game }, toast: { text: `건물 매각 · +${formatMoney(res.refund ?? 0)} 환급`, tone: "good" } });
+  },
+
+  companyAction: (actionId) => {
+    const game = get().game;
+    if (!game) return;
+    const res = applyCompanyAction(game, player(game), actionId);
+    if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
+    playSfx("click");
+    persist(game);
+    set({ game: { ...game }, toast: { text: "실행 완료!", tone: "good" } });
+  },
+
+  proposeDeal: (targetCompanyId, dealId) => {
+    const game = get().game;
+    if (!game) return;
+    const res = proposeDeal(game, player(game), targetCompanyId, dealId);
+    if (!res.ok) return showToast(set, res.error ?? "제안 실패", "bad");
+    playSfx("hire");
+    persist(game);
+    set({ game: { ...game }, toast: { text: "교류 성사!", tone: "good" } });
   },
 
   hire: (characterId) => {
