@@ -12,6 +12,7 @@ import { getCountry } from "@/lib/data/countries";
 import { formatMoney, changePct, formatPct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { CompanyCity } from "./CompanyCity";
+import { Term } from "./Term";
 
 export function Dashboard({ game }: { game: GameState }) {
   const p = game.companies.find((c) => c.id === game.playerCompanyId)!;
@@ -33,7 +34,7 @@ export function Dashboard({ game }: { game: GameState }) {
             <span className="pill bg-white/20">{ctry.flag} {ind.emoji} {ind.name}</span>
             {p.basedOn && <span className="pill bg-white/20">모티브</span>}
           </div>
-          <div className="mt-3 text-xs uppercase tracking-wide opacity-80">총 순자산</div>
+          <div className="mt-3 text-xs uppercase tracking-wide opacity-80">총 <Term term="순자산" /></div>
           <div className="flex items-end gap-3">
             <div className="text-4xl font-black">{formatMoney(nw)}</div>
             <div className={`mb-1 text-sm font-bold ${nwChange >= 0 ? "text-green-200" : "text-red-200"}`}>
@@ -45,10 +46,10 @@ export function Dashboard({ game }: { game: GameState }) {
           </div>
         </div>
         <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-4">
-          <Cell label="순위" value={`${rank}위 / ${game.companies.length}`} />
-          <Cell label="현금" value={formatMoney(p.cash)} />
-          <Cell label="기업가치" value={formatMoney(fundamentalValue(p))} />
-          <Cell label="투자자산" value={formatMoney(portfolioValue(p, game))} />
+          <Cell label={<Term term="순위" />} value={`${rank}위 / ${game.companies.length}`} />
+          <Cell label={<Term term="현금" />} value={formatMoney(p.cash)} />
+          <Cell label={<Term term="기업가치" />} value={formatMoney(fundamentalValue(p))} />
+          <Cell label={<Term term="투자자산" />} value={formatMoney(portfolioValue(p, game))} />
         </div>
       </div>
 
@@ -63,8 +64,8 @@ export function Dashboard({ game }: { game: GameState }) {
 
       {/* Quick facts */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Mini label="지난 매출" value={formatMoney(p.lastRevenue)} emoji="💵" />
-        <Mini label="지난 이익" value={formatMoney(p.lastProfit)} emoji={p.lastProfit >= 0 ? "📈" : "📉"} />
+        <Mini label={<Term term="매출">지난 매출</Term>} value={formatMoney(p.lastRevenue)} emoji="💵" />
+        <Mini label={<Term term="이익">지난 이익</Term>} value={formatMoney(p.lastProfit)} emoji={p.lastProfit >= 0 ? "📈" : "📉"} />
         <Mini label="건물" value={`${p.buildings.length}개`} emoji="🏗️" />
         <Mini label="임원" value={`${p.hired.length}명`} emoji="👔" />
       </div>
@@ -72,7 +73,7 @@ export function Dashboard({ game }: { game: GameState }) {
   );
 }
 
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({ label, value }: { label: React.ReactNode; value: string }) {
   return (
     <div className="p-3 text-center">
       <div className="text-[11px] text-slate-500">{label}</div>
@@ -81,7 +82,7 @@ function Cell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Mini({ label, value, emoji }: { label: string; value: string; emoji: string }) {
+function Mini({ label, value, emoji }: { label: React.ReactNode; value: string; emoji: string }) {
   return (
     <div className="card flex items-center gap-2 p-3">
       <span className="text-xl">{emoji}</span>

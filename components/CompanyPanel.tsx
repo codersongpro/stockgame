@@ -12,11 +12,17 @@ import { getIndustry } from "@/lib/data/industries";
 import { getCountry } from "@/lib/data/countries";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
+import { Term } from "./Term";
 
 export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
   const setDecisions = useGameStore((s) => s.setDecisions);
   const loan = useGameStore((s) => s.loan);
-  const [loanAmt, setLoanAmt] = useState(200000);
+  const [loanAmt, setLoanAmt] = useState(0);
+
+  // Per-quarter interest ≈ debt × (annual rate / 4). (engine: company.ts)
+  const quarterlyRate = game.macro.interestRate / 100 / 4;
+  const currentInterest = Math.round(company.debt * quarterlyRate);
+  const loanInterest = Math.round(loanAmt * quarterlyRate);
 
   const industry = getIndustry(company.industryId);
   const country = getCountry(company.countryId);
@@ -48,7 +54,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ productionTarget: v })}
         />
         <Slider
-          label="마케팅 예산"
+          label={<><Term term="마케팅" /> 예산</>}
           value={d.marketingBudget}
           min={0}
           max={200000}
@@ -57,7 +63,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ marketingBudget: v })}
         />
         <Slider
-          label="R&D 예산"
+          label={<><Term term="R&D" /> 예산</>}
           value={d.rndBudget}
           min={0}
           max={200000}
@@ -77,24 +83,29 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
       {/* Company stats */}
       <div className="card p-5">
         <h3 className="mb-3 text-base font-bold text-slate-800">📊 회사 상태</h3>
-        <StatBar label="품질 / 기술" value={company.quality} color="#6366f1" />
-        <StatBar label="평판" value={company.reputation} color="#0ea5e9" />
-        <StatBar label="직원 사기" value={company.morale} color="#16a34a" />
-        <StatBar label="안전" value={company.safety} color="#f59e0b" hint={company.safety < 40 ? "낮음! 사고 위험" : undefined} />
+        <StatBar label={<Term term="품질">품질 / 기술</Term>} value={company.quality} color="#6366f1" />
+        <StatBar label={<Term term="평판" />} value={company.reputation} color="#0ea5e9" />
+        <StatBar label={<Term term="사기">직원 사기</Term>} value={company.morale} color="#16a34a" />
+        <StatBar label={<Term term="안전" />} value={company.safety} color="#f59e0b" hint={company.safety < 40 ? "낮음! 사고 위험" : undefined} />
       </div>
 
       {/* Finance */}
       {game.config.showAdvancedMetrics && (
         <div className="card p-5">
           <h3 className="mb-3 text-base font-bold text-slate-800">💳 재무</h3>
-          <div className="mb-3 flex justify-between text-sm">
+          <div className="mb-1 flex justify-between text-sm">
             <span className="text-slate-500">부채</span>
             <span className="font-bold text-slate-800">{formatMoney(company.debt)}</span>
+          </div>
+          <div className="mb-3 flex justify-between text-xs">
+            <span className="text-slate-400">현재 분기 이자 (연 {game.macro.interestRate.toFixed(2)}%)</span>
+            <span className="font-semibold text-bear">≈ {formatMoney(currentInterest)}/분기</span>
           </div>
           <div className="flex items-center gap-2">
             <input
               type="number"
               value={loanAmt}
+              step={50000}
               onChange={(e) => setLoanAmt(Math.max(0, Number(e.target.value)))}
               className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
             />
@@ -105,6 +116,12 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
               상환
             </button>
           </div>
+          {loanAmt > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {formatMoney(loanAmt)} 대출 시 분기 이자 약 <b className="text-bear">{formatMoney(loanInterest)}</b>씩
+              추가됩니다.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -120,7 +137,7 @@ function Slider({
   format,
   onChange,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: number;
   min: number;
   max: number;
@@ -159,7 +176,7 @@ function Info({ label, value, hint, tone }: { label: string; value: string; hint
   );
 }
 
-function StatBar({ label, value, color, hint }: { label: string; value: number; color: string; hint?: string }) {
+function StatBar({ label, value, color, hint }: { label: React.ReactNode; value: number; color: string; hint?: string }) {
   return (
     <div className="mb-3">
       <div className="mb-1 flex justify-between text-xs">
