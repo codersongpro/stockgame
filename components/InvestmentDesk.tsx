@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useGameStore } from "@/store/gameStore";
-import { avgCost, portfolioValue, stockMetrics } from "@/lib/engine";
-import type { AssetClass, Company, GameState } from "@/lib/engine";
+import { avgCost, portfolioValue, stockMetrics, STOCK_KIND_LABELS } from "@/lib/engine";
+import type { AssetClass, Company, GameState, StockKind } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { formatMoney, formatNum, changePct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
@@ -24,6 +24,7 @@ interface Listing {
   logoColor: string;
   industryId: string;
   external: boolean;
+  kind?: StockKind;
   price: number;
   prevPrice: number;
   change: number;
@@ -68,6 +69,7 @@ export function InvestmentDesk() {
         logoColor: c?.logoColor ?? s.logoColor ?? "#64748b",
         industryId: c?.industryId ?? s.industryId ?? "tech",
         external: !c,
+        kind: s.kind,
         price: s.price,
         prevPrice: prev,
         change: changePct(s.price, prev),
@@ -249,6 +251,19 @@ export function InvestmentDesk() {
                             <div className="flex items-center gap-1 text-[10px]">
                               {!l.external && (
                                 <span className="text-blue-500">경쟁</span>
+                              )}
+                              {l.kind && (
+                                <span
+                                  className={
+                                    l.kind === "growth"
+                                      ? "text-fuchsia-400"
+                                      : l.kind === "dividend"
+                                      ? "text-emerald-400"
+                                      : "text-slate-500"
+                                  }
+                                >
+                                  {STOCK_KIND_LABELS[l.kind]}
+                                </span>
                               )}
                               {held > 0 && (
                                 <span className="text-yellow-500">{formatNum(held)}주</span>

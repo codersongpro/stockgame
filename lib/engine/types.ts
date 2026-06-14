@@ -161,7 +161,17 @@ export interface Stock {
   anchor?: number;
   /** Synthetic baseline return-on-equity for external listings (for PER/PBR/ROE). */
   roeBase?: number;
+  /**
+   * Investment archetype. Growth stocks swing hard with the economy and rates;
+   * dividend stocks are defensive and steady; balanced sit between. Drives how
+   * the price reacts to macro conditions and news (see market.tickStocks).
+   */
+  kind?: StockKind;
+  /** Per-turn baseline price support from dividends (0 for growth). */
+  dividendYield?: number;
 }
+
+export type StockKind = "growth" | "dividend" | "balanced";
 
 export type AssetClass =
   | "bond"

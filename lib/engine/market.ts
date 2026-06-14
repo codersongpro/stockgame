@@ -1,4 +1,4 @@
-import type { Company, LevelConfig, MacroState, Stock } from "./types";
+import type { Company, IndustryDef, LevelConfig, MacroState, Stock, StockKind } from "./types";
 import { BUILDINGS } from "./buildings";
 import { getIndustry } from "../data/industries";
 import { COMPANY_PRESETS, EXTRA_LISTINGS, type CompanyPreset } from "../data/companyPresets";
@@ -73,12 +73,15 @@ export function createStocks(companies: Company[]): Record<string, Stock> {
   const out: Record<string, Stock> = {};
   for (const c of companies) {
     const price = round2(fundamentalValue(c) / SHARES);
+    const kind = classifyStockKind(getIndustry(c.industryId));
     out[c.id] = {
       companyId: c.id,
       price: Math.max(5, price),
       history: [Math.max(5, price)],
       sharesOutstanding: SHARES,
       treasury: TREASURY,
+      kind,
+      dividendYield: defaultYield(kind),
     };
   }
   return out;
@@ -110,6 +113,12 @@ export function createExternalStocks(
       nextRange(rng, 0.7, 1.4);
     const fair = ev / SHARES;
     const price = Math.max(5, round2(fair));
+    // Archetype from industry, with occasional variety so each industry has a
+    // mix of growth/dividend/balanced names rather than all behaving alike.
+    let kind = classifyStockKind(industry);
+    const roll = nextRange(rng, 0, 1);
+    if (kind === "balanced") kind = roll < 0.3 ? "dividend" : roll > 0.8 ? "growth" : "balanced";
+    else if (roll < 0.15) kind = "balanced";
     out[p.id] = {
       companyId: p.id,
       price,
@@ -123,9 +132,90 @@ export function createExternalStocks(
       countryId: p.countryId,
       anchor: fair,
       roeBase: nextRange(rng, 0.05, 0.2),
+      kind,
+      dividendYield: defaultYield(kind),
     };
   }
   return out;
+}
+
+// ── Stock archetypes (growth / dividend / balanced) ─────────────────────────
+//
+// A stock's price reaction is shaped by its archetype so the market behaves like
+// a real one: growth names rip in booms and crater when rates rise; dividend
+// names are calm and defensive; balanced sit in between. This — together with
+// per-company news shocks and a momentum bounce — means falling stocks recover
+// rather than only ever falling.
+
+/** Short Korean labels for the trading UI. */
+export const STOCK_KIND_LABELS: Record<StockKind, string> = {
+  growth: "성장주",
+  dividend: "배당주",
+  balanced: "혼합형",
+};
+
+/** Interest rate (%) above which valuations start to be pressured. */
+const NEUTRAL_RATE = 2.5;
+
+interface KindParams {
+  beta: number; // sensitivity to sentiment & GDP growth
+  rateSens: number; // how much rising rates hurt valuation
+  trendMult: number; // multiplier on the industry's secular trend
+  volMult: number; // relative random-walk volatility
+}
+
+const KIND_PARAMS: Record<StockKind, KindParams> = {
+  growth: { beta: 1.45, rateSens: 1.7, trendMult: 1.5, volMult: 1.35 },
+  balanced: { beta: 1.0, rateSens: 1.0, trendMult: 1.0, volMult: 1.0 },
+  dividend: { beta: 0.55, rateSens: 0.55, trendMult: 0.7, volMult: 0.6 },
+};
+
+/** Classify a stock from its industry: high growth/R&D → growth; slow & calm → dividend. */
+export function classifyStockKind(industry: IndustryDef): StockKind {
+  const growthScore = industry.trend * 30 + industry.rndDependence;
+  if (growthScore > 1.0) return "growth";
+  if (industry.trend <= 0.006 && industry.volatility <= 0.9) return "dividend";
+  return "balanced";
+}
+
+function defaultYield(kind: StockKind): number {
+  if (kind === "dividend") return 0.012;
+  if (kind === "balanced") return 0.005;
+  return 0; // growth reinvests everything
+}
+
+/** Ensure a stock has an archetype assigned (lazily, so old saves upgrade too). */
+function ensureKind(stock: Stock, industry: IndustryDef | null): KindParams {
+  if (!stock.kind) {
+    stock.kind = industry ? classifyStockKind(industry) : "balanced";
+    stock.dividendYield = defaultYield(stock.kind);
+  }
+  return KIND_PARAMS[stock.kind];
+}
+
+/** Macro-driven part of a stock's per-turn return, scaled by archetype. */
+function macroReturn(macro: MacroState, p: KindParams): number {
+  return (
+    macro.sentiment * 0.03 * p.beta +
+    (macro.gdpGrowth / 100) * 0.15 * p.beta -
+    ((macro.interestRate - NEUTRAL_RATE) / 100) * p.rateSens
+  );
+}
+
+/**
+ * Mean-reversion on momentum: a stock that just dropped sharply gets an oversold
+ * bounce, an overbought spike cools off. This is what stops a falling stock from
+ * only ever falling — there is always some pull back toward equilibrium.
+ */
+function momentumBounce(history: number[]): number {
+  if (history.length < 4) return 0;
+  const now = history[history.length - 1];
+  const past = history[history.length - 4];
+  if (past <= 0) return 0;
+  const ret = (now - past) / past; // 3-bar return
+  if (ret < -0.12) return Math.min(0.05, (-ret - 0.12) * 0.4); // bounce
+  if (ret > 0.2) return Math.max(-0.04, -(ret - 0.2) * 0.3); // cool off
+  return 0;
 }
 
 /** Advance all stock prices one turn toward fundamentals plus market noise. */
@@ -146,17 +236,21 @@ export function tickStocks(
       continue;
     }
 
+    const industry = getIndustry(company.industryId);
+    const p = ensureKind(stock, industry);
+
     const fair = fundamentalValue(company) / stock.sharesOutstanding;
     const gap = (fair - stock.price) / stock.price;
-    const industry = getIndustry(company.industryId);
 
     const drift =
-      gap * 0.25 + // mean-reversion toward fundamentals
-      macro.sentiment * 0.03 +
-      industry.trend;
+      gap * 0.25 + // mean-reversion toward fundamentals (micro)
+      macroReturn(macro, p) + // sentiment / growth / rates (macro), by archetype
+      industry.trend * p.trendMult + // secular industry growth
+      (stock.dividendYield ?? 0) + // steady dividend support
+      momentumBounce(stock.history); // oversold bounce / overbought cool-off
     // Noise kept below typical event shocks (3–9%) so news clearly leads the
-    // move instead of being drowned out by random walk.
-    const noise = nextGaussian(rng, 0, 0.025 * industry.volatility * config.volatility);
+    // move instead of being drowned out by random walk; scaled by archetype.
+    const noise = nextGaussian(rng, 0, 0.022 * p.volMult * industry.volatility * config.volatility);
 
     stock.price = Math.max(1, stock.price * (1 + drift + noise));
     stock.history.push(round2(stock.price));
@@ -172,6 +266,7 @@ function tickExternalStock(
   rng: RngState,
 ): void {
   const industry = stock.industryId ? getIndustry(stock.industryId) : null;
+  const p = ensureKind(stock, industry);
   const trend = industry?.trend ?? 0.01;
   const vol = industry?.volatility ?? 1;
 
@@ -180,8 +275,13 @@ function tickExternalStock(
   stock.anchor = anchor;
 
   const gap = (anchor - stock.price) / stock.price;
-  const drift = gap * 0.2 + macro.sentiment * 0.03 + trend;
-  const noise = nextGaussian(rng, 0, 0.03 * vol * config.volatility);
+  const drift =
+    gap * 0.2 +
+    macroReturn(macro, p) +
+    trend * p.trendMult +
+    (stock.dividendYield ?? 0) +
+    momentumBounce(stock.history);
+  const noise = nextGaussian(rng, 0, 0.025 * p.volMult * vol * config.volatility);
 
   stock.price = Math.max(1, stock.price * (1 + drift + noise));
   stock.history.push(round2(stock.price));
