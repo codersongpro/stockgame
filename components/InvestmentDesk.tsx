@@ -115,8 +115,8 @@ export function InvestmentDesk({ game, company }: { game: GameState; company: Co
                     {ind.emoji}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate font-semibold text-slate-800">{l.name}</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-slate-800">{l.name}</span>
                       {!l.external && <span className="pill shrink-0 bg-brand-50 text-[10px] text-brand-600">경쟁사</span>}
                     </div>
                     <div className="text-xs text-slate-500">
@@ -351,7 +351,7 @@ function HoldingsPanel({
                 {ind.emoji}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-slate-800">{h.name}</div>
+                <div className="text-sm font-semibold text-slate-800">{h.name}</div>
                 <div className="text-[11px] text-slate-500">
                   {formatNum(h.shares)}주 · 평단 {formatNum(Math.round(h.avg))} → 현재 {formatNum(h.price)}
                 </div>

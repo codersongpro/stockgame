@@ -13,6 +13,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
     "Malgun Gothic", Roboto, sans-serif;
   background: #0f172a;
+  /* 한국어 단어가 음절 단위로 강제로 줄바꿈되지 않도록(어절 단위 줄바꿈) */
+  word-break: keep-all;
 }
 
 * {

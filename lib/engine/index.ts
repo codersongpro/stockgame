@@ -48,10 +48,26 @@ function selectDiversePresets(
     byIndustry.get(p.industryId)!.push(p);
   }
   const industries = shuffle(rng, [...byIndustry.keys()]);
+  // Shuffle each industry bucket up front so picks are random but stable.
+  const buckets = new Map([...byIndustry].map(([k, v]) => [k, shuffle(rng, v)]));
+  const used = new Set<string>();
   const picked: CompanyPreset[] = [];
+
+  // Pass 1: one company per industry for variety.
   for (const ind of industries) {
     if (picked.length >= count) break;
-    picked.push(shuffle(rng, byIndustry.get(ind)!)[0]);
+    const p = buckets.get(ind)![0];
+    picked.push(p);
+    used.add(p.id);
+  }
+  // Pass 2: fill the rest from all remaining presets (multiple per industry OK).
+  if (picked.length < count) {
+    const rest = shuffle(rng, pool.filter((p) => !used.has(p.id)));
+    for (const p of rest) {
+      if (picked.length >= count) break;
+      picked.push(p);
+      used.add(p.id);
+    }
   }
   return picked;
 }

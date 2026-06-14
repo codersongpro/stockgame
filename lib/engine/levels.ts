@@ -57,7 +57,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     enabledEventLayers: ["macro", "market", "internal", "visitor"],
     showAdvancedMetrics: false,
     characterDepth: "simple",
-    aiCount: 3,
+    aiCount: 20,
   },
   middle: {
     level: "middle",
@@ -74,7 +74,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     enabledEventLayers: ["macro", "monetary", "geopolitics", "intercompany", "internal", "market", "visitor"],
     showAdvancedMetrics: true,
     characterDepth: "roles",
-    aiCount: 4,
+    aiCount: 24,
   },
   university: {
     level: "university",
@@ -91,7 +91,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     enabledEventLayers: ALL_LAYERS,
     showAdvancedMetrics: true,
     characterDepth: "full",
-    aiCount: 5,
+    aiCount: 28,
   },
 };
 
