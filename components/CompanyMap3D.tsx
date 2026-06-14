@@ -349,7 +349,7 @@ function Tile({
 }) {
   return (
     <mesh
-      position={[x, 0, z]}
+      position={[x, 0.012, z]}
       rotation={[-Math.PI / 2, 0, 0]}
       receiveShadow
       onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -357,7 +357,7 @@ function Tile({
       onPointerOut={() => onHover(false)}
     >
       <planeGeometry args={[TILE * 0.96, TILE * 0.96]} />
-      <meshStandardMaterial color={highlight ? "#a7f3d0" : grass} />
+      <meshStandardMaterial color={highlight ? "#a7f3d0" : grass} transparent opacity={highlight ? 1 : 0.35} />
     </mesh>
   );
 }
@@ -450,18 +450,18 @@ function Scene({
         shadow-camera-bottom={-half - 3}
       />
 
-      {/* plot base (extruded ground) */}
-      <mesh position={[0, -0.12, 0]} receiveShadow>
-        <boxGeometry args={[n * TILE + 1.4, 0.24, n * TILE + 1.4]} />
+      {/* plot base (extruded ground); top sits at y=0 */}
+      <mesh position={[0, -0.15, 0]} receiveShadow>
+        <boxGeometry args={[n * TILE + 1.4, 0.3, n * TILE + 1.4]} />
         <meshStandardMaterial color="#b9a07a" />
       </mesh>
-      {/* ring road */}
-      <mesh position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* ring road (border, just above the base) */}
+      <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[n * TILE + 0.9, n * TILE + 0.9]} />
         <meshStandardMaterial color="#475569" />
       </mesh>
-      {/* grass field */}
-      <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* grass field (above the road) */}
+      <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[n * TILE, n * TILE]} />
         <meshStandardMaterial color={grass} />
       </mesh>
