@@ -268,7 +268,7 @@ export interface NewsItem {
 
 /** A notable outsider visiting a company's campus this quarter. */
 export interface VisitorInfo {
-  kind: "politician" | "ceo" | "celebrity";
+  kind: "politician" | "ceo" | "celebrity" | "investor";
   name: string;
   emoji: string;
   turn: number;

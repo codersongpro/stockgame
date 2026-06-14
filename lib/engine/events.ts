@@ -417,14 +417,13 @@ const TEMPLATES: EventTemplate[] = [
     layer: "internal",
     tone: "negative",
     emoji: "🔻",
+    // Bounded: count distressed companies (the raw debt/cash ratio could explode
+    // to hundreds when cash is near zero, which used to drown out every other event).
     weight: ({ state }) =>
-      state.companies.reduce(
-        (s, c) => s + (c.debt > c.cash * 1.5 ? c.debt / (c.cash + 1) : 0),
-        0,
-      ) * 0.05,
+      state.companies.filter((c) => c.debt > c.cash * 1.5).length * 0.12,
     run: ({ state, rng }) => {
       const target = weightedCompany(state, rng, (c) =>
-        c.debt > c.cash * 1.5 ? c.debt / (c.cash + 1) : 0,
+        c.debt > c.cash * 1.5 ? Math.min(5, c.debt / (c.cash + 1)) : 0,
       );
       if (!target) return null;
       shockStock(state.stocks, target.id, -0.07);
@@ -758,7 +757,123 @@ const TEMPLATES: EventTemplate[] = [
       };
     },
   },
+  {
+    id: "investor_visit",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "💰",
+    weight: () => 1,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const name = pick(rng, ["큰손 투자자", "벤처캐피탈 대표", "국부펀드 매니저", "엔젤 투자자"]);
+      p.visitor = { kind: "investor", name, emoji: "💰", turn: state.turn };
+      const inflow = Math.round(Math.max(50_000, p.cash * 0.08));
+      p.cash += inflow;
+      shockStock(state.stocks, p.id, 0.05);
+      return {
+        title: `${name}, ${p.name} 실사 방문`,
+        body: `${name}이(가) 우리 회사를 둘러보고 ${formatMoneyShort(inflow)} 규모의 투자를 약속했습니다. 현금과 주가가 올랐습니다.`,
+        portrait: "💰",
+        tags: ["visitor", "investor", p.id],
+      };
+    },
+  },
+  {
+    id: "rival_benchmark_visit",
+    layer: "visitor",
+    tone: "neutral",
+    emoji: "🕵️",
+    weight: ({ state }) => (state.companies.length > 1 ? 0.9 : 0),
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const rivals = state.companies.filter((c) => c.id !== p.id);
+      if (!rivals.length) return null;
+      const rival = pick(rng, rivals);
+      p.visitor = { kind: "ceo", name: `${rival.name} 시찰단`, emoji: "🕵️", turn: state.turn };
+      adjustRivalry(state.relations, p.id, rival.id, 0.15);
+      p.quality = clamp(p.quality + 2, 0, 100);
+      return {
+        title: `${rival.name} 벤치마킹단 방문`,
+        body: `${rival.name}의 임원진이 ${p.name}을(를) 시찰하며 우리 노하우를 살폈습니다. 자극을 받아 품질 개선에 나섭니다.`,
+        portrait: "🕵️",
+        tags: ["visitor", "rival", p.id, rival.id],
+      };
+    },
+  },
+  {
+    id: "influencer_livestream",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "📱",
+    weight: () => 1,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const name = pick(rng, ["인기 유튜버", "라이브 스트리머", "테크 리뷰어", "먹방 크리에이터"]);
+      p.visitor = { kind: "celebrity", name, emoji: "📱", turn: state.turn };
+      p.reputation = clamp(p.reputation + 5, 0, 100);
+      const buzz = Math.round(p.lastRevenue * 0.04);
+      p.cash += buzz;
+      shockStock(state.stocks, p.id, 0.04);
+      return {
+        title: `${name}, ${p.name} 라이브 방송`,
+        body: `${name}이(가) 우리 회사에서 생방송을 진행해 화제가 됐습니다. 평판이 오르고 깜짝 매출이 발생했습니다.`,
+        portrait: "📱",
+        tags: ["visitor", "influencer", p.id],
+      };
+    },
+  },
+  {
+    id: "student_field_trip",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "🎒",
+    weight: () => 0.8,
+    run: ({ state }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      p.visitor = { kind: "celebrity", name: "견학 온 학생들", emoji: "🎒", turn: state.turn };
+      p.morale = clamp(p.morale + 5, 0, 100);
+      p.reputation = clamp(p.reputation + 3, 0, 100);
+      return {
+        title: `학생 견학단, ${p.name} 방문`,
+        body: `미래의 인재들이 우리 회사를 견학했습니다. 직원들이 자부심을 느끼며 사기가 올랐습니다.`,
+        portrait: "🎒",
+        tags: ["visitor", "students", p.id],
+      };
+    },
+  },
+  {
+    id: "foreign_delegation",
+    layer: "visitor",
+    tone: "positive",
+    emoji: "🌐",
+    weight: () => 0.8,
+    run: ({ state, rng }) => {
+      const p = playerCompany(state);
+      if (!p) return null;
+      const country = pick(rng, COUNTRIES);
+      p.visitor = { kind: "politician", name: `${country.flag} ${country.name} 대표단`, emoji: "🌐", turn: state.turn };
+      const order = Math.round(Math.max(40_000, p.lastRevenue * 0.06));
+      p.cash += order;
+      shockStock(state.stocks, p.id, 0.04);
+      return {
+        title: `${country.flag} ${country.name} 통상 대표단 방문`,
+        body: `${country.name} 대표단이 ${p.name}과(와) 수출 상담을 진행해 해외 주문을 따냈습니다.`,
+        portrait: "🌐",
+        tags: ["visitor", "export", p.id, country.id],
+      };
+    },
+  },
 ];
+
+function formatMoneyShort(v: number): string {
+  if (v >= 100_000_000) return `${Math.round(v / 100_000_000)}억`;
+  if (v >= 10_000) return `${Math.round(v / 10_000)}만`;
+  return `${v}`;
+}
 
 function nextCrash(rng: RngState): number {
   return nextRange(rng, 0.06, 0.14);
@@ -806,20 +921,30 @@ export function generateEvents(state: GameState): NewsItem[] {
   const intensity = state.config.eventIntensity;
   const enabled = new Set(state.config.enabledEventLayers);
 
-  const maxEvents = nextInt(state.rng, 0, Math.round(2 * intensity) + 1);
+  // Fire 1..(3*intensity+1) events per quarter so there's always something going on.
+  const maxEvents = nextInt(state.rng, 1, Math.round(3 * intensity) + 1);
   const created: NewsItem[] = [];
+  // Don't let the same event template repeat within a single quarter.
+  const used = new Set<string>();
+  // Cap any single template's weight so no event (e.g. a debt spiral) can ever
+  // dominate the draw and crowd out the rest of the catalogue.
+  const WEIGHT_CAP = 4;
 
   for (let i = 0; i < maxEvents; i++) {
     const candidates = TEMPLATES.filter(
-      (t) => enabled.has(t.layer) && (!t.applicable || t.applicable(ctx)),
+      (t) => !used.has(t.id) && enabled.has(t.layer) && (!t.applicable || t.applicable(ctx)),
     ).map((t) => ({
       item: t,
-      weight: Math.max(0, t.weight(ctx)) * intensity * toneBalanceFactor(state, t.tone),
+      weight:
+        Math.min(WEIGHT_CAP, Math.max(0, t.weight(ctx))) *
+        intensity *
+        toneBalanceFactor(state, t.tone),
     }));
     const valid = candidates.filter((c) => c.weight > 0);
     if (!valid.length) break;
 
     const template = weightedPick(state.rng, valid);
+    used.add(template.id);
     const result = template.run(ctx);
     if (!result) continue;
 
