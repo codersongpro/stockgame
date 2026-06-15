@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { ROLE_LABELS } from "@/lib/engine";
 import type { Character, Company, GameState } from "@/lib/engine";
@@ -7,7 +8,6 @@ import { formatMoney } from "@/lib/format";
 import { TALENT_IMGS, idToIndex, BUILDING_IMG } from "@/lib/assetMap";
 import { CampusStrip } from "./CampusStrip";
 
-/** Per-character portrait using a deterministic talent image, falling back to emoji. */
 function Avatar({ characterId, emoji }: { characterId: string; emoji: string }) {
   const img = TALENT_IMGS[idToIndex(characterId, TALENT_IMGS.length)];
   if (img) {
@@ -21,19 +21,232 @@ function Avatar({ characterId, emoji }: { characterId: string; emoji: string }) 
 }
 
 const RARITY: Record<string, { label: string; cls: string }> = {
-  common: { label: "일반", cls: "bg-slate-100 text-slate-600" },
-  rare: { label: "레어", cls: "bg-sky-100 text-sky-700" },
-  epic: { label: "에픽", cls: "bg-violet-100 text-violet-700" },
+  common:    { label: "일반", cls: "bg-slate-100 text-slate-600" },
+  rare:      { label: "레어", cls: "bg-sky-100 text-sky-700" },
+  epic:      { label: "에픽", cls: "bg-violet-100 text-violet-700" },
   legendary: { label: "전설", cls: "bg-amber-100 text-amber-700" },
 };
 
+const STAT_LABEL: Record<string, string> = {
+  management: "경영", tech: "기술", creativity: "창의",
+  finance: "재무", leadership: "리더십", marketing: "마케팅",
+};
+
+function topStats(ch: Character): [string, number][] {
+  return Object.entries(ch.stats).sort((a, b) => b[1] - a[1]).slice(0, 3);
+}
+
+// ── Reflex mini-game ────────────────────────────────────────────────────────
+function ReflexBar({ onScore }: { onScore: (n: number) => void }) {
+  const [pos, setPos] = useState(10);
+  const [locked, setLocked] = useState(false);
+  const posRef = useRef(10);
+  const dirRef = useRef(1);
+  const scoreRef = useRef(0);
+
+  useEffect(() => {
+    if (locked) return;
+    const id = setInterval(() => {
+      posRef.current += dirRef.current * 3;
+      if (posRef.current >= 100) { posRef.current = 100; dirRef.current = -1; }
+      if (posRef.current <= 0)   { posRef.current = 0;   dirRef.current = 1; }
+      setPos(posRef.current);
+    }, 40);
+    return () => clearInterval(id);
+  }, [locked]);
+
+  const lock = () => {
+    if (locked) return;
+    setLocked(true);
+    const dist = Math.abs(posRef.current - 50);
+    const score = dist <= 7 ? 15 : dist <= 17 ? 10 : dist <= 28 ? 5 : 2;
+    scoreRef.current = score;
+    onScore(score);
+  };
+
+  const inGreen  = pos >= 43 && pos <= 57;
+  const inYellow = !inGreen && pos >= 35 && pos <= 65;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-center text-xs text-slate-500">초록 구간을 맞출수록 충성도 보너스가 올라가요!</p>
+      <div className="relative h-6 w-full overflow-hidden rounded-full bg-slate-200">
+        <div className="absolute inset-y-0 left-[35%] w-[30%] bg-yellow-200" />
+        <div className="absolute inset-y-0 left-[43%] w-[14%] bg-green-300" />
+        <div
+          className="absolute inset-y-0 w-1.5 rounded-full bg-slate-900"
+          style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
+        />
+      </div>
+      <button
+        onClick={lock}
+        disabled={locked}
+        className={`w-full rounded-xl py-2 text-sm font-bold transition ${
+          locked
+            ? "bg-slate-100 text-slate-400"
+            : inGreen
+              ? "animate-pulse bg-green-500 text-white"
+              : inYellow
+                ? "bg-yellow-400 text-white"
+                : "bg-slate-700 text-white"
+        }`}
+      >
+        {locked ? `완료! +${scoreRef.current} 보너스` : inGreen ? "🎯 지금 클릭!" : "클릭!"}
+      </button>
+    </div>
+  );
+}
+
+// ── Salary negotiation modal ────────────────────────────────────────────────
+function SalaryModal({
+  ch,
+  onClose,
+  onConfirm,
+}: {
+  ch: Character;
+  onClose: () => void;
+  onConfirm: (newSalary: number, bonus: number) => void;
+}) {
+  const [pct, setPct] = useState(110); // new salary = salary * pct/100
+  const [bonus, setBonus] = useState<number | null>(null);
+
+  const newSalary = Math.round(ch.salary * pct / 100);
+  const ratio = (newSalary - ch.salary) / ch.salary;
+  const loyaltyGain = Math.round(Math.min(30, ratio * 60)) + (bonus ?? 0);
+  const newLoyalty  = Math.min(100, Math.round(ch.loyalty ?? 70) + loyaltyGain);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="card w-full max-w-sm space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-black text-slate-800">연봉 협상</h3>
+          <button onClick={onClose} className="btn-ghost !px-2 !py-1 text-xs">✕</button>
+        </div>
+
+        {/* Employee */}
+        <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+          <Avatar characterId={ch.id} emoji={ch.avatar} />
+          <div>
+            <div className="font-bold text-slate-800">{ch.name}</div>
+            <div className="text-xs text-slate-500">
+              현재 연봉 {formatMoney(ch.salary)} · 충성도 {Math.round(ch.loyalty ?? 70)}
+            </div>
+          </div>
+        </div>
+
+        {/* Slider */}
+        <div>
+          <div className="mb-1 flex justify-between text-sm">
+            <span className="text-slate-600">인상률</span>
+            <span className="font-bold text-brand-600">+{pct - 100}% → {formatMoney(newSalary)}</span>
+          </div>
+          <input
+            type="range" min={110} max={200} step={5}
+            value={pct}
+            onChange={(e) => setPct(Number(e.target.value))}
+            className="w-full"
+          />
+          <div className="mt-1 text-center text-xs text-slate-500">
+            예상 충성도 +{loyaltyGain} → {newLoyalty}
+          </div>
+        </div>
+
+        {/* Mini-game */}
+        {bonus === null ? (
+          <ReflexBar onScore={setBonus} />
+        ) : (
+          <div className="rounded-xl bg-green-50 p-3 text-center text-sm text-green-700">
+            미니게임 보너스: +{bonus} 충성도 추가
+          </div>
+        )}
+
+        <button
+          className="btn-primary w-full"
+          disabled={bonus === null}
+          onClick={() => { if (bonus !== null) onConfirm(newSalary, bonus); }}
+        >
+          협상 확정
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Poach confirmation modal ────────────────────────────────────────────────
+function PoachModal({
+  ch,
+  targetCompanyName,
+  cost,
+  canAfford,
+  onClose,
+  onConfirm,
+}: {
+  ch: Character;
+  targetCompanyName: string;
+  cost: number;
+  canAfford: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="card w-full max-w-sm space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-black text-slate-800">인재 스카우트</h3>
+          <button onClick={onClose} className="btn-ghost !px-2 !py-1 text-xs">✕</button>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+          <Avatar characterId={ch.id} emoji={ch.avatar} />
+          <div>
+            <div className="font-bold text-slate-800">{ch.name}</div>
+            <div className="text-xs text-slate-500">
+              {targetCompanyName} 소속 · {ROLE_LABELS[ch.role ?? ch.preferredRole]}
+            </div>
+            <div className="text-xs text-slate-500">
+              충성도 {Math.round(ch.loyalty ?? 70)} · 현 연봉 {formatMoney(ch.salary)}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 space-y-1">
+          <div>스카우트 비용: <b>{formatMoney(cost)}</b></div>
+          <div className="text-xs text-amber-600">연봉 25% 인상 조건 · 초기 충성도 55로 시작</div>
+          {!canAfford && <div className="text-xs font-bold text-bear">현금이 부족합니다.</div>}
+        </div>
+
+        <div className="flex gap-2">
+          <button className="btn-ghost flex-1" onClick={onClose}>취소</button>
+          <button
+            className="btn-primary flex-1"
+            disabled={!canAfford}
+            onClick={onConfirm}
+          >
+            스카우트 확정
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ──────────────────────────────────────────────────────────
 export function TalentMarket({ game, company }: { game: GameState; company: Company }) {
-  const hire = useGameStore((s) => s.hire);
-  const fire = useGameStore((s) => s.fire);
+  const hire           = useGameStore((s) => s.hire);
+  const fire           = useGameStore((s) => s.fire);
+  const poach          = useGameStore((s) => s.poach);
+  const negotiateSalary = useGameStore((s) => s.negotiateSalary);
+
+  const [salaryTarget, setSalaryTarget] = useState<Character | null>(null);
+  const [poachTarget, setPoachTarget]   = useState<{ ch: Character; companyId: string } | null>(null);
+  const [rivalTab, setRivalTab]         = useState<string | null>(null);
+
+  const rivals = game.companies.filter((c) => !c.isPlayer && c.hired.length > 0);
+  const selectedRival = rivals.find((r) => r.id === rivalTab) ?? rivals[0] ?? null;
 
   return (
     <div className="space-y-4">
-      {/* Hired team */}
+      {/* ── Hired team ── */}
       <div className="card p-4">
         <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
           {BUILDING_IMG.hr && <img src={BUILDING_IMG.hr} alt="" className="h-7 w-7 object-contain" />}
@@ -46,40 +259,120 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
-            {company.hired.map((ch) => (
-              <div key={ch.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                <Avatar characterId={ch.id} emoji={ch.avatar} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1">
-                    <b className="truncate text-slate-800">{ch.name}</b>
-                    <span className="pill bg-brand-100 text-brand-700">
-                      {ch.role ? ROLE_LABELS[ch.role] : "미배치"}
-                    </span>
+            {company.hired.map((ch) => {
+              const loyalty = Math.round(ch.loyalty ?? 70);
+              const loyaltyColor = loyalty >= 70 ? "text-green-600" : loyalty >= 45 ? "text-yellow-600" : "text-bear";
+              return (
+                <div key={ch.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                  <Avatar characterId={ch.id} emoji={ch.avatar} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <b className="truncate text-slate-800">{ch.name}</b>
+                      <span className="pill bg-brand-100 text-brand-700">
+                        {ch.role ? ROLE_LABELS[ch.role] : "미배치"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {ch.traitName} · <span className={loyaltyColor}>충성도 {loyalty}</span>
+                    </div>
+                    <div className="mt-2 flex gap-1.5">
+                      <button
+                        className="btn-ghost !px-2 !py-1 text-xs"
+                        onClick={() => setSalaryTarget(ch)}
+                      >
+                        연봉 협상
+                      </button>
+                      <button
+                        className="btn-ghost shrink-0 !px-2 !py-1 text-xs !text-bear"
+                        onClick={() => {
+                          if (window.confirm(`${ch.name}을(를) 해고할까요?\n퇴직금 ${formatMoney(ch.salary)} 지출 · 사기·평판 소폭 하락`))
+                            fire(ch.id);
+                        }}
+                      >
+                        해고
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500">
-                    {ch.traitName} · 충성도 {Math.round(ch.loyalty ?? 0)}
+                  <div className="text-right text-xs text-slate-400">
+                    연봉<br />
+                    <b className="text-slate-600">{formatMoney(ch.salary)}</b>
                   </div>
                 </div>
-                <div className="text-right text-xs text-slate-400">
-                  연봉<br />
-                  <b className="text-slate-600">{formatMoney(ch.salary)}</b>
-                </div>
-                <button
-                  className="btn-ghost shrink-0 !px-2.5 !py-1.5 text-xs !text-bear"
-                  onClick={() => {
-                    if (window.confirm(`${ch.name}을(를) 해고할까요?\n퇴직금 ${formatMoney(ch.salary)}이 지출되고 사기·평판이 소폭 하락합니다.`))
-                      fire(ch.id);
-                  }}
-                >
-                  해고
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Talent pool */}
+      {/* ── Competitor scout ── */}
+      {rivals.length > 0 && (
+        <div className="card p-4">
+          <h3 className="mb-3 text-base font-bold text-slate-800">경쟁사 인재 스카우트</h3>
+          {/* Company tabs */}
+          <div className="mb-3 flex flex-wrap gap-1">
+            {rivals.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setRivalTab(r.id)}
+                className={`pill transition ${
+                  (rivalTab ?? rivals[0]?.id) === r.id
+                    ? "bg-brand-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <span
+                  className="mr-1 inline-block h-2 w-2 rounded-full"
+                  style={{ background: r.logoColor }}
+                />
+                {r.name}
+              </button>
+            ))}
+          </div>
+
+          {selectedRival && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {selectedRival.hired.map((ch) => {
+                const loyalty = Math.round(ch.loyalty ?? 70);
+                const cost = Math.round(ch.salary * (1.3 + loyalty / 100));
+                const canAfford = company.cash >= cost;
+                const loyaltyBadge = loyalty < 45
+                  ? <span className="pill bg-red-100 text-red-700">이탈 위험</span>
+                  : loyalty < 65
+                    ? <span className="pill bg-yellow-100 text-yellow-700">보통</span>
+                    : <span className="pill bg-green-100 text-green-700">충성</span>;
+                return (
+                  <div key={ch.id} className="rounded-xl p-3 ring-1 ring-slate-200">
+                    <div className="flex items-center gap-3">
+                      <Avatar characterId={ch.id} emoji={ch.avatar} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <b className="truncate text-slate-800">{ch.name}</b>
+                          {loyaltyBadge}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {ROLE_LABELS[ch.role ?? ch.preferredRole]} · 충성도 {loyalty}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-slate-500">스카우트 {formatMoney(cost)}</span>
+                      <button
+                        className="btn-primary !px-3 !py-1.5 text-xs"
+                        disabled={!canAfford || company.hired.length >= 6}
+                        onClick={() => setPoachTarget({ ch, companyId: selectedRival.id })}
+                      >
+                        스카우트
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Talent pool ── */}
       <div className="card p-4">
         <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
           {BUILDING_IMG.store && <img src={BUILDING_IMG.store} alt="" className="h-7 w-7 object-contain" />}
@@ -103,20 +396,39 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {salaryTarget && (
+        <SalaryModal
+          ch={salaryTarget}
+          onClose={() => setSalaryTarget(null)}
+          onConfirm={(newSalary, bonus) => {
+            negotiateSalary(salaryTarget.id, newSalary, bonus);
+            setSalaryTarget(null);
+          }}
+        />
+      )}
+      {poachTarget && (
+        <PoachModal
+          ch={poachTarget.ch}
+          targetCompanyName={game.companies.find((c) => c.id === poachTarget.companyId)?.name ?? ""}
+          cost={Math.round(poachTarget.ch.salary * (1.3 + (poachTarget.ch.loyalty ?? 70) / 100))}
+          canAfford={company.cash >= Math.round(poachTarget.ch.salary * (1.3 + (poachTarget.ch.loyalty ?? 70) / 100))}
+          onClose={() => setPoachTarget(null)}
+          onConfirm={() => {
+            poach(poachTarget.companyId, poachTarget.ch.id);
+            setPoachTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function TalentCard({
-  ch,
-  affordable,
-  detailed,
-  onHire,
+  ch, affordable, detailed, onHire,
 }: {
-  ch: Character;
-  affordable: boolean;
-  detailed: boolean;
-  onHire: () => void;
+  ch: Character; affordable: boolean; detailed: boolean; onHire: () => void;
 }) {
   const r = RARITY[ch.rarity];
   const top = topStats(ch);
@@ -150,19 +462,4 @@ function TalentCard({
       </div>
     </div>
   );
-}
-
-const STAT_LABEL: Record<string, string> = {
-  management: "경영",
-  tech: "기술",
-  creativity: "창의",
-  finance: "재무",
-  leadership: "리더십",
-  marketing: "마케팅",
-};
-
-function topStats(ch: Character): [string, number][] {
-  return Object.entries(ch.stats)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
 }

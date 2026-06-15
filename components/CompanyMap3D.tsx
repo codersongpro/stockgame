@@ -403,23 +403,110 @@ function Tree({ position, scale = 1 }: { position: [number, number, number]; sca
 }
 
 /* ── agents ──────────────────────────────────────────────────────────────── */
+type VehicleType = "car" | "truck" | "taxi" | "motorcycle";
+
+function VehicleModel({ type, color }: { type: VehicleType; color: string }) {
+  switch (type) {
+    case "truck":
+      return (
+        <group>
+          <RoundedBox args={[0.22, 0.2, 0.22]} radius={0.04} position={[-0.18, 0.1, 0]} castShadow>
+            <meshStandardMaterial color={color} />
+          </RoundedBox>
+          <mesh position={[0.16, 0.11, 0]} castShadow>
+            <boxGeometry args={[0.44, 0.22, 0.24]} />
+            <meshStandardMaterial color="#e2e8f0" />
+          </mesh>
+          <mesh position={[-0.18, 0.22, 0]}>
+            <boxGeometry args={[0.16, 0.06, 0.18]} />
+            <meshStandardMaterial color="#bfdbfe" transparent opacity={0.5} />
+          </mesh>
+        </group>
+      );
+    case "taxi":
+      return (
+        <group>
+          <RoundedBox args={[0.34, 0.12, 0.18]} radius={0.04} position={[0, 0.06, 0]} castShadow>
+            <meshStandardMaterial color="#fde047" />
+          </RoundedBox>
+          <RoundedBox args={[0.18, 0.1, 0.15]} radius={0.03} position={[0, 0.16, 0]}>
+            <meshStandardMaterial color="#fde047" />
+          </RoundedBox>
+          <mesh position={[0, 0.24, 0]}>
+            <boxGeometry args={[0.12, 0.04, 0.07]} />
+            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+          </mesh>
+        </group>
+      );
+    case "motorcycle":
+      return (
+        <group>
+          <RoundedBox args={[0.26, 0.07, 0.09]} radius={0.03} position={[0, 0.05, 0]} castShadow>
+            <meshStandardMaterial color={color} />
+          </RoundedBox>
+          <mesh position={[0, 0.15, 0]}>
+            <sphereGeometry args={[0.06, 8, 8]} />
+            <meshStandardMaterial color="#1e293b" />
+          </mesh>
+          {([-0.1, 0.1] as const).map((xo, i) => (
+            <mesh key={i} position={[xo, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.055, 0.055, 0.04, 8]} />
+              <meshStandardMaterial color="#374151" />
+            </mesh>
+          ))}
+        </group>
+      );
+    default: // car
+      return (
+        <group>
+          <RoundedBox args={[0.34, 0.12, 0.18]} radius={0.04} position={[0, 0.06, 0]} castShadow>
+            <meshStandardMaterial color={color} />
+          </RoundedBox>
+          <RoundedBox args={[0.18, 0.1, 0.15]} radius={0.03} position={[0, 0.16, 0]}>
+            <meshStandardMaterial color={color} />
+          </RoundedBox>
+        </group>
+      );
+  }
+}
+
 function Car({ a }: { a: AgentPath }) {
   const ref = useRef<THREE.Group>(null);
+  const [showInfo, setShowInfo] = useState(false);
   useFrame((state) => {
     if (!ref.current) return;
     const t = ((state.clock.elapsedTime / a.dur + a.phase) % 1 + 1) % 1;
     const p = a.at(t);
+    const p2 = a.at((t + 0.005) % 1);
     ref.current.position.set(p.x, 0.08, p.z);
-    ref.current.rotation.y = a.heading;
+    const dx = p2.x - p.x, dz = p2.z - p.z;
+    if (Math.abs(dx) > 0.0001 || Math.abs(dz) > 0.0001) {
+      ref.current.rotation.y = Math.atan2(dx, dz);
+    }
   });
   return (
     <group ref={ref}>
-      <RoundedBox args={[0.34, 0.12, 0.18]} radius={0.04} smoothness={2} castShadow>
-        <meshStandardMaterial color={a.color} />
-      </RoundedBox>
-      <RoundedBox args={[0.18, 0.1, 0.15]} radius={0.03} position={[0, 0.1, 0]}>
-        <meshStandardMaterial color={a.color} />
-      </RoundedBox>
+      <group onClick={(e) => { e.stopPropagation(); setShowInfo((v) => !v); }}>
+        <VehicleModel type={a.vehicleType ?? "car"} color={a.color} />
+      </group>
+      {showInfo && a.destination && (
+        <Html position={[0, 0.55, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
+          <div
+            style={{
+              background: "white", border: "1px solid #e2e8f0", borderRadius: 10,
+              padding: "5px 8px", fontSize: 12, lineHeight: 1.3, maxWidth: 140,
+              textAlign: "center", color: "#334155", boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
+              cursor: "pointer",
+            }}
+            onClick={() => setShowInfo(false)}
+          >
+            <div style={{ fontWeight: 700 }}>→ {a.destination}</div>
+            {a.destinationReason && (
+              <div style={{ fontSize: 11, color: "#64748b" }}>{a.destinationReason}</div>
+            )}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
@@ -795,28 +882,75 @@ interface AgentPath {
   kind?: PersonKind;
   activity?: Activity;
   seed?: number;
+  vehicleType?: VehicleType;
+  destination?: string;
+  destinationReason?: string;
   at: (t: number) => { x: number; z: number };
 }
 
-function buildPaths(n: number, childBias = false, companySeed = 0) {
+// Vehicles visiting campus buildings with appropriate purposes.
+const VEHICLE_DESTINATIONS: Record<string, { vType: VehicleType; dest: string; reason: string }[]> = {
+  factory:   [{ vType: "truck",      dest: "생산 공장",   reason: "원자재 납품" }],
+  warehouse: [{ vType: "truck",      dest: "물류창고",    reason: "재고 보충" }],
+  store:     [{ vType: "motorcycle", dest: "매장",        reason: "긴급 배달" },
+              { vType: "truck",      dest: "매장",        reason: "상품 납품" }],
+  office:    [{ vType: "taxi",       dest: "본사 오피스", reason: "임원 출근" },
+              { vType: "car",        dest: "본사",        reason: "미팅 참석" }],
+  rnd:       [{ vType: "car",        dest: "연구소",      reason: "연구원 출근" }],
+  hr:        [{ vType: "taxi",       dest: "인사팀",      reason: "면접자 이동" }],
+  cafeteria: [{ vType: "truck",      dest: "구내식당",    reason: "식자재 배달" }],
+  clinic:    [{ vType: "car",        dest: "의무실",      reason: "의료용품 배달" }],
+  lab:       [{ vType: "car",        dest: "실험실",      reason: "협력사 방문" }],
+  dorm:      [{ vType: "taxi",       dest: "기숙사",      reason: "입주 이동" }],
+  gym:       [{ vType: "motorcycle", dest: "체육관",      reason: "장비 배달" }],
+};
+
+function buildPaths(n: number, childBias = false, companySeed = 0, buildings: { type: string; turnsLeft: number }[] = []) {
   const half = (n * TILE) / 2;
-  const CARS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4"];
-  const ring = half + 0.45; // outer ring road radius (square)
+  const COLORS_CW  = ["#ef4444", "#3b82f6", "#f59e0b"];
+  const COLORS_CCW = ["#8b5cf6", "#06b6d4", "#10b981"];
+  const ring = half + 0.45;
+
+  // Clockwise corners (top-left → top-right → bottom-right → bottom-left)
+  const CW: { x: number; z: number }[] = [
+    { x: -ring, z: -ring }, { x: ring, z: -ring },
+    { x: ring,  z:  ring }, { x: -ring, z: ring },
+  ];
+  // Counter-clockwise = same points, reversed direction
+  const CCW = [...CW].reverse();
+
+  const makeRingAt = (pts: typeof CW) => (t: number) => {
+    const sf = t * 4;
+    const si = Math.floor(sf) % 4;
+    const st = sf - Math.floor(sf);
+    const from = pts[si], to = pts[(si + 1) % 4];
+    return { x: from.x + (to.x - from.x) * st, z: from.z + (to.z - from.z) * st };
+  };
+
+  // Build destination pool from active buildings.
+  const activeTypes = buildings.filter((b) => b.turnsLeft <= 0).map((b) => b.type);
+  const destPool: { vType: VehicleType; dest: string; reason: string }[] = [
+    { vType: "car",        dest: "캠퍼스",    reason: "업무 출근" },
+    { vType: "taxi",       dest: "캠퍼스",    reason: "고객 방문" },
+    { vType: "motorcycle", dest: "캠퍼스",    reason: "배달" },
+    { vType: "truck",      dest: "물류센터",  reason: "화물 운송" },
+  ];
+  for (const t of activeTypes) {
+    const entries = VEHICLE_DESTINATIONS[t];
+    if (entries) destPool.push(...entries);
+  }
 
   const cars: AgentPath[] = [];
-  const corners = [
-    { x: -ring, z: -ring }, { x: ring, z: -ring },
-    { x: ring, z: ring }, { x: -ring, z: ring },
-  ];
   const carCount = Math.min(6, 2 + Math.floor(n / 2));
   for (let i = 0; i < carCount; i++) {
-    const edge = i % 4;
-    const p0 = corners[edge], p1 = corners[(edge + 1) % 4];
-    const heading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+    const cw = i % 2 === 0;
+    const di = (companySeed + i * 3) % destPool.length;
+    const { vType, dest, reason } = destPool[di];
     cars.push({
-      // much slower, calmer traffic
-      color: CARS[i % CARS.length], dur: 20 + (i % 4) * 4, phase: (i * 0.37) % 1, heading,
-      at: (t) => ({ x: p0.x + (p1.x - p0.x) * t, z: p0.z + (p1.z - p0.z) * t }),
+      color: cw ? COLORS_CW[i % COLORS_CW.length] : COLORS_CCW[i % COLORS_CCW.length],
+      dur: 22 + (i % 4) * 5, phase: (i * 0.37) % 1, heading: 0,
+      vehicleType: vType, destination: dest, destinationReason: reason,
+      at: makeRingAt(cw ? CW : CCW),
     });
   }
 
@@ -869,7 +1003,11 @@ function Scene({
   for (const b of company.buildings) grid.set(`${b.x},${b.y}`, b);
 
   const hasDaycare = company.buildings.some((b) => b.type === "daycare" && b.turnsLeft <= 0);
-  const { cars, people } = useMemo(() => buildPaths(n, hasDaycare, companySeed), [n, hasDaycare, companySeed]);
+  const { cars, people } = useMemo(
+    () => buildPaths(n, hasDaycare, companySeed, company.buildings),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [n, hasDaycare, companySeed],
+  );
 
   const tileWorld = (gx: number, gy: number) => ({
     x: (gx - (n - 1) / 2) * TILE,

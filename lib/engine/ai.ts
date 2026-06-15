@@ -8,11 +8,13 @@ import {
   buyStock,
   emptyCell,
   hireCharacter,
+  poachCharacter,
+  raiseSalary,
   sellStock,
   upgradeBuilding,
 } from "./actions";
 import { fundamentalValue } from "./market";
-import { type RngState, nextFloat, nextRange, pick } from "./rng";
+import { type RngState, nextFloat, nextRange, pick, shuffle } from "./rng";
 
 // Heuristic AI that runs each turn for non-player companies: it tunes its
 // operating decisions, expands its campus, hires talent and invests — so the
@@ -68,6 +70,26 @@ export function runAiTurn(state: GameState, company: Company): void {
       .filter((c) => c.salary < Math.max(18_000, company.lastRevenue * 0.25))
       .sort((a, b) => statSum(b) - statSum(a));
     if (affordable.length) hireCharacter(state, company, affordable[0].id);
+  }
+
+  // --- Poaching: flip low-loyalty rivals to grow the bench ---
+  if (company.cash > 600_000 && company.hired.length < 5 && nextFloat(rng) < 0.2) {
+    const rivals = shuffle(rng, state.companies.filter((c) => c.id !== company.id && c.isAI));
+    for (const rival of rivals) {
+      const weak = rival.hired
+        .filter((c) => (c.loyalty ?? 70) < 50)
+        .sort((a, b) => statSum(b) - statSum(a));
+      if (!weak.length) continue;
+      const t = weak[0];
+      const cost = Math.round(t.salary * (1.3 + (t.loyalty ?? 70) / 100));
+      if (company.cash > cost) { poachCharacter(state, company, rival.id, t.id); break; }
+    }
+  }
+  // Raise salaries before disloyal staff quit.
+  for (const ch of company.hired) {
+    if ((ch.loyalty ?? 70) < 45 && company.cash > ch.salary * 3 && nextFloat(rng) < 0.4) {
+      raiseSalary(company, ch.id, Math.round(ch.salary * 1.15), 0);
+    }
   }
 
   // --- Investing: deploy genuinely spare cash; take profits sometimes ---

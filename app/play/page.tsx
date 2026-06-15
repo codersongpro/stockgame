@@ -142,6 +142,10 @@ export default function PlayPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-24">
+      {/* Author bar */}
+      <div className="w-full bg-slate-800 py-1 text-center text-xs text-slate-400">
+        제작 by <span className="font-semibold text-slate-300">Dustin</span> · Teacher · Data Analytics · App Developer
+      </div>
       {/* Top bar */}
       <header className="sticky top-0 z-30 overflow-hidden bg-white/90 shadow-sm backdrop-blur">
         <CampusStrip buildings={player.buildings} className="absolute inset-x-0 bottom-0 h-12" opacity={0.07} />

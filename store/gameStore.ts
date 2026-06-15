@@ -17,6 +17,8 @@ import {
   emptyCell,
   hireCharacter,
   fireCharacter,
+  poachCharacter,
+  raiseSalary,
   repayLoan,
   sellAsset,
   sellBuilding,
@@ -62,6 +64,8 @@ interface GameStore {
   proposeDeal: (targetCompanyId: string, dealId: string) => void;
   hire: (characterId: string) => void;
   fire: (characterId: string) => void;
+  poach: (targetCompanyId: string, characterId: string) => void;
+  negotiateSalary: (characterId: string, newSalary: number, miniGameBonus: number) => void;
   tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => boolean;
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
   loan: (amount: number, side: "borrow" | "repay") => void;
@@ -206,6 +210,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: "해고 처리 완료", tone: "info" } });
+  },
+
+  poach: (targetCompanyId, characterId) => {
+    const game = get().game;
+    if (!game) return;
+    const res = poachCharacter(game, player(game), targetCompanyId, characterId);
+    if (!res.ok) return showToast(set, res.error ?? "스카우트 실패", "bad");
+    playSfx("hire");
+    persist(game);
+    set({ game: { ...game }, toast: { text: res.message ?? "스카우트 성공!", tone: "good" } });
+  },
+
+  negotiateSalary: (characterId, newSalary, miniGameBonus) => {
+    const game = get().game;
+    if (!game) return;
+    const res = raiseSalary(player(game), characterId, newSalary, miniGameBonus);
+    if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
+    playSfx("click");
+    persist(game);
+    set({ game: { ...game }, toast: { text: res.message ?? "연봉 인상 완료!", tone: "good" } });
   },
 
   tradeStock: (companyId, shares, side) => {

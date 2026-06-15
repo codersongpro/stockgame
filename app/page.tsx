@@ -56,6 +56,10 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white">
+      {/* Author bar */}
+      <div className="w-full bg-slate-950/80 py-1.5 text-center text-xs text-slate-400">
+        제작 by <span className="font-semibold text-slate-300">Dustin</span> · Teacher · Data Analytics · App Developer
+      </div>
       {/* Full-bleed hero */}
       <img
         src={SPLASH_IMG}

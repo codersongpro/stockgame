@@ -316,6 +316,50 @@ export function fireCharacter(
   return { ok: true };
 }
 
+/** Recruit a character already employed at a rival company. */
+export function poachCharacter(
+  state: GameState,
+  company: Company,
+  targetCompanyId: string,
+  characterId: string,
+): ActionResult {
+  const target = state.companies.find((c) => c.id === targetCompanyId);
+  if (!target) return { ok: false, error: "대상 회사를 찾을 수 없습니다." };
+  const chIdx = target.hired.findIndex((c) => c.id === characterId);
+  if (chIdx < 0) return { ok: false, error: "해당 인재를 찾을 수 없습니다." };
+  if (company.hired.length >= 6) return { ok: false, error: "임원 자리가 꽉 찼습니다 (최대 6명)." };
+  const ch = target.hired[chIdx];
+  // Loyal staff demand a larger signing bonus; disloyal ones are easier to flip.
+  const poachCost = Math.round(ch.salary * (1.3 + (ch.loyalty ?? 70) / 100));
+  if (company.cash < poachCost) return { ok: false, error: "스카우트 비용이 부족합니다." };
+  company.cash -= poachCost;
+  // New salary 25% higher than before; loyalty resets to 55 (newly joined).
+  const poached = { ...ch, salary: Math.round(ch.salary * 1.25), loyalty: 55 };
+  autoAssignRole(company, poached);
+  company.hired.push(poached);
+  target.hired.splice(chIdx, 1);
+  target.morale = Math.max(0, target.morale - 8);
+  return { ok: true, message: `${ch.name} 스카우트 성공!` };
+}
+
+/** Raise an existing employee's salary to boost loyalty. */
+export function raiseSalary(
+  company: Company,
+  characterId: string,
+  newSalary: number,
+  miniGameBonus: number,
+): ActionResult {
+  const ch = company.hired.find((c) => c.id === characterId);
+  if (!ch) return { ok: false, error: "인재를 찾을 수 없습니다." };
+  if (newSalary <= ch.salary) return { ok: false, error: "현재 연봉보다 높아야 합니다." };
+  const ratio = (newSalary - ch.salary) / ch.salary;
+  const salaryBonus = Math.round(Math.min(30, ratio * 60));
+  const total = salaryBonus + miniGameBonus;
+  ch.salary = newSalary;
+  ch.loyalty = Math.min(100, (ch.loyalty ?? 70) + total);
+  return { ok: true, message: `연봉 인상 완료 · 충성도 +${total}` };
+}
+
 export function buyStock(
   state: GameState,
   company: Company,
