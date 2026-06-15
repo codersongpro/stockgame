@@ -62,9 +62,9 @@ interface GameStore {
   demolish: (buildingId: string) => void;
   companyAction: (actionId: string) => void;
   proposeDeal: (targetCompanyId: string, dealId: string) => void;
-  hire: (characterId: string) => void;
+  hire: (characterId: string, overrideSalary?: number, loyaltyBonus?: number) => void;
   fire: (characterId: string) => void;
-  poach: (targetCompanyId: string, characterId: string) => void;
+  poach: (targetCompanyId: string, characterId: string, overrideSalary?: number, loyaltyBonus?: number) => void;
   negotiateSalary: (characterId: string, newSalary: number, miniGameBonus: number) => void;
   tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => boolean;
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
@@ -192,14 +192,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ game: { ...game }, toast: { text: res.message ?? "교류 성사!", tone: succeeded ? "good" : "info" } });
   },
 
-  hire: (characterId) => {
+  hire: (characterId, overrideSalary, loyaltyBonus) => {
     const game = get().game;
     if (!game) return;
-    const res = hireCharacter(game, player(game), characterId);
+    const res = hireCharacter(game, player(game), characterId, overrideSalary, loyaltyBonus);
     if (!res.ok) return showToast(set, res.error ?? "영입 실패", "bad");
     playSfx("hire");
     persist(game);
-    set({ game: { ...game }, toast: { text: "인재 영입 성공!", tone: "good" } });
+    const msg = overrideSalary ? "⭐ 전설 인재 계약 체결!" : "인재 영입 성공!";
+    set({ game: { ...game }, toast: { text: msg, tone: "good" } });
   },
 
   fire: (characterId) => {
@@ -212,10 +213,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ game: { ...game }, toast: { text: "해고 처리 완료", tone: "info" } });
   },
 
-  poach: (targetCompanyId, characterId) => {
+  poach: (targetCompanyId, characterId, overrideSalary, loyaltyBonus) => {
     const game = get().game;
     if (!game) return;
-    const res = poachCharacter(game, player(game), targetCompanyId, characterId);
+    const res = poachCharacter(game, player(game), targetCompanyId, characterId, overrideSalary, loyaltyBonus);
     if (!res.ok) return showToast(set, res.error ?? "스카우트 실패", "bad");
     playSfx("hire");
     persist(game);

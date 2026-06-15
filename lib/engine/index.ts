@@ -197,6 +197,14 @@ export function createGame(opts: NewGameOptions): GameState {
     );
   }
 
+  // Place player at rank 15-20: set player cash just below the ~32nd percentile
+  // of AI company cashes (ascending), so roughly 32% of AI companies start lower.
+  {
+    const aiCashRanked = aiCompanies.map((c) => c.cash).sort((a, b) => a - b);
+    const idx = Math.floor(aiCashRanked.length * 0.32);
+    player.cash = Math.round(aiCashRanked[Math.max(0, idx)] * 0.97);
+  }
+
   const companies = [player, ...aiCompanies];
 
   const state: GameState = {

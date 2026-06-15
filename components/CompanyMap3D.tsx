@@ -487,7 +487,11 @@ function Car({ a }: { a: AgentPath }) {
   return (
     <group ref={ref}>
       <group onClick={(e) => { e.stopPropagation(); setShowInfo((v) => !v); }}>
-        <VehicleModel type={a.vehicleType ?? "car"} color={a.color} />
+        {/* Pre-rotate -90° around Y so the vehicle's long X-axis aligns with
+            the group's forward Z-axis (which Math.atan2(dx,dz) already targets). */}
+        <group rotation={[0, -Math.PI / 2, 0]}>
+          <VehicleModel type={a.vehicleType ?? "car"} color={a.color} />
+        </group>
       </group>
       {showInfo && a.destination && (
         <Html position={[0, 0.55, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
@@ -832,16 +836,17 @@ function VisitorAgent({
         </div>
       </Html>
 
-      {/* Auto-cycling speech bubble */}
-      <Html position={[0, 1.15, 0]} center distanceFactor={8} zIndexRange={[51, 0]}>
+      {/* Auto-cycling speech bubble — offset to the right so it doesn't
+          cover the visitor model on screen. */}
+      <Html position={[1.6, 0.6, 0]} center distanceFactor={8} zIndexRange={[51, 0]}>
         <div
           style={{
             background: "white", border: `2px solid ${kindColor}`,
             borderRadius: 12, padding: "6px 10px",
-            fontSize: 11, lineHeight: 1.45, maxWidth: 165,
+            fontSize: 11, lineHeight: 1.45, maxWidth: 160,
             textAlign: "center", color: "#334155",
             boxShadow: "0 4px 16px rgba(15,23,42,0.2)",
-            cursor: "pointer",
+            cursor: "pointer", whiteSpace: "pre-wrap",
           }}
           onClick={() => setVoiceIdx((i) => (i + 1) % voices.length)}
         >
@@ -996,6 +1001,13 @@ function Scene({
   const companySeed = [...company.id].reduce((a, c) => a + c.charCodeAt(0), 0);
   const [hover, setHover] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState<{ i: number; text: string } | null>(null);
+
+  // Auto-dismiss person speech bubbles after 3 s.
+  useEffect(() => {
+    if (!speaker) return;
+    const t = setTimeout(() => setSpeaker(null), 3000);
+    return () => clearTimeout(t);
+  }, [speaker]);
 
   // Build the lookup every render: company.buildings is mutated in place, so a
   // memo keyed on the array reference would go stale and new builds wouldn't show.

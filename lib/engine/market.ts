@@ -242,12 +242,16 @@ export function tickStocks(
     const fair = fundamentalValue(company) / stock.sharesOutstanding;
     const gap = (fair - stock.price) / stock.price;
 
+    // Extra penalty when the company is losing money: earnings matter for price.
+    const earningsPenalty = company.lastProfit < 0 ? -0.018 : company.lastProfit === 0 ? -0.007 : 0;
+
     const drift =
-      gap * 0.25 + // mean-reversion toward fundamentals (micro)
+      gap * 0.32 + // stronger mean-reversion: bad fundamentals hurt faster
       macroReturn(macro, p) + // sentiment / growth / rates (macro), by archetype
       industry.trend * p.trendMult + // secular industry growth
       (stock.dividendYield ?? 0) + // steady dividend support
-      momentumBounce(stock.history); // oversold bounce / overbought cool-off
+      momentumBounce(stock.history) + // oversold bounce / overbought cool-off
+      earningsPenalty; // explicit drag when not earning
     // Noise kept below typical event shocks (3–9%) so news clearly leads the
     // move instead of being drowned out by random walk; scaled by archetype.
     const noise = nextGaussian(rng, 0, 0.022 * p.volMult * industry.volatility * config.volatility);

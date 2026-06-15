@@ -18,6 +18,7 @@ import { NewsFeed } from "@/components/NewsFeed";
 import { Leaderboard } from "@/components/Leaderboard";
 import { EconomyIndicators } from "@/components/EconomyIndicators";
 import { Secretary } from "@/components/Secretary";
+import { CompanyStatusCard } from "@/components/CompanyStatusCard";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
@@ -224,6 +225,7 @@ export default function PlayPage() {
         {/* Sidebar */}
         <aside className="space-y-4">
           <Secretary game={game} />
+          <CompanyStatusCard game={game} company={player} />
           <EconomyIndicators game={game} />
         </aside>
       </main>

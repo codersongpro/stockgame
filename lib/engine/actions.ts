@@ -283,15 +283,19 @@ export function hireCharacter(
   state: GameState,
   company: Company,
   characterId: string,
+  overrideSalary?: number,
+  loyaltyBonus?: number,
 ): ActionResult {
   const idx = state.talentPool.findIndex((c) => c.id === characterId);
   if (idx < 0) return { ok: false, error: "인재를 찾을 수 없습니다." };
   const character = state.talentPool[idx];
-  const signingBonus = character.salary; // one-off hiring fee
+  const salary = overrideSalary ?? character.salary;
+  const signingBonus = salary; // one-off hiring fee
   if (company.cash < signingBonus) return { ok: false, error: "영입 비용이 부족합니다." };
 
   company.cash -= signingBonus;
-  const hired = { ...character, loyalty: 75 };
+  const baseLoyalty = character.rarity === "legendary" ? 60 : 75;
+  const hired = { ...character, salary, loyalty: Math.min(100, baseLoyalty + (loyaltyBonus ?? 0)) };
   autoAssignRole(company, hired);
   company.hired.push(hired);
   state.talentPool.splice(idx, 1);
@@ -322,6 +326,8 @@ export function poachCharacter(
   company: Company,
   targetCompanyId: string,
   characterId: string,
+  overrideSalary?: number,
+  loyaltyBonus?: number,
 ): ActionResult {
   const target = state.companies.find((c) => c.id === targetCompanyId);
   if (!target) return { ok: false, error: "대상 회사를 찾을 수 없습니다." };
@@ -333,8 +339,9 @@ export function poachCharacter(
   const poachCost = Math.round(ch.salary * (1.3 + (ch.loyalty ?? 70) / 100));
   if (company.cash < poachCost) return { ok: false, error: "스카우트 비용이 부족합니다." };
   company.cash -= poachCost;
-  // New salary 25% higher than before; loyalty resets to 55 (newly joined).
-  const poached = { ...ch, salary: Math.round(ch.salary * 1.25), loyalty: 55 };
+  const newSalary = overrideSalary ?? Math.round(ch.salary * 1.25);
+  const newLoyalty = Math.min(100, 55 + (loyaltyBonus ?? 0));
+  const poached = { ...ch, salary: newSalary, loyalty: newLoyalty };
   autoAssignRole(company, poached);
   company.hired.push(poached);
   target.hired.splice(chIdx, 1);

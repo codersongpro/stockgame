@@ -257,15 +257,21 @@ export function runCompanyTurn(
   const qualityGain = rndPower * 0.15 * (0.5 + industry.rndDependence) - 0.5;
   company.quality = clamp(company.quality + qualityGain, 0, 100);
 
-  const moraleTarget = 55 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000);
-  company.morale = clamp(company.morale + (moraleTarget - company.morale) * 0.3, 0, 100);
+  // Morale decays toward 40 without investment; welfare + buildings lift it.
+  // Losses push the target down 8 extra points so bad quarters feel painful.
+  const moraleBase = 40 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000);
+  const moraleTarget = profit > 0 ? moraleBase : moraleBase - 8;
+  company.morale = clamp(company.morale + (moraleTarget - company.morale) * 0.25 - 0.8, 0, 100);
 
-  const repDrift = (profit > 0 ? 1 : -0.7) + bonuses.reputationAdd + caps.reputation * 0.1;
-  company.reputation = clamp(company.reputation + repDrift * 0.5, 0, 100);
+  // Reputation has a natural decay of ~0.5/quarter. Profitable quarters add ~0.6;
+  // loss quarters subtract ~0.5. Buildings and bonuses partially offset the decay.
+  const repDrift = (profit > 0 ? 0.6 : -0.5) + bonuses.reputationAdd + caps.reputation * 0.1 - 0.5;
+  company.reputation = clamp(company.reputation + repDrift, 0, 100);
 
-  const safetyTarget =
-    45 + company.morale * 0.2 + bonuses.safetyAdd + Math.min(20, d.rndBudget / 4000) + Math.min(25, safetyBudget / 3500);
-  company.safety = clamp(company.safety + (safetyTarget - company.safety) * 0.25, 0, 100);
+  // Safety decays ~0.6/quarter; safety budget and morale fight the decay.
+  const safetyBase = 35 + company.morale * 0.15 + bonuses.safetyAdd +
+    Math.min(20, d.rndBudget / 4000) + Math.min(25, safetyBudget / 3500);
+  company.safety = clamp(company.safety + (safetyBase - company.safety) * 0.2 - 0.6, 0, 100);
 
   // --- Talent loyalty / quitting ---
   const canPay = company.cash > salaries;

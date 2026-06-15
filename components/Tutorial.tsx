@@ -3,51 +3,50 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface TutorialStep {
-  targetId?: string;      // DOM element id to spotlight (optional)
+  targetId?: string;
   title: string;
   body: string;
   placement?: "top" | "bottom" | "left" | "right";
-  action?: () => void;    // optional: do something before showing this step
 }
 
 const STEPS: TutorialStep[] = [
   {
     title: "🎮 유니콘 시티에 오신 것을 환영합니다!",
-    body: "여기서 당신의 회사를 경영하고 경쟁사를 이기세요. 가이드를 따라 기본 기능을 익혀봅시다.",
+    body: "이 게임에서 당신의 회사를 경영하고 100분기 안에 1위를 차지하세요. 간단한 안내를 따라가볼까요? (끝까지 진행해야 시작할 수 있어요!)",
   },
   {
     targetId: "btn-next-turn",
-    title: "📅 다음 분기 진행",
-    body: "이 버튼을 누르면 한 분기(3개월)가 지납니다. 매 분기마다 생산·판매·비용이 자동으로 계산됩니다. 전략을 세운 후 눌러보세요!",
+    title: "📅 분기 진행 버튼",
+    body: "이 버튼을 클릭하면 한 분기(3개월)가 지나갑니다. 생산·판매·비용이 자동 계산됩니다. 먼저 상품과 가격을 설정한 후 눌러보세요!",
     placement: "bottom",
   },
   {
     targetId: "tab-company",
-    title: "🏙️ 회사 탭",
-    body: "회사 탭에서 상품 라인업을 설정하고 판매 가격을 결정하세요. R&D에 투자할수록 더 높은 가격을 책정할 수 있습니다!",
+    title: "🏙️ 회사 탭 — 핵심!",
+    body: "상품 라인업 탭에서 어떤 제품을 판매할지, 가격은 얼마로 할지 결정하세요. R&D 투자를 많이 할수록 더 비싼 가격을 받을 수 있어요.",
     placement: "bottom",
   },
   {
     targetId: "tab-invest",
     title: "📈 투자 탭",
-    body: "여유 자금으로 주식과 자산에 투자하세요. 회사 경영 수익 외에도 투자 수익을 올릴 수 있습니다.",
+    body: "회사 경영 외에도 주식·부동산·금·암호화폐에 투자해 추가 수익을 올리세요. 다각화가 위기를 이겨내는 열쇠입니다!",
     placement: "bottom",
   },
   {
     targetId: "tab-talent",
     title: "👔 인재 탭",
-    body: "우수한 인재를 채용하면 마케팅, 생산 효율, R&D 능력이 향상됩니다. 경쟁사 인재를 스카우트할 수도 있어요!",
+    body: "우수한 임원을 영입하면 생산 효율, R&D, 마케팅이 크게 향상됩니다. 경쟁사 인재 스카우트도 가능해요!",
     placement: "bottom",
   },
   {
     targetId: "tab-rank",
     title: "🏆 순위 탭",
-    body: "경쟁사와 순자산을 비교하세요. 100분기 안에 1위를 차지하는 것이 목표입니다!",
+    body: "경쟁사들과 순자산을 비교하세요. 순위가 오를수록 주가도 오릅니다. 100분기 종료 시 1위가 되면 우승!",
     placement: "bottom",
   },
   {
-    title: "🚀 준비 완료!",
-    body: "이제 게임을 시작할 준비가 되었습니다. 가격 전략을 잘 세우고 공장을 늘려 생산량을 키워보세요. 행운을 빕니다!",
+    title: "🚀 준비 완료! 게임을 시작하세요",
+    body: "핵심 전략: 처음엔 기본 상품으로 현금을 쌓고, R&D에 투자해 품질을 올린 뒤 고급 상품으로 전환하세요. 재고가 쌓이면 판매가를 낮추는 것도 잊지 마세요!",
   },
 ];
 
@@ -56,27 +55,26 @@ interface Rect { top: number; left: number; width: number; height: number; }
 export function Tutorial({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(0);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const [pulse, setPulse] = useState(false);
 
   const current = STEPS[step];
+  const PAD = 8;
 
   const measureTarget = () => {
-    if (!current.targetId) {
-      setTargetRect(null);
-      return;
-    }
+    if (!current.targetId) { setTargetRect(null); return; }
     const el = document.getElementById(current.targetId);
     if (!el) { setTargetRect(null); return; }
     const r = el.getBoundingClientRect();
-    const PAD = 6;
     setTargetRect({
-      top: r.top - PAD + window.scrollY,
-      left: r.left - PAD + window.scrollX,
+      top: r.top - PAD,
+      left: r.left - PAD,
       width: r.width + PAD * 2,
       height: r.height + PAD * 2,
     });
-    // Scroll target into view
     el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Trigger pulse animation
+    setPulse(false);
+    setTimeout(() => setPulse(true), 50);
   };
 
   useLayoutEffect(() => {
@@ -92,137 +90,167 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
   }, [step]);
 
   const goNext = () => {
-    if (step < STEPS.length - 1) setStep(step + 1);
-    else onClose();
+    if (step < STEPS.length - 1) {
+      setStep(step + 1);
+    } else {
+      onClose();
+    }
   };
   const goPrev = () => { if (step > 0) setStep(step - 1); };
 
-  // Position of the tooltip card
+  const isLast = step === STEPS.length - 1;
+
+  // Position tooltip card relative to the target
   const getCardStyle = (): React.CSSProperties => {
-    if (!targetRect) return {};
-    const placement = current.placement ?? "bottom";
+    const MARGIN = 14;
+    const CARD_W = 300;
+    const CARD_H = 220;
     const vw = window.innerWidth;
-    const margin = 12;
+    const vh = window.innerHeight;
+
+    if (!targetRect) {
+      return { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)" };
+    }
+
+    const placement = current.placement ?? "bottom";
+    let top: number, left: number;
 
     if (placement === "bottom") {
-      const left = Math.min(Math.max(margin, targetRect.left), vw - 320 - margin);
-      return { position: "fixed", top: targetRect.top + targetRect.height + margin, left };
+      top = Math.min(targetRect.top + targetRect.height + MARGIN, vh - CARD_H - MARGIN);
+      left = Math.min(Math.max(MARGIN, targetRect.left), vw - CARD_W - MARGIN);
+    } else if (placement === "top") {
+      top = Math.max(MARGIN, targetRect.top - CARD_H - MARGIN);
+      left = Math.min(Math.max(MARGIN, targetRect.left), vw - CARD_W - MARGIN);
+    } else {
+      top = Math.max(MARGIN, targetRect.top);
+      left = Math.max(MARGIN, targetRect.left - CARD_W - MARGIN);
     }
-    if (placement === "top") {
-      const left = Math.min(Math.max(margin, targetRect.left), vw - 320 - margin);
-      return { position: "fixed", top: targetRect.top - 180 - margin, left };
-    }
-    return {};
+
+    return { position: "fixed", top, left };
   };
 
-  const PAD = 6;
+  // Arrow pointing from card toward target
+  const getArrowStyle = (): React.CSSProperties | null => {
+    if (!targetRect || !current.placement) return null;
+    if (current.placement === "bottom") {
+      return { position: "absolute", top: -10, left: 18, width: 0, height: 0,
+        borderLeft: "10px solid transparent", borderRight: "10px solid transparent",
+        borderBottom: "10px solid white" };
+    }
+    if (current.placement === "top") {
+      return { position: "absolute", bottom: -10, left: 18, width: 0, height: 0,
+        borderLeft: "10px solid transparent", borderRight: "10px solid transparent",
+        borderTop: "10px solid white" };
+    }
+    return null;
+  };
+
+  const arrowStyle = getArrowStyle();
 
   return (
-    <div ref={overlayRef} className="fixed inset-0 z-50" style={{ pointerEvents: "none" }}>
-      {/* Dark overlay with spotlight cutout */}
+    <div className="fixed inset-0 z-[200]" style={{ pointerEvents: "none" }}>
+      {/* Overlay sections creating spotlight effect */}
       {targetRect ? (
         <>
-          {/* Top */}
+          <div className="absolute inset-x-0 top-0 bg-black/70" style={{ height: targetRect.top, pointerEvents: "auto" }} />
+          <div className="absolute inset-x-0 bottom-0 bg-black/70" style={{ top: targetRect.top + targetRect.height, pointerEvents: "auto" }} />
+          <div className="absolute bg-black/70" style={{ top: targetRect.top, left: 0, width: targetRect.left, height: targetRect.height, pointerEvents: "auto" }} />
+          <div className="absolute bg-black/70" style={{ top: targetRect.top, left: targetRect.left + targetRect.width, right: 0, height: targetRect.height, pointerEvents: "auto" }} />
+
+          {/* Spotlight border ring */}
           <div
-            className="absolute inset-x-0 top-0 bg-black/60"
-            style={{ height: targetRect.top - window.scrollY, pointerEvents: "auto" }}
-          />
-          {/* Bottom */}
-          <div
-            className="absolute inset-x-0 bottom-0 bg-black/60"
-            style={{ top: targetRect.top - window.scrollY + targetRect.height, pointerEvents: "auto" }}
-          />
-          {/* Left */}
-          <div
-            className="absolute bg-black/60"
+            className="absolute rounded-xl"
             style={{
-              top: targetRect.top - window.scrollY,
-              left: 0,
-              width: targetRect.left - window.scrollX,
+              top: targetRect.top,
+              left: targetRect.left,
+              width: targetRect.width,
               height: targetRect.height,
-              pointerEvents: "auto",
+              boxShadow: "0 0 0 3px rgba(99,102,241,0.9), 0 0 0 6px rgba(99,102,241,0.3)",
+              transition: "all 0.3s ease",
             }}
           />
-          {/* Right */}
+
+          {/* Pulsing ring animation (iorad-style) */}
+          {pulse && (
+            <div
+              className="absolute rounded-xl animate-ping"
+              style={{
+                top: targetRect.top - 4,
+                left: targetRect.left - 4,
+                width: targetRect.width + 8,
+                height: targetRect.height + 8,
+                border: "2px solid rgba(99,102,241,0.6)",
+                animationDuration: "1.2s",
+                animationIterationCount: 3,
+              }}
+            />
+          )}
+
+          {/* Cursor pointer icon near the target */}
           <div
-            className="absolute bg-black/60"
+            className="absolute text-2xl"
             style={{
-              top: targetRect.top - window.scrollY,
-              left: targetRect.left - window.scrollX + targetRect.width,
-              right: 0,
-              height: targetRect.height,
-              pointerEvents: "auto",
+              top: targetRect.top + targetRect.height - 8,
+              left: targetRect.left + targetRect.width * 0.3,
+              animation: "bounce 1s infinite",
+              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
             }}
-          />
-          {/* Highlight ring */}
-          <div
-            className="absolute rounded-xl ring-2 ring-white/80 ring-offset-0 shadow-[0_0_0_4px_rgba(99,102,241,0.5)]"
-            style={{
-              top: targetRect.top - window.scrollY - PAD,
-              left: targetRect.left - window.scrollX - PAD,
-              width: targetRect.width + PAD * 2,
-              height: targetRect.height + PAD * 2,
-            }}
-          />
+          >
+            👆
+          </div>
         </>
       ) : (
-        /* No target: full dark overlay */
-        <div className="absolute inset-0 bg-black/60" style={{ pointerEvents: "auto" }} />
+        <div className="absolute inset-0 bg-black/70" style={{ pointerEvents: "auto" }} />
       )}
 
       {/* Tooltip card */}
       <div
-        className="pointer-events-auto animate-popin"
-        style={
-          targetRect
-            ? getCardStyle()
-            : {
-                position: "fixed",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-              }
-        }
+        className="pointer-events-auto w-[300px] max-w-[calc(100vw-2rem)]"
+        style={getCardStyle()}
       >
-        <div className="w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-white shadow-2xl">
-          {/* Progress bar */}
-          <div className="h-1 rounded-t-2xl overflow-hidden bg-slate-200">
+        <div className="relative rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
+          {arrowStyle && <div style={arrowStyle} />}
+
+          {/* Progress bar at top */}
+          <div className="h-1.5 overflow-hidden rounded-t-2xl bg-slate-200">
             <div
-              className="h-full bg-brand-500 transition-all duration-300"
+              className="h-full bg-brand-500 transition-all duration-400"
               style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
             />
           </div>
 
           <div className="p-5">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400">
-                {step + 1} / {STEPS.length}
-              </span>
-              <button
-                onClick={onClose}
-                className="rounded p-1 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                건너뛰기 ✕
-              </button>
+            {/* Step dots */}
+            <div className="mb-3 flex items-center gap-1">
+              {STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === step ? "w-6 bg-brand-500" : i < step ? "w-1.5 bg-brand-300" : "w-1.5 bg-slate-200"
+                  }`}
+                />
+              ))}
+              <span className="ml-auto text-xs text-slate-400">{step + 1}/{STEPS.length}</span>
             </div>
 
-            <h3 className="mt-2 text-base font-bold text-slate-800">{current.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">{current.body}</p>
+            <h3 className="text-sm font-bold text-slate-800 leading-snug">{current.title}</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">{current.body}</p>
 
+            {/* Navigation */}
             <div className="mt-4 flex items-center gap-2">
               {step > 0 && (
                 <button
                   onClick={goPrev}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-50"
                 >
                   ◀ 이전
                 </button>
               )}
               <button
                 onClick={goNext}
-                className="ml-auto rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700"
+                className="ml-auto rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-brand-700 active:scale-95 transition-transform"
               >
-                {step < STEPS.length - 1 ? "다음 ▶" : "시작하기 🚀"}
+                {isLast ? "시작하기 🚀" : "다음 ▶"}
               </button>
             </div>
           </div>
