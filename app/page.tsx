@@ -56,11 +56,12 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white">
-      {/* Full-bleed hero — no container, no cropping */}
+      {/* Full-bleed hero */}
       <img
         src={SPLASH_IMG}
         alt="유니콘 시티"
         className="w-full object-contain"
+        style={{ maxHeight: "55vh" }}
       />
 
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-4 pb-12">
