@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import {
   advanceTurn,
+  applyDecision,
   createGame,
   type AssetClass,
   type BuildingType,
@@ -65,6 +66,7 @@ interface GameStore {
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
   loan: (amount: number, side: "borrow" | "repay") => void;
   setProductPrice: (index: number, price: number) => void;
+  resolveDecision: (optionId: string) => void;
   dismissToast: () => void;
 }
 
@@ -261,6 +263,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     p.productPrices[index] = Math.max(0, price);
     persist(game);
     set({ game: { ...game } });
+  },
+
+  resolveDecision: (optionId) => {
+    const game = get().game;
+    if (!game || !game.pendingDecision) return;
+    const result = applyDecision(game, optionId);
+    persist(game);
+    set({ game: { ...game } });
+    if (result) showToast(set, result, "info");
   },
 
   dismissToast: () => set({ toast: null }),

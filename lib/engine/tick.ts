@@ -7,6 +7,7 @@ import { getIndustry } from "../data/industries";
 import { tickStocks } from "./market";
 import { tickAssets } from "./assets";
 import { generateEvents } from "./events";
+import { maybeGenerateDecision } from "./decisions";
 import { decayRelations } from "./relations";
 import { recordNetWorth } from "./ranking";
 import { topUpTalentPool } from "./characters";
@@ -94,6 +95,10 @@ export function advanceTurn(state: GameState): TurnSummary {
 
   // 5) Fire events (shocks on top of the regular market move).
   const events = generateEvents(state);
+
+  // 5b) Maybe present an interactive management decision to the player.
+  const decision = maybeGenerateDecision(state);
+  if (decision) state.pendingDecision = decision;
 
   // 6) Record net worth history for charts/leaderboard.
   recordNetWorth(state);

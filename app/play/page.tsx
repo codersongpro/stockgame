@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import { netWorth, playerRank, rankings, LAYER_LABELS } from "@/lib/engine";
-import type { NewsItem } from "@/lib/engine";
+import type { NewsItem, PendingDecision } from "@/lib/engine";
 import type { TurnSummary } from "@/lib/engine/tick";
 import { formatMoney } from "@/lib/format";
 import { initAudio, isMuted, setMuted, startBgm, stopBgm } from "@/lib/audio";
@@ -44,6 +44,7 @@ export default function PlayPage() {
   const toast = useGameStore((s) => s.toast);
   const dismissToast = useGameStore((s) => s.dismissToast);
   const loadSave = useGameStore((s) => s.loadSave);
+  const resolveDecision = useGameStore((s) => s.resolveDecision);
 
   const [tab, setTab] = useState<Tab>("home");
   const [visitId, setVisitId] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function PlayPage() {
   // multiple turns and (b) skipping past an unacknowledged event popup.
   const handleNext = () => {
     if (eventPopup || resultsPopup) return; // must acknowledge popups first
+    if (useGameStore.getState().game?.pendingDecision) return; // resolve decision first
     const now = Date.now();
     if (now < lockUntil.current) return; // debounce accidental multi-advance
     lockUntil.current = now + 400;
@@ -171,7 +173,7 @@ export default function PlayPage() {
           </button>
           <button
             onClick={handleNext}
-            disabled={ended || !!eventPopup || !!resultsPopup}
+            disabled={ended || !!eventPopup || !!resultsPopup || !!game.pendingDecision}
             className="btn-primary whitespace-nowrap"
           >
             {ended ? "게임 종료" : "다음 분기 ▶"}
@@ -263,6 +265,51 @@ export default function PlayPage() {
       {help !== null && (
         <HelpModal open initialTab={help} onClose={() => setHelp(null)} />
       )}
+
+      {/* Interactive management decision */}
+      {game.pendingDecision && !ended && (
+        <DecisionModal decision={game.pendingDecision} onChoose={(id) => resolveDecision(id)} />
+      )}
+    </div>
+  );
+}
+
+function DecisionModal({
+  decision,
+  onChoose,
+}: {
+  decision: PendingDecision;
+  onChoose: (optionId: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+      <div className="card w-full max-w-md animate-popin overflow-hidden">
+        <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-4 text-white">
+          <span className="text-2xl">{decision.emoji}</span>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide opacity-80">경영 의사결정</div>
+            <h2 className="text-lg font-black leading-tight">{decision.title}</h2>
+          </div>
+        </div>
+        <div className="px-5 py-4">
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">{decision.body}</p>
+          <div className="space-y-2">
+            {decision.options.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => onChoose(o.id)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-brand-400 hover:bg-brand-50 active:bg-brand-100"
+              >
+                <div className="font-bold text-slate-800">{o.label}</div>
+                <div className="mt-0.5 text-xs text-slate-500">{o.desc}</div>
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-[11px] text-slate-400">
+            선택하면 결과가 바로 회사에 반영돼요.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

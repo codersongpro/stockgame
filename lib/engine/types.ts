@@ -330,6 +330,38 @@ export interface LevelConfig {
 // Top-level game state
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Interactive decision events ("경영 이벤트")
+// ---------------------------------------------------------------------------
+
+/** Serializable consequences applied to the player's company when an option is chosen. */
+export interface DecisionEffects {
+  cash?: number; // flat cash delta
+  cashPct?: number; // fraction of current cash (e.g. -0.1 = lose 10%)
+  debt?: number; // debt delta
+  reputation?: number;
+  morale?: number;
+  quality?: number;
+  safety?: number;
+  stockShockPct?: number; // shock to the player's own stock price
+}
+
+export interface DecisionOption {
+  id: string;
+  label: string;
+  desc: string; // short explanation of the trade-off
+  effects: DecisionEffects;
+  resultText: string; // shown as a toast/summary after choosing
+}
+
+export interface PendingDecision {
+  id: string;
+  emoji: string;
+  title: string;
+  body: string;
+  options: DecisionOption[];
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -350,6 +382,9 @@ export interface GameState {
 
   relations: RelationState;
   news: NewsItem[];
+
+  /** An interactive choice awaiting the player (blocks advancing the quarter). */
+  pendingDecision?: PendingDecision;
 
   createdAt: number;
   updatedAt: number;

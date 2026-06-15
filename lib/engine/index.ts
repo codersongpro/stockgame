@@ -233,6 +233,7 @@ export {
 export { LEVEL_CONFIGS, getLevelConfig } from "./levels";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";
+export { applyDecision, maybeGenerateDecision } from "./decisions";
 export { BUILDINGS, BUILDING_LIST, buildingCostFor } from "./buildings";
 export { ROLE_LABELS, roleBonuses } from "./characters";
 export {
