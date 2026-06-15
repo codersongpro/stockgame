@@ -26,10 +26,12 @@ export function HelpModal({
   open,
   onClose,
   initialTab = "manual",
+  onStartTour,
 }: {
   open: boolean;
   onClose: () => void;
   initialTab?: HelpTab;
+  onStartTour?: () => void;
 }) {
   const [tab, setTab] = useState<HelpTab>(initialTab);
   if (!open) return null;
@@ -76,7 +78,7 @@ export function HelpModal({
 
         {/* Body */}
         <div className="min-h-0 flex-1 overflow-y-auto scroll-thin px-4 py-4">
-          {tab === "tutorial" && <TutorialView />}
+          {tab === "tutorial" && <TutorialView onStartTour={onStartTour} />}
           {tab === "manual" && <ManualView />}
           {tab === "glossary" && <GlossaryView />}
         </div>
@@ -85,9 +87,15 @@ export function HelpModal({
   );
 }
 
-function TutorialView() {
+function TutorialView({ onStartTour }: { onStartTour?: () => void }) {
   return (
-    <ol className="space-y-3">
+    <div>
+      {onStartTour && (
+        <button onClick={onStartTour} className="btn-primary mb-3 w-full !py-2.5">
+          🧭 화면에서 직접 따라하기 (가이드 투어)
+        </button>
+      )}
+      <ol className="space-y-3">
       {TUTORIAL_STEPS.map((s, i) => (
         <li key={i} className="flex gap-3 rounded-xl bg-slate-50 p-3">
           <span className="text-2xl leading-none">{s.icon}</span>
@@ -99,7 +107,8 @@ function TutorialView() {
           </div>
         </li>
       ))}
-    </ol>
+      </ol>
+    </div>
   );
 }
 

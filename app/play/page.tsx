@@ -21,6 +21,7 @@ import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
+import { GuidedTour, PLAY_TOUR_STEPS } from "@/components/GuidedTour";
 import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
@@ -53,6 +54,7 @@ export default function PlayPage() {
   const [eventPopup, setEventPopup] = useState<NewsItem[] | null>(null);
   const [resultsPopup, setResultsPopup] = useState<{ summary: TurnSummary; prevNw: number } | null>(null);
   const [help, setHelp] = useState<null | "tutorial" | "manual" | "glossary">(null);
+  const [tourOn, setTourOn] = useState(false);
   const lockUntil = useRef(0);
 
   // Advance one quarter. Guards against (a) rapid double-clicks force-skipping
@@ -93,10 +95,10 @@ export default function PlayPage() {
       }
     }
     setReady(true);
-    // Show the tutorial automatically the first time a player reaches the game.
+    // Run the interactive guided tour automatically on first arrival.
     try {
       if (!window.localStorage.getItem(TUTORIAL_SEEN_KEY)) {
-        setHelp("tutorial");
+        setTourOn(true);
         window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
       }
     } catch {
@@ -165,13 +167,14 @@ export default function PlayPage() {
             <div className="text-xs text-slate-500">현금</div>
             <div className="text-sm font-bold text-bull">{formatMoney(player.cash)}</div>
           </div>
-          <button onClick={() => setHelp("manual")} className="btn-ghost !px-2.5 !py-2" title="도움말">
+          <button data-tour="help" onClick={() => setHelp("manual")} className="btn-ghost !px-2.5 !py-2" title="도움말">
             ❓
           </button>
           <button onClick={toggleMute} className="btn-ghost !px-2.5 !py-2" title="소리">
             {muted ? "🔇" : "🔊"}
           </button>
           <button
+            data-tour="next"
             onClick={handleNext}
             disabled={ended || !!eventPopup || !!resultsPopup || !!game.pendingDecision}
             className="btn-primary whitespace-nowrap"
@@ -185,6 +188,7 @@ export default function PlayPage() {
           {TABS.map((t) => (
             <button
               key={t.id}
+              data-tour={`tab-${t.id}`}
               onClick={() => setTab(t.id)}
               className={`flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 tab === t.id ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
@@ -263,8 +267,16 @@ export default function PlayPage() {
 
       {/* Help center (manual / tutorial / glossary) */}
       {help !== null && (
-        <HelpModal open initialTab={help} onClose={() => setHelp(null)} />
+        <HelpModal
+          open
+          initialTab={help}
+          onClose={() => setHelp(null)}
+          onStartTour={() => { setHelp(null); setTourOn(true); }}
+        />
       )}
+
+      {/* Interactive guided tour */}
+      {tourOn && <GuidedTour steps={PLAY_TOUR_STEPS} onClose={() => setTourOn(false)} />}
 
       {/* Interactive management decision */}
       {game.pendingDecision && !ended && (
