@@ -171,7 +171,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
     playSfx("click");
     persist(game);
-    set({ game: { ...game }, toast: { text: "실행 완료!", tone: "good" } });
+    set({ game: { ...game }, toast: { text: res.message ?? "실행 완료!", tone: "good" } });
   },
 
   proposeDeal: (targetCompanyId, dealId) => {
@@ -179,9 +179,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = proposeDeal(game, player(game), targetCompanyId, dealId);
     if (!res.ok) return showToast(set, res.error ?? "제안 실패", "bad");
-    playSfx("hire");
+    const succeeded = !res.message?.includes("결렬");
+    playSfx(succeeded ? "hire" : "click");
     persist(game);
-    set({ game: { ...game }, toast: { text: "교류 성사!", tone: "good" } });
+    set({ game: { ...game }, toast: { text: res.message ?? "교류 성사!", tone: succeeded ? "good" : "info" } });
   },
 
   hire: (characterId) => {
