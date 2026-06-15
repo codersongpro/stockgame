@@ -21,7 +21,7 @@ import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
-import { TAB_ICONS } from "@/lib/assetMap";
+import { TAB_ICONS, RESULT_ICONS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
@@ -435,7 +435,7 @@ function GameOver({ game, onRestart }: { game: ReturnType<typeof useGameStore.ge
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="card w-full max-w-md animate-popin p-6 text-center">
-        <div className="text-6xl">{won ? "🏆" : "🎮"}</div>
+        <img src={won ? RESULT_ICONS.win : RESULT_ICONS.end} alt={won ? "우승" : "게임 종료"} className="mx-auto h-40 w-40 object-contain" />
         <h2 className="mt-3 text-2xl font-black text-slate-800">
           {won ? "축하합니다! 1위 달성!" : "게임 종료"}
         </h2>

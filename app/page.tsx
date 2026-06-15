@@ -10,6 +10,8 @@ import { formatMoney } from "@/lib/format";
 import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
 import { getIndustry } from "@/lib/data/industries";
 import { MASCOT_IMG } from "@/lib/assetMap";
+
+const SPLASH_IMG = "/assets/splash.png";
 import { HelpModal } from "@/components/HelpModal";
 
 const LEVELS: Level[] = ["elementary", "middle", "university"];
@@ -56,8 +58,16 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-4 py-12">
-        <img src={MASCOT_IMG} alt="유니콘 시티 마스코트" className="animate-floaty h-32 w-32 object-contain drop-shadow-xl" />
-        <h1 className="mt-4 bg-gradient-to-r from-brand-300 to-pink-300 bg-clip-text text-center text-5xl font-black text-transparent">
+        {/* Hero banner */}
+        <div className="w-full overflow-hidden rounded-3xl shadow-2xl">
+          <img
+            src={SPLASH_IMG}
+            alt="유니콘 시티 히어로 배너"
+            className="w-full object-cover"
+            style={{ maxHeight: 380 }}
+          />
+        </div>
+        <h1 className="mt-6 bg-gradient-to-r from-brand-300 to-pink-300 bg-clip-text text-center text-5xl font-black text-transparent">
           유니콘 시티
         </h1>
         <p className="mt-3 text-center text-lg text-slate-300">
