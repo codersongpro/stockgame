@@ -11,6 +11,7 @@ import { PriceChart } from "./PriceChart";
 import { ASSET_ICONS } from "@/lib/assetMap";
 import { PRESET_MAP } from "@/lib/data/companyPresets";
 import { CompanyMark } from "./CompanyMark";
+import { Term } from "./Term";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ interface Listing {
   id: string;
   name: string;
   logoColor: string;
+  mark?: string;
   industryId: string;
   external: boolean;
   kind?: StockKind;
@@ -70,6 +72,7 @@ export function InvestmentDesk() {
         id: s.companyId,
         name: c?.name ?? s.name ?? s.companyId,
         logoColor: c?.logoColor ?? s.logoColor ?? "#64748b",
+        mark: c?.mark,
         industryId: c?.industryId ?? s.industryId ?? "tech",
         external: !c,
         kind: s.kind,
@@ -245,7 +248,7 @@ export function InvestmentDesk() {
                         <div className="flex items-center gap-2">
                           <CompanyMark
                             color={l.logoColor}
-                            mark={PRESET_MAP[l.id]?.mark ?? ind.emoji}
+                            mark={l.mark ?? PRESET_MAP[l.id]?.mark ?? ind.emoji}
                             name={l.name}
                             size="sm"
                           />
@@ -548,7 +551,7 @@ function SortTh({
       }`}
     >
       {label}
-      {active && <span className="ml-0.5 text-[9px]">{asc ? "▲" : "▼"}</span>}
+      {active && <span className="ml-0.5 text-xs">{asc ? "▲" : "▼"}</span>}
     </th>
   );
 }
@@ -597,7 +600,7 @@ function TradeModal({
   const float = isStock && stock ? stock.sharesOutstanding - (stock.treasury ?? 0) : 0;
 
   const indEmoji = isStock
-    ? getIndustry(stockCompany?.industryId ?? "tech").emoji
+    ? stockCompany?.mark ?? PRESET_MAP[sel.id]?.mark ?? getIndustry(stockCompany?.industryId ?? "tech").emoji
     : asset!.emoji;
   const assetIconSrc = !isStock && asset ? ASSET_ICONS[asset.id] : null;
 
@@ -609,6 +612,11 @@ function TradeModal({
   const heldPl = isStock && held > 0 ? (price - stockAvg) * held : 0;
   const heldPlPct = stockAvg > 0 ? ((price - stockAvg) / stockAvg) * 100 : 0;
 
+  // Advanced levels (middle/university) see financial metrics; elementary levels
+  // get a bigger, simpler "Toss-style" sheet with plain-language buy/sell labels.
+  const adv = game.config.showAdvancedMetrics;
+  const plUp = heldPl >= 0;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center p-0 backdrop-blur-sm sm:items-center sm:p-4"
@@ -616,7 +624,7 @@ function TradeModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md animate-popin overflow-hidden rounded-t-2xl sm:rounded-2xl"
+        className={`w-full ${adv ? "max-w-md" : "max-w-lg"} animate-popin overflow-hidden rounded-t-2xl sm:rounded-2xl`}
         style={{ background: "#080e1a", boxShadow: "0 0 0 1px rgba(148,163,184,0.1), 0 25px 60px -10px rgba(0,0,0,0.9)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -662,6 +670,30 @@ function TradeModal({
           </div>
         </div>
 
+        {/* ── Profit / Loss banner (at-a-glance) ── */}
+        {isStock && held > 0 && (
+          <div className="px-4 pt-3">
+            <div
+              className="flex items-center justify-between rounded-2xl px-4 py-3"
+              style={{ background: plUp ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)", border: `1px solid ${plUp ? "rgba(16,185,129,0.35)" : "rgba(239,68,68,0.35)"}` }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{plUp ? "📈" : "📉"}</span>
+                <div>
+                  <div className={`text-sm font-bold ${plUp ? "text-emerald-400" : "text-red-400"}`}>
+                    {plUp ? "수익 중" : "손해 중"}
+                  </div>
+                  <div className="text-xs text-slate-500">{formatNum(held)}{isStock ? "주" : ""} 보유 · 산값 {formatNum(Math.round(stockAvg))}</div>
+                </div>
+              </div>
+              <div className={`text-right font-mono font-black ${plUp ? "text-emerald-400" : "text-red-400"}`}>
+                <div className="text-lg leading-none">{plUp ? "+" : ""}{formatMoney(Math.round(heldPl))}</div>
+                <div className="text-xs">({heldPlPct >= 0 ? "+" : ""}{heldPlPct.toFixed(1)}%)</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Chart ── */}
         <PriceChart
           data={history.slice(-60)}
@@ -670,26 +702,26 @@ function TradeModal({
           className="mt-3 h-28"
         />
 
-        {/* ── Metrics ── */}
-        {isStock && (
+        {/* ── Metrics (advanced levels only) ── */}
+        {isStock && adv && (
           <div
             style={{ borderTop: "1px solid rgba(148,163,184,0.07)", borderBottom: "1px solid rgba(148,163,184,0.07)", background: "rgba(255,255,255,0.02)" }}
           >
             <div className="grid grid-cols-4 divide-x text-center">
               <div className="px-2 py-2.5">
-                <div className="text-xs text-slate-600">시가총액</div>
+                <div className="text-xs text-slate-600"><Term term="시가총액" /></div>
                 <div className="font-mono text-xs font-semibold text-slate-300">{formatMoney(cap)}</div>
               </div>
               <div className="px-2 py-2.5">
-                <div className="text-xs text-slate-600">PER</div>
+                <div className="text-xs text-slate-600"><Term term="PER" /></div>
                 <div className="font-mono text-xs font-semibold text-slate-300">{per != null ? per.toFixed(1) + "배" : "—"}</div>
               </div>
               <div className="px-2 py-2.5">
-                <div className="text-xs text-slate-600">PBR</div>
+                <div className="text-xs text-slate-600"><Term term="PBR" /></div>
                 <div className="font-mono text-xs font-semibold text-slate-300">{metrics?.pbr != null ? metrics.pbr.toFixed(2) + "배" : "—"}</div>
               </div>
               <div className="px-2 py-2.5">
-                <div className="text-xs text-slate-600">ROE</div>
+                <div className="text-xs text-slate-600"><Term term="ROE" /></div>
                 <div className={`font-mono text-xs font-semibold ${metrics?.roe != null && metrics.roe >= 10 ? "text-emerald-400" : "text-slate-300"}`}>{metrics?.roe != null ? metrics.roe.toFixed(1) + "%" : "—"}</div>
               </div>
             </div>
@@ -706,7 +738,7 @@ function TradeModal({
             .filter((n) => n.tags.some((t) => t === sel.id || t === (stockCompany?.industryId ?? "")) || n.layer === "monetary")
             .slice(-6)
             .reverse()
-            .slice(0, 4);
+            .slice(0, adv ? 4 : 2);
           if (relatedNews.length === 0) return null;
           return (
             <div style={{ borderTop: "1px solid rgba(148,163,184,0.07)", borderBottom: "1px solid rgba(148,163,184,0.07)" }}>
@@ -721,7 +753,7 @@ function TradeModal({
                       </div>
                       <div className="text-xs text-slate-600 leading-snug">{n.body}</div>
                     </div>
-                    <span className="shrink-0 text-[9px] text-slate-800">Q{n.turn}</span>
+                    <span className="shrink-0 text-xs text-slate-800">Q{n.turn}</span>
                   </div>
                 ))}
               </div>
@@ -729,8 +761,8 @@ function TradeModal({
           );
         })()}
 
-        {/* ── Holdings row ── */}
-        {held > 0 && (
+        {/* ── Holdings row (assets only; stocks use the P&L banner above) ── */}
+        {held > 0 && !isStock && (
           <div
             className="flex items-center gap-4 px-4 py-2.5 font-mono text-xs"
             style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(148,163,184,0.05)" }}
@@ -844,7 +876,7 @@ function TradeModal({
             onMouseEnter={(e) => { if (held > 0) e.currentTarget.style.background = "#ef4444"; }}
             onMouseLeave={(e) => { if (held > 0) e.currentTarget.style.background = "#dc2626"; }}
           >
-            <span className="text-lg tracking-widest">매 도</span>
+            <span className={`tracking-widest ${adv ? "text-lg" : "text-2xl"}`}>{adv ? "매 도" : "팔기"}</span>
             <span className="text-xs font-normal opacity-80">
               {held > 0
                 ? `${formatNum(sellQty)}주 · ${formatMoney(Math.round(price * sellQty))}`
@@ -853,12 +885,12 @@ function TradeModal({
           </button>
           <button
             onClick={() => onTrade("buy")}
-            className="flex flex-col items-center justify-center py-4 font-black text-white transition active:scale-[0.98]"
+            className={`flex flex-col items-center justify-center font-black text-white transition active:scale-[0.98] ${adv ? "py-4" : "py-5"}`}
             style={{ background: "#1d4ed8" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "#2563eb")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "#1d4ed8")}
           >
-            <span className="text-lg tracking-widest">매 수</span>
+            <span className={`tracking-widest ${adv ? "text-lg" : "text-2xl"}`}>{adv ? "매 수" : "사기"}</span>
             <span className="text-xs font-normal opacity-80">{formatMoney(orderValue)} 필요</span>
           </button>
         </div>

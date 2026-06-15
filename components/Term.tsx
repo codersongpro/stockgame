@@ -64,6 +64,10 @@ export function Term({ term, children }: { term: string; children?: React.ReactN
         ref={anchorRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
         className="cursor-help underline decoration-dotted decoration-brand-400 underline-offset-2"
       >
         {text}

@@ -10,6 +10,18 @@ export interface StoryScene {
 }
 
 export const STORY: Record<Level, StoryScene[]> = {
+  elementary_low: [
+    {
+      emoji: "🏪",
+      title: "나는 사장님!",
+      body: "작은 회사의 사장님이 되었어요. 물건을 만들어 팔면 돈이 모여요!",
+    },
+    {
+      emoji: "🐷",
+      title: "돈을 모아요",
+      body: "번 돈은 저금통(예금)에 차곡차곡. 회사를 점점 크게 키워봐요!",
+    },
+  ],
   elementary: [
     {
       emoji: "🏪",

@@ -146,9 +146,9 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                 }`}
               >
                 <span className="text-lg leading-none">{def.emoji}</span>
-                <span className="text-[10px] font-semibold leading-tight">{def.name}</span>
+                <span className="text-xs font-semibold leading-tight">{def.name}</span>
                 {!canEnable && (
-                  <span className="text-[9px] leading-tight opacity-70">
+                  <span className="text-xs leading-tight opacity-70">
                     {!isUnlocked ? "🔒" : `품질${def.qualityRequired}`}
                   </span>
                 )}
@@ -229,7 +229,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                       className="flex-1 rounded border border-slate-300 px-2 py-1 text-right text-sm font-bold text-slate-800 outline-none focus:border-brand-500 disabled:opacity-50 bg-white"
                     />
                     <span className="text-xs text-slate-400 shrink-0">원</span>
-                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold ${
                       priceSignal === "cap"  ? "bg-red-100 text-red-700" :
                       priceSignal === "high" ? "bg-orange-100 text-orange-600" :
                       priceSignal === "low"  ? "bg-blue-100 text-blue-600" :
@@ -251,7 +251,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                     </div>
                     <span className="text-xs text-slate-500 shrink-0">{formatMoney(activeMaxPrice)}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-xs text-slate-400">
                     최대 가격 = 기준가 × (1 + 품질/100). 지금 품질 {Math.round(company.quality)} → 최대 {formatMoney(activeMaxPrice)}
                   </div>
 

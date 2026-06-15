@@ -38,7 +38,7 @@ export function Dashboard({ game }: { game: GameState }) {
             opacity={0.22}
           />
           <div className="relative flex items-center gap-2 text-sm opacity-90">
-            <span className="h-6 w-6 rounded" style={{ background: p.logoColor }} />
+            <span className="flex h-6 w-6 items-center justify-center rounded text-sm leading-none" style={{ background: p.logoColor }}>{p.mark}</span>
             {p.name}
             <span className="pill bg-white/20">{ctry.flag} {ind.emoji} {ind.name}</span>
             {p.basedOn && <span className="pill bg-white/20">모티브</span>}

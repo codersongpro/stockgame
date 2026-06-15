@@ -195,9 +195,11 @@ function ensureKind(stock: Stock, industry: IndustryDef | null): KindParams {
 
 /** Macro-driven part of a stock's per-turn return, scaled by archetype. */
 function macroReturn(macro: MacroState, p: KindParams): number {
+  // Macro (sentiment / growth / rates) is the dominant directional driver now
+  // that random noise is small, so prices visibly track the economic cycle.
   return (
-    macro.sentiment * 0.03 * p.beta +
-    (macro.gdpGrowth / 100) * 0.15 * p.beta -
+    macro.sentiment * 0.05 * p.beta +
+    (macro.gdpGrowth / 100) * 0.25 * p.beta -
     ((macro.interestRate - NEUTRAL_RATE) / 100) * p.rateSens
   );
 }
@@ -254,7 +256,7 @@ export function tickStocks(
       earningsPenalty; // explicit drag when not earning
     // Noise kept below typical event shocks (3–9%) so news clearly leads the
     // move instead of being drowned out by random walk; scaled by archetype.
-    const noise = nextGaussian(rng, 0, 0.022 * p.volMult * industry.volatility * config.volatility);
+    const noise = nextGaussian(rng, 0, 0.010 * p.volMult * industry.volatility * config.volatility);
 
     stock.price = Math.max(1, stock.price * (1 + drift + noise));
     stock.history.push(round2(stock.price));
@@ -285,7 +287,7 @@ function tickExternalStock(
     trend * p.trendMult +
     (stock.dividendYield ?? 0) +
     momentumBounce(stock.history);
-  const noise = nextGaussian(rng, 0, 0.025 * p.volMult * vol * config.volatility);
+  const noise = nextGaussian(rng, 0, 0.012 * p.volMult * vol * config.volatility);
 
   stock.price = Math.max(1, stock.price * (1 + drift + noise));
   stock.history.push(round2(stock.price));

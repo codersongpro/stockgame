@@ -23,6 +23,7 @@ import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
 import { Tutorial } from "@/components/Tutorial";
+import { ExecutiveBriefing } from "@/components/ExecutiveBriefing";
 import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
@@ -340,6 +341,9 @@ function ResultsPopup({
             </div>
           </div>
         </div>
+
+        {/* Executive's quarterly briefing & advice */}
+        <ExecutiveBriefing game={game} />
 
         {/* Results grid */}
         <div className="divide-y divide-slate-100 px-5">

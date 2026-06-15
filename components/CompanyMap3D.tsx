@@ -487,18 +487,19 @@ function Car({ a }: { a: AgentPath }) {
   return (
     <group ref={ref}>
       <group onClick={(e) => { e.stopPropagation(); setShowInfo((v) => !v); }}>
-        {/* Pre-rotate -90° around Y so the vehicle's long X-axis aligns with
-            the group's forward Z-axis (which Math.atan2(dx,dz) already targets). */}
-        <group rotation={[0, -Math.PI / 2, 0]}>
+        {/* Pre-rotate +90° around Y so the vehicle's long X-axis aligns with
+            the group's forward Z-axis (which Math.atan2(dx,dz) already targets),
+            front-first rather than reversed. */}
+        <group rotation={[0, Math.PI / 2, 0]}>
           <VehicleModel type={a.vehicleType ?? "car"} color={a.color} />
         </group>
       </group>
       {showInfo && a.destination && (
-        <Html position={[0, 0.55, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
+        <Html position={[0, 0.55, 0]} center distanceFactor={6} zIndexRange={[40, 0]}>
           <div
             style={{
-              background: "white", border: "1px solid #e2e8f0", borderRadius: 10,
-              padding: "5px 8px", fontSize: 12, lineHeight: 1.3, maxWidth: 140,
+              background: "white", border: "1px solid #e2e8f0", borderRadius: 9,
+              padding: "3px 6px", fontSize: 10, lineHeight: 1.25, maxWidth: 110,
               textAlign: "center", color: "#334155", boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
               cursor: "pointer",
             }}
@@ -506,7 +507,7 @@ function Car({ a }: { a: AgentPath }) {
           >
             <div style={{ fontWeight: 700 }}>→ {a.destination}</div>
             {a.destinationReason && (
-              <div style={{ fontSize: 11, color: "#64748b" }}>{a.destinationReason}</div>
+              <div style={{ fontSize: 9, color: "#64748b" }}>{a.destinationReason}</div>
             )}
           </div>
         </Html>
@@ -698,10 +699,10 @@ function Person({
         <PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />
       </group>
       {speaking && (
-        <Html position={[0, 0.5, 0]} center distanceFactor={8} zIndexRange={[40, 0]}>
+        <Html position={[0, 0.5, 0]} center distanceFactor={6} zIndexRange={[40, 0]}>
           <div style={{
-            background: "white", border: "1px solid #e2e8f0", borderRadius: 10,
-            padding: "5px 8px", fontSize: 13, lineHeight: 1.25, width: 150,
+            background: "white", border: "1px solid #e2e8f0", borderRadius: 9,
+            padding: "3px 7px", fontSize: 11, lineHeight: 1.2, width: 120,
             textAlign: "center", color: "#334155", boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
           }}>
             {speaking}
@@ -822,11 +823,11 @@ function VisitorAgent({
       </group>
 
       {/* Name badge (always visible) */}
-      <Html position={[0, 0.78, 0]} center distanceFactor={8} zIndexRange={[50, 0]}>
+      <Html position={[0, 0.78, 0]} center distanceFactor={6} zIndexRange={[50, 0]}>
         <div
           style={{
             background: kindColor, color: "white", borderRadius: 999,
-            padding: "3px 10px", fontSize: 12, fontWeight: 700,
+            padding: "2px 8px", fontSize: 10, fontWeight: 700,
             whiteSpace: "nowrap", boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
             cursor: "pointer",
           }}
@@ -838,12 +839,12 @@ function VisitorAgent({
 
       {/* Auto-cycling speech bubble — offset to the right so it doesn't
           cover the visitor model on screen. */}
-      <Html position={[1.6, 0.6, 0]} center distanceFactor={8} zIndexRange={[51, 0]}>
+      <Html position={[1.6, 0.6, 0]} center distanceFactor={6} zIndexRange={[51, 0]}>
         <div
           style={{
             background: "white", border: `2px solid ${kindColor}`,
-            borderRadius: 12, padding: "6px 10px",
-            fontSize: 11, lineHeight: 1.45, maxWidth: 160,
+            borderRadius: 11, padding: "4px 8px",
+            fontSize: 10, lineHeight: 1.35, maxWidth: 130,
             textAlign: "center", color: "#334155",
             boxShadow: "0 4px 16px rgba(15,23,42,0.2)",
             cursor: "pointer", whiteSpace: "pre-wrap",

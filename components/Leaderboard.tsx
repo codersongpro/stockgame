@@ -14,6 +14,7 @@ export function Leaderboard({
   onVisit?: (companyId: string) => void;
 }) {
   const entries = rankings(game);
+  const markById = new Map(game.companies.map((c) => [c.id, c.mark]));
   return (
     <div className="card p-4">
       <h3 className="mb-3 text-base font-bold text-slate-800">🏆 순위 (순자산)</h3>
@@ -26,7 +27,7 @@ export function Leaderboard({
             }`}
           >
             <span className="w-6 text-center text-lg">{medal(i)}</span>
-            <CompanyMark color={e.logoColor} mark={PRESET_MAP[e.companyId]?.mark} name={e.name} size="sm" />
+            <CompanyMark color={e.logoColor} mark={markById.get(e.companyId) ?? PRESET_MAP[e.companyId]?.mark} name={e.name} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-bold text-slate-800">
                 {e.name} {e.isPlayer && <span className="text-xs text-brand-600">(나)</span>}

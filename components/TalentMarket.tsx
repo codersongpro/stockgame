@@ -294,7 +294,7 @@ function LegendaryNegotiationModal({
           {(["check", "negotiate", "minigame", "confirm"] as LegNegStep[]).map((s, i) => (
             <div
               key={s}
-              className={`flex-1 py-1 text-center text-[10px] font-bold ${
+              className={`flex-1 py-1 text-center text-xs font-bold ${
                 step === s ? "bg-amber-100 text-amber-700" :
                 ["check","negotiate","minigame","confirm"].indexOf(step) > i ? "bg-amber-50 text-amber-400" :
                 "bg-slate-50 text-slate-400"
@@ -355,7 +355,7 @@ function LegendaryNegotiationModal({
                   onChange={(e) => setSalaryPct(Number(e.target.value))}
                   className="w-full accent-amber-500"
                 />
-                <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                <div className="mt-1 flex justify-between text-xs text-slate-400">
                   <span>최소 {MIN_PCT}%</span>
                   <span>최대 {MAX_PCT}%</span>
                 </div>

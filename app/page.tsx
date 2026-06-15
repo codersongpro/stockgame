@@ -13,14 +13,16 @@ import { HelpModal } from "@/components/HelpModal";
 
 const SPLASH_IMG = "/assets/splash.png";
 
-const LEVELS: Level[] = ["elementary", "middle", "university"];
+const LEVELS: Level[] = ["elementary_low", "elementary", "middle", "university"];
 const LEVEL_EMOJI: Record<Level, string> = {
-  elementary: "🧒",
+  elementary_low: "🧒",
+  elementary: "🧑",
   middle: "🧑‍🎓",
   university: "🎓",
 };
 
 const LEVEL_TAGS: Record<Level, string[]> = {
+  elementary_low: ["초간단", "예금만", "즉시 건설"],
   elementary: ["즉시 건설", "낮은 변동성", "쉬운 용어"],
   middle: ["건설 대기", "인접 보너스", "금리·인플레"],
   university: ["환율·암호화폐", "복합 이벤트", "완전 개방"],
@@ -75,7 +77,7 @@ export default function Home() {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
             난이도(학년) 선택
           </h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {LEVELS.map((lv) => {
               const c = LEVEL_CONFIGS[lv];
               const active = level === lv;
@@ -121,7 +123,7 @@ export default function Home() {
             <StatCell icon="💰" label="시작 자금" value={formatMoney(cfg.startingCash)} />
             <StatCell icon="🏢" label="경쟁사 수" value={`${cfg.aiCount}개사`} />
             <StatCell icon="🗺️" label="캠퍼스 크기" value={`${cfg.mapSize}×${cfg.mapSize}`} />
-            <StatCell icon="📊" label="시장 변동성" value={cfg.volatility === 0.5 ? "낮음" : cfg.volatility === 1.0 ? "보통" : "높음"} />
+            <StatCell icon="📊" label="시장 변동성" value={cfg.volatility <= 0.5 ? "낮음" : cfg.volatility === 1.0 ? "보통" : "높음"} />
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <span className="text-xs text-slate-500">투자 가능 자산:</span>

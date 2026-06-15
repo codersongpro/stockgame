@@ -4,7 +4,7 @@
 
 import type { RngState } from "./rng";
 
-export type Level = "elementary" | "middle" | "university";
+export type Level = "elementary_low" | "elementary" | "middle" | "university";
 
 // ---------------------------------------------------------------------------
 // Macro economy
@@ -217,6 +217,8 @@ export interface Company {
   id: string;
   name: string;
   logoColor: string;
+  /** Unique company icon/mark (emoji), assigned at game creation. */
+  mark?: string;
   industryId: string;
   countryId: string;
   isPlayer: boolean;

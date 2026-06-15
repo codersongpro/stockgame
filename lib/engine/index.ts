@@ -8,7 +8,7 @@ import { createRng, nextRange, type RngState } from "./rng";
 import { getLevelConfig } from "./levels";
 import { getIndustry, INDUSTRIES } from "../data/industries";
 import { getCountry } from "../data/countries";
-import { COMPANY_PRESETS, PRESET_MAP, type CompanyPreset } from "../data/companyPresets";
+import { COMPANY_PRESETS, PRESET_MAP, COMPANY_MARK_POOL, type CompanyPreset } from "../data/companyPresets";
 import { createMacro } from "./economy";
 import { createStocks, createExternalStocks } from "./market";
 import { createAssets } from "./assets";
@@ -206,6 +206,27 @@ export function createGame(opts: NewGameOptions): GameState {
   }
 
   const companies = [player, ...aiCompanies];
+
+  // Give every company a unique icon/mark. Preset-based companies keep their
+  // own mark; the player and any synthetic AI draw distinct marks from a pool.
+  {
+    const usedMarks = new Set<string>();
+    for (const c of companies) {
+      const pm = c.basedOn ? PRESET_MAP[c.basedOn]?.mark : undefined;
+      if (pm && !usedMarks.has(pm)) {
+        c.mark = pm;
+        usedMarks.add(pm);
+      }
+    }
+    const freePool = shuffle(rng, COMPANY_MARK_POOL.filter((m) => !usedMarks.has(m)));
+    let pi = 0;
+    for (const c of companies) {
+      if (c.mark) continue;
+      const m = freePool[pi++] ?? c.name.slice(0, 1);
+      c.mark = m;
+      usedMarks.add(m);
+    }
+  }
 
   const state: GameState = {
     version: GAME_VERSION,

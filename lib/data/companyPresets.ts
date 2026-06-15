@@ -85,6 +85,16 @@ export const PRESET_MAP: Record<string, CompanyPreset> = Object.fromEntries(
   COMPANY_PRESETS.map((p) => [p.id, p]),
 );
 
+// Pool of distinctive marks used to give the player and any synthetic AI a
+// unique company icon. Intentionally shapes/objects so they read as "logos"
+// and don't clash with industry emojis. createGame guarantees no duplicates.
+export const COMPANY_MARK_POOL: string[] = [
+  "🔷", "🔶", "🟣", "🟢", "🔴", "🟡", "🟤", "⬛", "🔺", "🔻",
+  "⭐", "✨", "🌙", "☀️", "⚡", "🔥", "❄️", "🍀", "🌸", "🌟",
+  "🦊", "🐻", "🦁", "🐯", "🦉", "🐬", "🦅", "🐳", "🦄", "🐢",
+  "🎯", "🎲", "🧭", "⚓", "🛡️", "🗝️", "💎", "👑", "🎩", "🧩",
+];
+
 // Extra fictional listings that never appear as in-game competitors, but are
 // always investable on the market — so players can build a broad, diversified
 // portfolio across companies that "don't show up in this game".

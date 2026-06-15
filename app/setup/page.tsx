@@ -132,7 +132,7 @@ function SetupInner() {
 
   // --- Wizard phase ---
   const levelCfg = LEVEL_CONFIGS[level];
-  const levelEmoji: Record<Level, string> = { elementary: "🧒", middle: "🧑‍🎓", university: "🎓" };
+  const levelEmoji: Record<Level, string> = { elementary_low: "🧒", elementary: "🧑", middle: "🧑‍🎓", university: "🎓" };
   const selectedIndustry = INDUSTRIES.find((i) => i.id === industryId);
   const selectedCountry = COUNTRIES.find((c) => c.id === countryId);
   const selectedPreset = COMPANY_PRESETS.find((p) => p.id === basedOn);
@@ -377,7 +377,7 @@ function SetupInner() {
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl text-lg" style={{ background: p.logoColor + "22" }}>
                         {ind.emoji}
                       </span>
-                      <span className="text-[9px] font-semibold text-slate-400 text-center leading-tight truncate w-full">{p.name}</span>
+                      <span className="text-xs font-semibold text-slate-400 text-center leading-tight truncate w-full">{p.name}</span>
                       <span className="text-xs">{medal}</span>
                     </div>
                   );
@@ -386,7 +386,7 @@ function SetupInner() {
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl text-lg" style={{ background: color + "44" }}>
                     {selectedIndustry?.emoji ?? "🏢"}
                   </span>
-                  <span className="text-[9px] text-slate-400">내 회사</span>
+                  <span className="text-xs text-slate-400">내 회사</span>
                   <span className="text-xs text-slate-400">?위</span>
                 </div>
               </div>

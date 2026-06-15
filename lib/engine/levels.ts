@@ -42,9 +42,26 @@ const ALL_LAYERS: EventLayer[] = [
 ];
 
 export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
+  elementary_low: {
+    level: "elementary_low",
+    label: "초등 저학년",
+    description: "가장 쉬운 단계. 회사를 만들고 물건을 팔아 돈을 벌어요. 어려운 건 모두 빼고 기본만!",
+    mapSize: 5,
+    instantBuild: true,
+    adjacencyBonus: false,
+    startingCash: 1_000_000,
+    volatility: 0.3,
+    eventIntensity: 0.3,
+    enabledAssets: ["deposit"],
+    enabledBuildings: ["factory", "store", "office", "park"],
+    enabledEventLayers: ["market", "visitor"],
+    showAdvancedMetrics: false,
+    characterDepth: "simple",
+    aiCount: 4,
+  },
   elementary: {
     level: "elementary",
-    label: "초등학생",
+    label: "초등 고학년",
     description: "쉬운 용어와 큰 버튼. 회사를 키우고 주식을 사보며 경제와 친해져요.",
     mapSize: 7,
     instantBuild: true,
