@@ -10,6 +10,7 @@ import {
 } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { getCountry } from "@/lib/data/countries";
+import { getIndustryProducts } from "@/lib/data/products";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
@@ -73,6 +74,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const setDecisions = useGameStore((s) => s.setDecisions);
   const companyAction = useGameStore((s) => s.companyAction);
   const loan = useGameStore((s) => s.loan);
+  const setProductPrice = useGameStore((s) => s.setProductPrice);
   const [loanAmt, setLoanAmt] = useState(0);
 
   // Per-quarter interest ≈ debt × (annual rate / 4). (engine: company.ts)
@@ -85,6 +87,10 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const capacity = productionCapacity(company, game.config);
   const demand = estimateDemand(company, industry, country, game.macro, game.config);
   const d = company.decisions;
+
+  const productDefs = getIndustryProducts(company.industryId);
+  const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
+  const rndUnlockDone = company.rndUnlockDone ?? false;
 
   return (
     <div className="space-y-4">
@@ -114,6 +120,72 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           format={(v) => `${formatNum(v)}개`}
           onChange={(v) => setDecisions({ productionTarget: v })}
         />
+
+        {/* Product lineup */}
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">상품 라인업</div>
+          <div className="space-y-2">
+            {productDefs.map((def, i) => {
+              const isRndProduct = def.isRndUnlock;
+              const isUnlocked = isRndProduct ? rndUnlockDone : true;
+              const meetsQuality = company.quality >= def.qualityRequired;
+              const isActive = isUnlocked && meetsQuality;
+              const currentPrice = productPrices[i] ?? Math.round(industry.basePrice * def.priceRatio);
+              const defaultPrice = Math.round(industry.basePrice * def.priceRatio);
+
+              if (isRndProduct && !rndUnlockDone) {
+                return (
+                  <div key={def.id} className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 opacity-60">
+                    <span className="text-base">{def.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-slate-500">{def.name}</div>
+                      <div className="text-[10px] text-slate-400">R&D 품질 75 달성 시 잠금 해제</div>
+                    </div>
+                    <span className="text-xs text-slate-400">🔒 R&D</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={def.id}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                    isActive
+                      ? "border-brand-200 bg-brand-50"
+                      : "border-slate-200 bg-slate-50 opacity-70"
+                  }`}
+                >
+                  <span className="text-base">{def.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-xs font-semibold ${isActive ? "text-brand-700" : "text-slate-500"}`}>
+                      {def.name}
+                      {isRndProduct && <span className="ml-1 rounded px-1 py-0.5 text-[9px] bg-purple-100 text-purple-600">R&D</span>}
+                    </div>
+                    {!meetsQuality && (
+                      <div className="text-[10px] text-amber-600">품질 {def.qualityRequired} 달성 시 활성화</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={currentPrice}
+                      min={1}
+                      step={Math.max(1, Math.round(defaultPrice * 0.05))}
+                      disabled={!isActive}
+                      onChange={(e) => setProductPrice(i, Math.max(1, Number(e.target.value)))}
+                      className={`w-20 rounded border px-2 py-0.5 text-right text-xs font-bold outline-none ${
+                        isActive
+                          ? "border-brand-300 bg-white text-brand-700 focus:border-brand-500"
+                          : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                      }`}
+                    />
+                    <span className="text-[10px] text-slate-400">원</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Management action buttons */}
         <div className="mt-4 space-y-4">

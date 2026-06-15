@@ -64,6 +64,7 @@ interface GameStore {
   tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => boolean;
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
   loan: (amount: number, side: "borrow" | "repay") => void;
+  setProductPrice: (index: number, price: number) => void;
   dismissToast: () => void;
 }
 
@@ -250,6 +251,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: side === "borrow" ? "대출 실행" : "상환 완료", tone: "good" } });
+  },
+
+  setProductPrice: (index, price) => {
+    const game = get().game;
+    if (!game) return;
+    const p = player(game);
+    if (!p.productPrices) p.productPrices = [];
+    p.productPrices[index] = Math.max(0, price);
+    persist(game);
+    set({ game: { ...game } });
   },
 
   dismissToast: () => set({ toast: null }),

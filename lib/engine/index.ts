@@ -17,6 +17,7 @@ import { createRelations } from "./relations";
 import { defaultDecisions } from "./company";
 import { shuffle } from "./rng";
 import { recordNetWorth } from "./ranking";
+import { getIndustryProducts } from "../data/products";
 
 export const GAME_VERSION = 1;
 export const DEFAULT_MAX_TURNS = 100;
@@ -127,6 +128,11 @@ function makeCompany(opts: {
     netWorthHistory: [],
 
     portfolio: { stocks: {}, assets: {} },
+
+    productPrices: getIndustryProducts(opts.industryId).map((p, i) =>
+      i < 3 ? Math.round(industry.basePrice * p.priceRatio) : 0
+    ),
+    rndUnlockDone: false,
   };
 }
 
