@@ -124,7 +124,7 @@ export function InvestmentDesk() {
       >
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-          <span className="font-mono text-[10px] tracking-[0.2em] text-slate-600">UNICORN MARKET</span>
+          <span className="font-mono text-xs tracking-[0.2em] text-slate-600">UNICORN MARKET</span>
         </div>
         <div className="flex items-center gap-5 font-mono text-xs">
           <span>
@@ -177,14 +177,14 @@ export function InvestmentDesk() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="🔎 종목 · 업종 검색"
-              className="min-w-0 flex-1 rounded-md px-3 py-1.5 text-[11px] text-slate-200 placeholder-slate-700 outline-none focus:ring-1 focus:ring-blue-500"
+              className="min-w-0 flex-1 rounded-md px-3 py-1.5 text-xs text-slate-200 placeholder-slate-700 outline-none focus:ring-1 focus:ring-blue-500"
               style={{ background: "rgba(255,255,255,0.04)" }}
             />
             {(["all", "rivals", "held"] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setScope(s)}
-                className={`shrink-0 rounded px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                className={`shrink-0 rounded px-2.5 py-1.5 text-xs font-semibold transition ${
                   scope === s
                     ? "bg-blue-600 text-white"
                     : "text-slate-600 hover:text-slate-400"
@@ -197,7 +197,7 @@ export function InvestmentDesk() {
 
           {/* ── Stock table ── */}
           <div className="max-h-[54vh] overflow-y-auto scroll-thin">
-            <table className="w-full text-[11px]">
+            <table className="w-full text-xs">
               <thead
                 className="sticky top-0 z-10"
                 style={{ background: "#0a1121" }}
@@ -249,7 +249,7 @@ export function InvestmentDesk() {
                           </span>
                           <div className="min-w-0">
                             <div className="truncate font-semibold text-slate-200">{l.name}</div>
-                            <div className="flex items-center gap-1 text-[10px]">
+                            <div className="flex items-center gap-1 text-xs">
                               {!l.external && (
                                 <span className="text-blue-500">경쟁</span>
                               )}
@@ -337,14 +337,14 @@ export function InvestmentDesk() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-slate-200">{a.name}</div>
-                  <div className="text-[11px] text-slate-600">
+                  <div className="text-xs text-slate-600">
                     {held > 0 ? `보유 ${formatNum(held)}` : a.desc}
                   </div>
                 </div>
                 <Sparkline data={a.history.slice(-20)} width={60} height={22} />
                 <div className="w-28 shrink-0 text-right">
                   <div className="font-mono font-bold text-slate-100">{formatNum(Math.round(a.price))}</div>
-                  <div className={`font-mono text-[11px] font-semibold ${up ? "text-emerald-400" : "text-red-400"}`}>
+                  <div className={`font-mono text-xs font-semibold ${up ? "text-emerald-400" : "text-red-400"}`}>
                     {up ? "▲" : "▼"}&thinsp;{Math.abs(ch).toFixed(2)}%
                   </div>
                 </div>
@@ -389,7 +389,7 @@ function TickerBar({ items }: { items: Listing[] }) {
         {doubled.map((l, i) => {
           const up = l.change >= 0;
           return (
-            <span key={i} className="flex items-center gap-1.5 font-mono text-[11px]">
+            <span key={i} className="flex items-center gap-1.5 font-mono text-xs">
               <span className="text-slate-600">{l.name}</span>
               <span className="text-slate-300">{formatNum(Math.round(l.price))}</span>
               <span className={up ? "text-emerald-400" : "text-red-400"}>
@@ -441,7 +441,7 @@ function PortfolioBar({
   if (holdings.length === 0) {
     return (
       <div
-        className="px-4 py-3 text-[11px] text-slate-700"
+        className="px-4 py-3 text-xs text-slate-700"
         style={{ borderBottom: "1px solid rgba(148,163,184,0.06)" }}
       >
         보유 주식 없음 · 아래 종목에서 매수해 보세요
@@ -461,16 +461,16 @@ function PortfolioBar({
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-4 py-2.5 transition-colors hover:bg-white/[0.02]"
       >
-        <div className="flex items-center gap-2 text-[11px]">
+        <div className="flex items-center gap-2 text-xs">
           <span className="font-semibold text-slate-400">내 보유 주식</span>
           <span
-            className="rounded px-1.5 py-0.5 font-mono text-[10px] text-slate-500"
+            className="rounded px-1.5 py-0.5 font-mono text-xs text-slate-500"
             style={{ background: "rgba(255,255,255,0.05)" }}
           >
             {holdings.length}종목
           </span>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[11px]">
+        <div className="flex items-center gap-3 font-mono text-xs">
           <span className="font-semibold text-slate-300">{formatMoney(totalValue)}</span>
           <span className={`font-bold ${totalPl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
             {totalPl >= 0 ? "+" : ""}{formatMoney(Math.round(totalPl))}
@@ -478,7 +478,7 @@ function PortfolioBar({
               ({totalPl >= 0 ? "+" : ""}{totalPlPct.toFixed(2)}%)
             </span>
           </span>
-          <span className="text-slate-700 text-[10px]">{open ? "▲" : "▼"}</span>
+          <span className="text-slate-700 text-xs">{open ? "▲" : "▼"}</span>
         </div>
       </button>
 
@@ -502,7 +502,7 @@ function PortfolioBar({
                 >
                   {ind.emoji}
                 </span>
-                <div className="min-w-0 flex-1 text-[11px]">
+                <div className="min-w-0 flex-1 text-xs">
                   <div className="font-semibold text-slate-300">{h.name}</div>
                   <div className="font-mono text-slate-600">
                     {formatNum(h.shares)}주 · 평단 {formatNum(Math.round(h.avg))}
@@ -510,7 +510,7 @@ function PortfolioBar({
                     {formatNum(Math.round(h.price))}
                   </div>
                 </div>
-                <div className="text-right text-[11px]">
+                <div className="text-right text-xs">
                   <div className="font-mono font-semibold text-slate-300">{formatMoney(h.value)}</div>
                   <div className={`font-mono font-bold ${up ? "text-emerald-400" : "text-red-400"}`}>
                     {up ? "+" : ""}{formatMoney(Math.round(h.pl))}
@@ -541,7 +541,7 @@ function SortTh({
   return (
     <th
       onClick={() => onSort(k)}
-      className={`cursor-pointer select-none py-2 pr-3 text-right text-[11px] font-medium transition-colors ${
+      className={`cursor-pointer select-none py-2 pr-3 text-right text-xs font-medium transition-colors ${
         active ? "text-blue-400" : "text-slate-600 hover:text-slate-400"
       }`}
     >
@@ -634,7 +634,7 @@ function TradeModal({
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-bold text-white">{name}</div>
-            <div className="text-[10px] text-slate-600">
+            <div className="text-xs text-slate-600">
               {isStock ? (stockCompany ? "경쟁사 상장주" : "외부 상장주") : "대체 자산"}
             </div>
           </div>
@@ -675,23 +675,23 @@ function TradeModal({
           >
             <div className="grid grid-cols-4 divide-x text-center">
               <div className="px-2 py-2.5">
-                <div className="text-[10px] text-slate-600">시가총액</div>
+                <div className="text-xs text-slate-600">시가총액</div>
                 <div className="font-mono text-xs font-semibold text-slate-300">{formatMoney(cap)}</div>
               </div>
               <div className="px-2 py-2.5">
-                <div className="text-[10px] text-slate-600">PER</div>
+                <div className="text-xs text-slate-600">PER</div>
                 <div className="font-mono text-xs font-semibold text-slate-300">{per != null ? per.toFixed(1) + "배" : "—"}</div>
               </div>
               <div className="px-2 py-2.5">
-                <div className="text-[10px] text-slate-600">PBR</div>
+                <div className="text-xs text-slate-600">PBR</div>
                 <div className="font-mono text-xs font-semibold text-slate-300">{metrics?.pbr != null ? metrics.pbr.toFixed(2) + "배" : "—"}</div>
               </div>
               <div className="px-2 py-2.5">
-                <div className="text-[10px] text-slate-600">ROE</div>
+                <div className="text-xs text-slate-600">ROE</div>
                 <div className={`font-mono text-xs font-semibold ${metrics?.roe != null && metrics.roe >= 10 ? "text-emerald-400" : "text-slate-300"}`}>{metrics?.roe != null ? metrics.roe.toFixed(1) + "%" : "—"}</div>
               </div>
             </div>
-            <div className="px-3 pb-2 text-center font-mono text-[10px] text-slate-600">
+            <div className="px-3 pb-2 text-center font-mono text-xs text-slate-600">
               유통주식 {formatNum(float)} / {formatNum(stock?.sharesOutstanding ?? 0)}주
               <span className="ml-1 text-slate-700">(자사주 {formatNum((stock?.treasury ?? 0))})</span>
             </div>
@@ -708,16 +708,16 @@ function TradeModal({
           if (relatedNews.length === 0) return null;
           return (
             <div style={{ borderTop: "1px solid rgba(148,163,184,0.07)", borderBottom: "1px solid rgba(148,163,184,0.07)" }}>
-              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-700">관련 뉴스 · 주가 변동 이유</div>
+              <div className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-700">관련 뉴스 · 주가 변동 이유</div>
               <div className="max-h-28 overflow-y-auto">
                 {relatedNews.map((n) => (
                   <div key={n.id} className="flex items-start gap-2 px-3 py-1.5">
                     <span className="shrink-0 text-sm">{n.emoji}</span>
                     <div className="min-w-0">
-                      <div className={`text-[10px] font-semibold ${n.tone === "positive" ? "text-emerald-400" : n.tone === "negative" ? "text-red-400" : "text-slate-400"}`}>
+                      <div className={`text-xs font-semibold ${n.tone === "positive" ? "text-emerald-400" : n.tone === "negative" ? "text-red-400" : "text-slate-400"}`}>
                         {n.title}
                       </div>
-                      <div className="text-[10px] text-slate-600 leading-snug">{n.body}</div>
+                      <div className="text-xs text-slate-600 leading-snug">{n.body}</div>
                     </div>
                     <span className="shrink-0 text-[9px] text-slate-800">Q{n.turn}</span>
                   </div>
@@ -730,7 +730,7 @@ function TradeModal({
         {/* ── Holdings row ── */}
         {held > 0 && (
           <div
-            className="flex items-center gap-4 px-4 py-2.5 font-mono text-[11px]"
+            className="flex items-center gap-4 px-4 py-2.5 font-mono text-xs"
             style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(148,163,184,0.05)" }}
           >
             <span>
@@ -763,7 +763,7 @@ function TradeModal({
               <button
                 key={n}
                 onClick={() => setQty(n)}
-                className="flex-1 rounded-lg py-2 text-[11px] font-semibold text-slate-400 transition hover:text-slate-200"
+                className="flex-1 rounded-lg py-2 text-xs font-semibold text-slate-400 transition hover:text-slate-200"
                 style={{ background: "rgba(255,255,255,0.04)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
@@ -774,7 +774,7 @@ function TradeModal({
             {held > 0 && (
               <button
                 onClick={() => setQty(held)}
-                className="flex-1 rounded-lg py-2 text-[11px] font-semibold text-yellow-500 transition"
+                className="flex-1 rounded-lg py-2 text-xs font-semibold text-yellow-500 transition"
                 style={{ background: "rgba(255,255,255,0.04)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
@@ -816,7 +816,7 @@ function TradeModal({
 
           {/* Order summary */}
           <div
-            className="mt-3 rounded-xl px-4 py-3 text-[11px]"
+            className="mt-3 rounded-xl px-4 py-3 text-xs"
             style={{ background: "rgba(255,255,255,0.03)" }}
           >
             <div className="flex justify-between">
@@ -843,7 +843,7 @@ function TradeModal({
             onMouseLeave={(e) => { if (held > 0) e.currentTarget.style.background = "#dc2626"; }}
           >
             <span className="text-lg tracking-widest">매 도</span>
-            <span className="text-[11px] font-normal opacity-80">
+            <span className="text-xs font-normal opacity-80">
               {held > 0
                 ? `${formatNum(sellQty)}주 · ${formatMoney(Math.round(price * sellQty))}`
                 : "보유 없음"}
@@ -857,7 +857,7 @@ function TradeModal({
             onMouseLeave={(e) => (e.currentTarget.style.background = "#1d4ed8")}
           >
             <span className="text-lg tracking-widest">매 수</span>
-            <span className="text-[11px] font-normal opacity-80">{formatMoney(orderValue)} 필요</span>
+            <span className="text-xs font-normal opacity-80">{formatMoney(orderValue)} 필요</span>
           </button>
         </div>
       </div>

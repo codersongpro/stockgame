@@ -9,10 +9,9 @@ import { initAudio, playSfx } from "@/lib/audio";
 import { formatMoney } from "@/lib/format";
 import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
 import { getIndustry } from "@/lib/data/industries";
-import { MASCOT_IMG } from "@/lib/assetMap";
+import { HelpModal } from "@/components/HelpModal";
 
 const SPLASH_IMG = "/assets/splash.png";
-import { HelpModal } from "@/components/HelpModal";
 
 const LEVELS: Level[] = ["elementary", "middle", "university"];
 const LEVEL_EMOJI: Record<Level, string> = {
@@ -90,13 +89,13 @@ export default function Home() {
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-3xl">{LEVEL_EMOJI[lv]}</span>
-                    {active && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">선택됨</span>}
+                    {active && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">선택됨</span>}
                   </div>
                   <div className="mt-2 text-lg font-bold">{c.label}</div>
                   <div className="mt-1 text-xs leading-relaxed text-slate-300">{c.description}</div>
                   <div className="mt-3 flex flex-wrap gap-1">
                     {LEVEL_TAGS[lv].map((tag) => (
-                      <span key={tag} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${active ? "bg-white/15 text-white" : "bg-slate-700 text-slate-400"}`}>
+                      <span key={tag} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-white/15 text-white" : "bg-slate-700 text-slate-400"}`}>
                         {tag}
                       </span>
                     ))}
@@ -120,9 +119,9 @@ export default function Home() {
             <StatCell icon="📊" label="시장 변동성" value={cfg.volatility === 0.5 ? "낮음" : cfg.volatility === 1.0 ? "보통" : "높음"} />
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="text-[11px] text-slate-500">투자 가능 자산:</span>
+            <span className="text-xs text-slate-500">투자 가능 자산:</span>
             {cfg.enabledAssets.map(a => (
-              <span key={a} className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-400">{a}</span>
+              <span key={a} className="rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">{a}</span>
             ))}
           </div>
         </section>
@@ -153,7 +152,7 @@ export default function Home() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-slate-200">{p.name}</div>
-                    <div className="text-[10px] text-slate-500">{ind.name} · {p.blurb}</div>
+                    <div className="text-xs text-slate-500">{ind.name} · {p.blurb}</div>
                   </div>
                   <div className="flex items-center gap-1">
                     {Array.from({ length: Math.round(p.scale * 2.5) }).map((_, j) => (
@@ -163,14 +162,14 @@ export default function Home() {
                         style={{ background: j < Math.round((p.scale - 1) * 5) ? p.logoColor : "rgba(148,163,184,0.15)" }}
                       />
                     ))}
-                    <span className="ml-1.5 text-[10px] font-mono text-slate-500">
+                    <span className="ml-1.5 text-xs font-mono text-slate-500">
                       {p.scale >= 1.6 ? "초대형" : p.scale >= 1.4 ? "대형" : p.scale >= 1.2 ? "중형" : "소형"}
                     </span>
                   </div>
                 </div>
               );
             })}
-            <div className="px-4 py-2.5 text-[11px] text-slate-600">
+            <div className="px-4 py-2.5 text-xs text-slate-600">
               ⚡ 실제 게임에서는 선택한 난이도에 따라 {cfg.aiCount}개 기업이 참가합니다
             </div>
           </div>
@@ -224,7 +223,7 @@ function StatCell({ icon, label, value }: { icon: string; label: string; value: 
   return (
     <div className="rounded-xl bg-slate-700/40 px-3 py-2.5">
       <div className="text-sm">{icon}</div>
-      <div className="mt-1 text-[10px] text-slate-500">{label}</div>
+      <div className="mt-1 text-xs text-slate-500">{label}</div>
       <div className="text-sm font-bold text-slate-200">{value}</div>
     </div>
   );

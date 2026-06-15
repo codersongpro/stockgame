@@ -29,7 +29,7 @@ export function Leaderboard({
               <div className="truncate text-sm font-bold text-slate-800">
                 {e.name} {e.isPlayer && <span className="text-xs text-brand-600">(나)</span>}
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className="text-xs text-slate-400">
                 기업 {formatMoney(e.companyValue)} · 투자 {formatMoney(e.portfolioValue)}
               </div>
             </div>
@@ -37,7 +37,7 @@ export function Leaderboard({
               <div className="text-sm font-bold text-slate-800">{formatMoney(e.netWorth)}</div>
               {onVisit && !e.isPlayer && (
                 <button
-                  className="text-[10px] text-brand-600 hover:underline"
+                  className="text-xs text-brand-600 hover:underline"
                   onClick={() => onVisit(e.companyId)}
                 >
                   방문 →

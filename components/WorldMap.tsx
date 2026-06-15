@@ -56,7 +56,7 @@ export function WorldMap({
           {COUNTRIES.map((c) => (
             <div key={c.id} className="rounded-xl p-3 ring-1 ring-slate-200">
               <div className="font-bold text-slate-800">{c.flag} {c.name}</div>
-              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-slate-500">
                 <span>성장률 {c.baseGrowth}%</span>
                 <span>물가 {c.baseInflation}%</span>
                 <span>금리 {c.baseRate}%</span>
@@ -64,7 +64,7 @@ export function WorldMap({
                 <span>시장규모 {c.marketSize}x</span>
                 <span>인건비 {c.laborCost}x</span>
               </div>
-              <div className="mt-1 text-[10px] text-slate-400">{c.centralBank}</div>
+              <div className="mt-1 text-xs text-slate-400">{c.centralBank}</div>
             </div>
           ))}
         </div>
@@ -144,7 +144,7 @@ function DealPanel({ game, target }: { game: GameState; target: Company }) {
                 <span className="font-bold text-slate-800">{def.label}</span>
                 <span className="text-xs text-slate-500">{formatMoney(def.cost)}</span>
               </div>
-              <div className="text-[11px] text-slate-500">{DEAL_DESC[id]}</div>
+              <div className="text-xs text-slate-500">{DEAL_DESC[id]}</div>
             </button>
           );
         })}

@@ -69,7 +69,7 @@ export function Dashboard({ game }: { game: GameState }) {
       <div className="card p-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">🏙️ 우리 회사 전경</h3>
-          <span className="text-[11px] text-slate-400">드래그로 둘러보기</span>
+          <span className="text-xs text-slate-400">드래그로 둘러보기</span>
         </div>
         <CompanyCity game={game} company={p} readOnly overview />
       </div>
@@ -131,7 +131,7 @@ function Cell({ icon, label, value }: { icon?: string; label: React.ReactNode; v
   return (
     <div className="p-3 text-center">
       {icon && <img src={icon} alt="" className="mx-auto mb-1 h-5 w-5 object-contain" />}
-      <div className="text-[11px] text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
       <div className="font-bold text-slate-800">{value}</div>
     </div>
   );
@@ -145,7 +145,7 @@ function Mini({ label, value, icon, emoji }: { label: React.ReactNode; value: st
         : <span className="text-xl">{emoji}</span>
       }
       <div>
-        <div className="text-[11px] text-slate-500">{label}</div>
+        <div className="text-xs text-slate-500">{label}</div>
         <div className="text-sm font-bold text-slate-800">{value}</div>
       </div>
     </div>

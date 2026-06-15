@@ -139,7 +139,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                     <span className="text-base">{def.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-semibold text-slate-500">{def.name}</div>
-                      <div className="text-[10px] text-slate-400">R&D 품질 75 달성 시 잠금 해제</div>
+                      <div className="text-xs text-slate-400">R&D 품질 75 달성 시 잠금 해제</div>
                     </div>
                     <span className="text-xs text-slate-400">🔒 R&D</span>
                   </div>
@@ -162,7 +162,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                       {isRndProduct && <span className="ml-1 rounded px-1 py-0.5 text-[9px] bg-purple-100 text-purple-600">R&D</span>}
                     </div>
                     {!meetsQuality && (
-                      <div className="text-[10px] text-amber-600">품질 {def.qualityRequired} 달성 시 활성화</div>
+                      <div className="text-xs text-amber-600">품질 {def.qualityRequired} 달성 시 활성화</div>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
@@ -179,7 +179,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                           : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
                       }`}
                     />
-                    <span className="text-[10px] text-slate-400">원</span>
+                    <span className="text-xs text-slate-400">원</span>
                   </div>
                 </div>
               );
@@ -211,7 +211,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                       }`}
                     >
                       <div className="font-semibold leading-tight">{action.label}</div>
-                      <div className={`mt-0.5 text-[10px] ${canAfford ? "text-brand-500" : "text-slate-400"}`}>
+                      <div className={`mt-0.5 text-xs ${canAfford ? "text-brand-500" : "text-slate-400"}`}>
                         {formatMoney(action.cost)}
                       </div>
                     </button>
@@ -343,7 +343,7 @@ function Info({ label, value, hint, tone }: { label: string; value: string; hint
       <div className={`font-bold ${tone === "good" ? "text-bull" : tone === "bad" ? "text-bear" : "text-slate-800"}`}>
         {value}
       </div>
-      {hint && <div className="text-[10px] text-amber-600">{hint}</div>}
+      {hint && <div className="text-xs text-amber-600">{hint}</div>}
     </div>
   );
 }
@@ -356,7 +356,7 @@ function StatBar({ label, value, color, hint }: { label: React.ReactNode; value:
         <span className="font-semibold text-slate-700">{Math.round(value)}</span>
       </div>
       <Bar value={value} color={color} />
-      {hint && <div className="mt-0.5 text-[10px] text-amber-600">{hint}</div>}
+      {hint && <div className="mt-0.5 text-xs text-amber-600">{hint}</div>}
     </div>
   );
 }

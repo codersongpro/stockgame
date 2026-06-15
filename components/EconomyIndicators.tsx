@@ -47,7 +47,7 @@ function Metric({ icon, label, value, hint }: { icon?: string; label: string; va
         <Term term={label}>{label}</Term>
       </div>
       <div className="text-lg font-bold text-slate-800">{value}</div>
-      {hint && <div className="text-[10px] text-slate-400">{hint}</div>}
+      {hint && <div className="text-xs text-slate-400">{hint}</div>}
     </div>
   );
 }
