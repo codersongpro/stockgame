@@ -112,6 +112,18 @@ export const RESULT_ICONS = {
   end: "/assets/icons/result_end.png",
 } as const;
 
+// Investment asset class icons
+export const ASSET_ICONS: Record<string, string> = {
+  deposit:    "/assets/icons/asset_deposit.png",
+  bond:       "/assets/icons/asset_bond.png",
+  etf:        "/assets/icons/asset_etf.png",
+  realestate: "/assets/icons/asset_realestate.png",
+  gold:       "/assets/icons/asset_gold.png",
+  oil:        "/assets/icons/asset_oil.png",
+  fx:         "/assets/icons/asset_fx.png",
+  crypto:     "/assets/icons/asset_crypto.png",
+};
+
 // Event banners
 export const BANNER_IMGS = {
   positive: "/assets/banners/banner_positive.png",

@@ -21,7 +21,7 @@ import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
-import { TAB_ICONS, RESULT_ICONS } from "@/lib/assetMap";
+import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
@@ -322,19 +322,16 @@ function ResultsPopup({
         className="card w-full max-w-sm animate-popin overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          className={`px-5 py-4 text-white ${
-            r.profit >= 0
-              ? "bg-gradient-to-r from-emerald-600 to-teal-500"
-              : "bg-gradient-to-r from-slate-700 to-slate-600"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{r.profit >= 0 ? "📊" : "📉"}</span>
-            <div>
-              <div className="text-xs opacity-80">{game.turn}분기 실적 보고</div>
-              <div className="text-lg font-black">{player.name}</div>
+        {/* Header with banner */}
+        <div className="relative overflow-hidden">
+          <img src={BANNER_IMGS.report} alt="" className="w-full object-cover" style={{ maxHeight: 110 }} />
+          <div className="absolute inset-0 flex items-end bg-black/30 px-5 pb-3">
+            <div className="text-white drop-shadow">
+              <div className="text-[11px] opacity-80">{game.turn}분기 실적 보고</div>
+              <div className="text-base font-black">{player.name}</div>
+            </div>
+            <div className={`ml-auto text-sm font-bold drop-shadow ${r.profit >= 0 ? "text-emerald-200" : "text-red-200"}`}>
+              {r.profit >= 0 ? "▲" : "▼"} {formatMoney(Math.abs(r.profit))}
             </div>
           </div>
         </div>
@@ -379,18 +376,27 @@ const TONE_STYLE: Record<NewsItem["tone"], { ring: string; chip: string; label: 
 };
 
 function EventPopup({ events, onClose }: { events: NewsItem[]; onClose: () => void }) {
+  const tone: "positive" | "negative" | "neutral" = events.some((e) => e.tone === "positive")
+    ? "positive"
+    : events.some((e) => e.tone === "negative")
+    ? "negative"
+    : "neutral";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="card w-full max-w-md animate-popin p-5"
+        className="card w-full max-w-md animate-popin overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center gap-2">
-          <span className="text-2xl">📣</span>
-          <h2 className="text-lg font-black text-slate-800">
-            이번 분기 속보 {events.length > 1 ? `(${events.length})` : ""}
-          </h2>
+        {/* Banner header */}
+        <div className="relative overflow-hidden">
+          <img src={BANNER_IMGS[tone]} alt="" className="w-full object-cover" style={{ maxHeight: 100 }} />
+          <div className="absolute inset-0 flex items-end bg-black/25 px-4 pb-2.5">
+            <h2 className="text-base font-black text-white drop-shadow">
+              이번 분기 속보 {events.length > 1 ? `(${events.length})` : ""}
+            </h2>
+          </div>
         </div>
+        <div className="p-5">
         <div className="max-h-[55vh] space-y-2.5 overflow-y-auto scroll-thin">
           {events.map((ev) => {
             const tone = TONE_STYLE[ev.tone];
@@ -422,6 +428,7 @@ function EventPopup({ events, onClose }: { events: NewsItem[]; onClose: () => vo
         <button className="btn-primary mt-4 w-full" onClick={onClose}>
           확인하고 계속 ▶
         </button>
+        </div>
       </div>
     </div>
   );

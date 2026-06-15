@@ -57,22 +57,14 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 text-white">
-      <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-4 py-12">
-        {/* Hero banner */}
-        <div className="w-full overflow-hidden rounded-3xl shadow-2xl">
-          <img
-            src={SPLASH_IMG}
-            alt="유니콘 시티 히어로 배너"
-            className="w-full object-cover"
-            style={{ maxHeight: 380 }}
-          />
-        </div>
-        <h1 className="mt-6 bg-gradient-to-r from-brand-300 to-pink-300 bg-clip-text text-center text-5xl font-black text-transparent">
-          유니콘 시티
-        </h1>
-        <p className="mt-3 text-center text-lg text-slate-300">
-          회사를 도시처럼 키우고, 주식·자산에 투자하며 <b>순자산 1위</b>에 도전하세요!
-        </p>
+      {/* Full-bleed hero — no container, no cropping */}
+      <img
+        src={SPLASH_IMG}
+        alt="유니콘 시티"
+        className="w-full object-contain"
+      />
+
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center px-4 pb-12">
 
         {/* Level selection */}
         <section className="mt-10 w-full">

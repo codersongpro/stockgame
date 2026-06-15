@@ -8,6 +8,7 @@ import { getIndustry } from "@/lib/data/industries";
 import { formatMoney, formatNum, changePct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { PriceChart } from "./PriceChart";
+import { ASSET_ICONS } from "@/lib/assetMap";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -326,10 +327,13 @@ export function InvestmentDesk() {
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
               >
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                   style={{ background: "rgba(255,255,255,0.05)" }}
                 >
-                  {a.emoji}
+                  {ASSET_ICONS[id]
+                    ? <img src={ASSET_ICONS[id]} alt={a.name} className="h-7 w-7 object-contain" />
+                    : <span className="text-xl">{a.emoji}</span>
+                  }
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-slate-200">{a.name}</div>
@@ -593,6 +597,7 @@ function TradeModal({
   const indEmoji = isStock
     ? getIndustry(stockCompany?.industryId ?? "tech").emoji
     : asset!.emoji;
+  const assetIconSrc = !isStock && asset ? ASSET_ICONS[asset.id] : null;
 
   const orderQty = isStock ? qty : qty;
   const orderValue = Math.round(price * orderQty);
@@ -622,7 +627,10 @@ function TradeModal({
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg"
             style={{ background: color + "22" }}
           >
-            {indEmoji}
+            {assetIconSrc
+              ? <img src={assetIconSrc} alt={name} className="h-6 w-6 object-contain" />
+              : indEmoji
+            }
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-bold text-white">{name}</div>
