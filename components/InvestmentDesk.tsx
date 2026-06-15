@@ -690,6 +690,35 @@ function TradeModal({
           </div>
         )}
 
+        {/* ── Related news ── */}
+        {isStock && (() => {
+          const relatedNews = game.news
+            .filter((n) => n.tags.some((t) => t === sel.id || t === (stockCompany?.industryId ?? "")) || n.layer === "monetary")
+            .slice(-6)
+            .reverse()
+            .slice(0, 4);
+          if (relatedNews.length === 0) return null;
+          return (
+            <div style={{ borderTop: "1px solid rgba(148,163,184,0.07)", borderBottom: "1px solid rgba(148,163,184,0.07)" }}>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-700">관련 뉴스 · 주가 변동 이유</div>
+              <div className="max-h-28 overflow-y-auto">
+                {relatedNews.map((n) => (
+                  <div key={n.id} className="flex items-start gap-2 px-3 py-1.5">
+                    <span className="shrink-0 text-sm">{n.emoji}</span>
+                    <div className="min-w-0">
+                      <div className={`text-[10px] font-semibold ${n.tone === "positive" ? "text-emerald-400" : n.tone === "negative" ? "text-red-400" : "text-slate-400"}`}>
+                        {n.title}
+                      </div>
+                      <div className="text-[10px] text-slate-600 leading-snug">{n.body}</div>
+                    </div>
+                    <span className="shrink-0 text-[9px] text-slate-800">Q{n.turn}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── Holdings row ── */}
         {held > 0 && (
           <div
