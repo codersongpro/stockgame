@@ -184,17 +184,10 @@ export default function PlayPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 tab === t.id ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <img
-                src={TAB_ICONS[t.id]}
-                alt={t.emoji}
-                className="h-6 w-6 object-contain"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; (e.currentTarget.nextSibling as HTMLElement | null)?.style.setProperty("display", "inline"); }}
-              />
-              <span style={{ display: "none" }}>{t.emoji}</span>
               {t.label}
             </button>
           ))}
