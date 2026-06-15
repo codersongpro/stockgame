@@ -329,6 +329,7 @@ export interface LevelConfig {
   enabledEventLayers: EventLayer[];
   showAdvancedMetrics: boolean; // financials, debt, FX...
   characterDepth: "simple" | "roles" | "full";
+  simplifiedLabels: boolean; // kid-friendly section/button text (elementary_low only)
   aiCount: number;
 }
 

@@ -40,6 +40,14 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "visit", label: "방문", emoji: "🌍" },
 ];
 
+const SIMPLE_TAB_LABELS: Partial<Record<Tab, string>> = {
+  home:    "홈",
+  company: "내 회사",
+  invest:  "주식·예금",
+  talent:  "직원",
+  news:    "소식",
+};
+
 export default function PlayPage() {
   const router = useRouter();
   const game = useGameStore((s) => s.game);
@@ -197,7 +205,7 @@ export default function PlayPage() {
                 tab === t.id ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              {t.label}
+              {game.config.simplifiedLabels ? (SIMPLE_TAB_LABELS[t.id] ?? t.label) : t.label}
             </button>
           ))}
         </nav>
@@ -263,7 +271,7 @@ export default function PlayPage() {
       {ended && <GameOver game={game} onRestart={() => router.push("/")} />}
 
       {/* iorad-style tutorial overlay */}
-      {help === "tutorial" && <Tutorial onClose={() => setHelp(null)} />}
+      {help === "tutorial" && <Tutorial level={game.level} onClose={() => setHelp(null)} />}
 
       {/* Help center (manual / glossary) */}
       {help !== null && help !== "tutorial" && (

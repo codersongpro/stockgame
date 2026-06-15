@@ -71,6 +71,32 @@ const ACTION_SECTIONS = [
   },
 ] as const;
 
+// Kid-friendly labels for elementary_low level
+const SIMPLE_SECTION_LABELS: Record<string, string> = {
+  marketing: "광고하기 📢",
+  rnd:       "연구하기 🔬",
+  welfare:   "직원 돌보기 💝",
+  safety:    "안전하게 🛡️",
+  extra:     "기타 활동",
+};
+const SIMPLE_ACTION_LABELS: Record<string, string> = {
+  mkt_basic:     "기본 광고",
+  mkt_active:    "열심히 광고",
+  mkt_intensive: "광고 집중",
+  mkt_event:     "특별 행사",
+  rnd_basic:     "기초 공부",
+  rnd_active:    "기술 연구",
+  rnd_patent:    "발명 등록",
+  wlf_dinner:    "같이 밥 먹기",
+  wlf_training:  "직원 교육",
+  wlf_workshop:  "다같이 배우기",
+  sft_inspect:   "안전 확인",
+  sft_training:  "안전 배우기",
+  csr:           "환경 활동",
+  consulting:    "전문가 조언",
+  pr_campaign:   "홍보하기",
+};
+
 export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
   const setDecisions = useGameStore((s) => s.setDecisions);
   const companyAction = useGameStore((s) => s.companyAction);
@@ -83,6 +109,8 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const quarterlyRate = game.macro.interestRate / 100 / 4;
   const currentInterest = Math.round(company.debt * quarterlyRate);
   const loanInterest = Math.round(loanAmt * quarterlyRate);
+
+  const sl = game.config.simplifiedLabels;
 
   const industry = getIndustry(company.industryId);
   const country = getCountry(company.countryId);
@@ -118,9 +146,9 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
       <div className="card p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
-            📦 상품 라인업
+            {sl ? "📦 우리 상품" : "📦 상품 라인업"}
           </h3>
-          <span className="text-xs text-slate-400">R&D 투자로 가격 한도 ↑</span>
+          {!sl && <span className="text-xs text-slate-400">R&D 투자로 가격 한도 ↑</span>}
         </div>
 
         {/* Product tabs */}
@@ -274,12 +302,12 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
       <div className="card p-5">
         <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-800">
           {BUILDING_IMG.office && <img src={BUILDING_IMG.office} alt="" className="h-7 w-7 object-contain" />}
-          경영 결정
+          {sl ? "어떻게 운영할까요?" : "경영 결정"}
         </h3>
 
         <Slider
           icon={MGMT_ICONS.production}
-          label="생산 목표 (수량)"
+          label={sl ? "몇 개 만들까요?" : "생산 목표 (수량)"}
           value={d.productionTarget}
           min={0}
           max={facCap}
@@ -291,12 +319,14 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
 
         {/* Management action buttons */}
         <div className="space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">경영 활동</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {sl ? "회사 활동" : "경영 활동"}
+          </div>
           {ACTION_SECTIONS.map((section) => (
             <div key={section.key}>
               <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-600">
                 {section.icon && <img src={section.icon} alt="" className="h-4 w-4 object-contain" />}
-                {section.label}
+                {sl ? (SIMPLE_SECTION_LABELS[section.key] ?? section.label) : section.label}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {section.actions.map((action) => {
@@ -312,7 +342,9 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                           : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
                       }`}
                     >
-                      <div className="font-semibold leading-tight">{action.label}</div>
+                      <div className="font-semibold leading-tight">
+                        {sl ? (SIMPLE_ACTION_LABELS[action.id] ?? action.label) : action.label}
+                      </div>
                       <div className={`mt-0.5 text-xs ${canAfford ? "text-brand-500" : "text-slate-400"}`}>
                         {formatMoney(action.cost)}
                       </div>
@@ -336,7 +368,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
       <div className="card p-5">
         <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">
           {BUILDING_IMG.rnd && <img src={BUILDING_IMG.rnd} alt="" className="h-7 w-7 object-contain" />}
-          회사 상태
+          {sl ? "우리 회사 상태 📊" : "회사 상태"}
         </h3>
         <StatBar label={<Term term="품질">품질 / 기술</Term>} value={company.quality} color="#6366f1" />
         <StatBar label={<Term term="평판" />} value={company.reputation} color="#0ea5e9" />

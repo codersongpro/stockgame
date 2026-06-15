@@ -50,14 +50,57 @@ const STEPS: TutorialStep[] = [
   },
 ];
 
+// Simplified tutorial for elementary_low
+const SIMPLE_STEPS: TutorialStep[] = [
+  {
+    title: "👋 안녕하세요, 사장님!",
+    body: "이 게임은 내 회사를 키워서 1등이 되는 게임이에요! 어떻게 하는지 함께 알아볼까요? (끝까지 봐야 시작할 수 있어요!)",
+  },
+  {
+    targetId: "btn-next-turn",
+    title: "⏩ 다음 분기 버튼",
+    body: "이 버튼을 누르면 시간이 3개월 앞으로 가요. 그 동안 물건을 팔고 돈을 버는 거예요! 눌러보세요!",
+    placement: "bottom",
+  },
+  {
+    targetId: "tab-company",
+    title: "🏙️ 내 회사 탭",
+    body: "여기서 우리 회사를 관리해요. 어떤 물건을 얼마에 팔지 정하고, 광고도 하고, 직원도 돌볼 수 있어요!",
+    placement: "bottom",
+  },
+  {
+    targetId: "tab-invest",
+    title: "💰 주식·예금 탭",
+    body: "남는 돈을 예금에 넣으면 이자가 생겨요! 돈을 더 불리는 방법이에요.",
+    placement: "bottom",
+  },
+  {
+    targetId: "tab-talent",
+    title: "👨‍💼 직원 탭",
+    body: "좋은 직원을 뽑으면 회사가 더 잘 돌아가요. 능력 있는 사람을 뽑아보세요!",
+    placement: "bottom",
+  },
+  {
+    targetId: "tab-rank",
+    title: "🏆 순위 탭",
+    body: "내가 몇 등인지 확인할 수 있어요. 열심히 해서 1등이 되어봐요!",
+    placement: "bottom",
+  },
+  {
+    title: "🚀 시작해봐요!",
+    body: "처음엔 물건을 만들어 팔면서 돈을 모아요. 돈이 생기면 광고도 하고 직원도 돌봐주세요. 열심히 하면 1등이 될 수 있어요! 🏆",
+  },
+];
+
 interface Rect { top: number; left: number; width: number; height: number; }
 
-export function Tutorial({ onClose }: { onClose: () => void }) {
+export function Tutorial({ onClose, level }: { onClose: () => void; level?: string }) {
+  const steps = level === "elementary_low" ? SIMPLE_STEPS : STEPS;
   const [step, setStep] = useState(0);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const [pulse, setPulse] = useState(false);
 
-  const current = STEPS[step];
+  const current = steps[step];
   const PAD = 8;
 
   const measureTarget = () => {
@@ -90,7 +133,7 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
   }, [step]);
 
   const goNext = () => {
-    if (step < STEPS.length - 1) {
+    if (step < steps.length - 1) {
       setStep(step + 1);
     } else {
       onClose();
@@ -98,7 +141,7 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
   };
   const goPrev = () => { if (step > 0) setStep(step - 1); };
 
-  const isLast = step === STEPS.length - 1;
+  const isLast = step === steps.length - 1;
 
   // Position tooltip card relative to the target
   const getCardStyle = (): React.CSSProperties => {
@@ -215,14 +258,14 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
           <div className="h-1.5 overflow-hidden rounded-t-2xl bg-slate-200">
             <div
               className="h-full bg-brand-500 transition-all duration-400"
-              style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+              style={{ width: `${((step + 1) / steps.length) * 100}%` }}
             />
           </div>
 
           <div className="p-5">
             {/* Step dots */}
             <div className="mb-3 flex items-center gap-1">
-              {STEPS.map((_, i) => (
+              {steps.map((_, i) => (
                 <div
                   key={i}
                   className={`h-1.5 rounded-full transition-all ${
@@ -230,7 +273,7 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
                   }`}
                 />
               ))}
-              <span className="ml-auto text-xs text-slate-400">{step + 1}/{STEPS.length}</span>
+              <span className="ml-auto text-xs text-slate-400">{step + 1}/{steps.length}</span>
             </div>
 
             <h3 className="text-sm font-bold text-slate-800 leading-snug">{current.title}</h3>
