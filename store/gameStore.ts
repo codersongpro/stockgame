@@ -40,6 +40,7 @@ export interface NewGameInput {
   logoColor?: string;
   basedOn?: string;
   maxTurns?: number;
+  mapSize?: number;
 }
 
 interface GameStore {

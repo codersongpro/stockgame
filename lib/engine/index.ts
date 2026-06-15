@@ -31,6 +31,7 @@ export interface NewGameOptions {
   logoColor?: string;
   basedOn?: string; // preset id
   maxTurns?: number;
+  mapSize?: number; // override level default (5=small, 8=medium, 12=large)
 }
 
 let companyCounter = 0;
@@ -139,7 +140,10 @@ function makeCompany(opts: {
 
 export function createGame(opts: NewGameOptions): GameState {
   companyCounter = 0;
-  const config = getLevelConfig(opts.level);
+  const baseConfig = getLevelConfig(opts.level);
+  const config = opts.mapSize
+    ? { ...baseConfig, mapSize: opts.mapSize }
+    : baseConfig;
   const seed = opts.seed ?? Math.floor(Math.random() * 1_000_000) + 1;
   const rng = createRng(seed);
 
