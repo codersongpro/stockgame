@@ -14,6 +14,7 @@ import { getIndustryProducts } from "@/lib/data/products";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
+import { NumberInput } from "./NumberInput";
 import { MGMT_ICONS, BUILDING_IMG } from "@/lib/assetMap";
 
 // Management action definitions for button-based UI
@@ -166,13 +167,12 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                     )}
                   </div>
                   <div className="flex items-center gap-1">
-                    <input
-                      type="number"
+                    <NumberInput
                       value={currentPrice}
                       min={1}
                       step={Math.max(1, Math.round(defaultPrice * 0.05))}
                       disabled={!isActive}
-                      onChange={(e) => setProductPrice(i, Math.max(1, Number(e.target.value)))}
+                      onCommit={(v) => setProductPrice(i, v)}
                       className={`w-20 rounded border px-2 py-0.5 text-right text-xs font-bold outline-none ${
                         isActive
                           ? "border-brand-300 bg-white text-brand-700 focus:border-brand-500"
@@ -312,12 +312,11 @@ function Slider({
           {label}
         </span>
         <div className="flex items-center gap-1">
-          <input
-            type="number"
+          <NumberInput
             value={Math.round(value)}
             min={min}
             step={step}
-            onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
+            onCommit={onChange}
             className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-right font-bold text-brand-700 outline-none focus:border-brand-500"
           />
           <span className="text-xs text-slate-400">{format(value)}</span>
