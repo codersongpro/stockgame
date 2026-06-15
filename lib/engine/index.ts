@@ -132,6 +132,7 @@ function makeCompany(opts: {
     productPrices: getIndustryProducts(opts.industryId).map((p, i) =>
       i < 3 ? Math.round(industry.basePrice * p.priceRatio) : 0
     ),
+    productEnabled: getIndustryProducts(opts.industryId).map((_, i) => i === 0),
     rndUnlockDone: false,
   };
 }

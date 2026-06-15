@@ -167,21 +167,36 @@ export function runCompanyTurn(
     company.rndUnlockDone = true;
   }
 
-  // Compute effective price as weighted average across active product lines
+  // Compute effective price as weighted average across active product lines.
+  // productEnabled lets the player choose which products to sell.
+  // Demand share is penalised when price is too high relative to the product tier
+  // or when quality is insufficient for the tier.
   const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
+  const productEnabled = company.productEnabled ?? productDefs.map((_, i) => i === 0);
   let totalShare = 0;
   let weightedPrice = 0;
   for (let i = 0; i < productDefs.length; i++) {
     const def = productDefs[i];
     const pPrice = productPrices[i] ?? 0;
-    const isActive = i < 3
-      ? (company.quality >= def.qualityRequired && pPrice > 0)
-      : ((company.rndUnlockDone ?? false) && company.quality >= def.qualityRequired && pPrice > 0);
-    if (!isActive) continue;
+    const enabled = productEnabled[i] ?? false;
+    const meetsQuality = company.quality >= def.qualityRequired;
+    const isRndOk = i < 3 || (company.rndUnlockDone ?? false);
+    if (!enabled || !meetsQuality || !isRndOk || pPrice <= 0) continue;
+
+    // Quality penalty: selling premium tier with just-enough quality reduces appeal
     const qualityScale = def.qualityRequired > 0
-      ? Math.min(1, company.quality / Math.max(1, def.qualityRequired))
+      ? clamp(company.quality / Math.max(1, def.qualityRequired), 0.5, 1.2)
       : 1;
-    const share = def.demandShare * qualityScale;
+
+    // Price penalty: charge >1.5× tier reference → demand share shrinks
+    const tierRef = industry.basePrice * def.priceRatio;
+    const pricePenalty = pPrice > tierRef * 1.5
+      ? Math.pow(tierRef * 1.5 / pPrice, industry.demandElasticity + 0.5)
+      : pPrice < tierRef * 0.5
+        ? 0.85 // too cheap undercuts perceived quality slightly
+        : 1;
+
+    const share = def.demandShare * qualityScale * pricePenalty;
     totalShare += share;
     weightedPrice += share * pPrice;
   }

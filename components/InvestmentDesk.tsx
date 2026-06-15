@@ -9,6 +9,8 @@ import { formatMoney, formatNum, changePct } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import { PriceChart } from "./PriceChart";
 import { ASSET_ICONS } from "@/lib/assetMap";
+import { PRESET_MAP } from "@/lib/data/companyPresets";
+import { CompanyMark } from "./CompanyMark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -241,12 +243,12 @@ export function InvestmentDesk() {
                       {/* 종목명 */}
                       <td className="py-2.5 pl-4">
                         <div className="flex items-center gap-2">
-                          <span
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm"
-                            style={{ background: l.logoColor + "28" }}
-                          >
-                            {ind.emoji}
-                          </span>
+                          <CompanyMark
+                            color={l.logoColor}
+                            mark={PRESET_MAP[l.id]?.mark ?? ind.emoji}
+                            name={l.name}
+                            size="sm"
+                          />
                           <div className="min-w-0">
                             <div className="truncate font-semibold text-slate-200">{l.name}</div>
                             <div className="flex items-center gap-1 text-xs">

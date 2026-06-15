@@ -15,6 +15,7 @@ import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
 import { MGMT_ICONS, BUILDING_IMG } from "@/lib/assetMap";
+import { CompanyTicker } from "./CompanyTicker";
 
 // Management action definitions for button-based UI
 const ACTION_SECTIONS = [
@@ -75,6 +76,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const companyAction = useGameStore((s) => s.companyAction);
   const loan = useGameStore((s) => s.loan);
   const setProductPrice = useGameStore((s) => s.setProductPrice);
+  const toggleProduct = useGameStore((s) => s.toggleProduct);
   const [loanAmt, setLoanAmt] = useState(0);
 
   // Per-quarter interest ≈ debt × (annual rate / 4). (engine: company.ts)
@@ -92,8 +94,15 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
   const rndUnlockDone = company.rndUnlockDone ?? false;
 
+  const productEnabled = company.productEnabled ?? productDefs.map((_, i) => i === 0);
+
   return (
     <div className="space-y-4">
+      {/* ── 좌→우 스크롤 힌트 티커 ─────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl shadow-sm">
+        <CompanyTicker game={game} company={company} />
+      </div>
+
       <div className="card p-5">
         <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-800">
           {BUILDING_IMG.office && <img src={BUILDING_IMG.office} alt="" className="h-7 w-7 object-contain" />}
@@ -121,66 +130,85 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           onChange={(v) => setDecisions({ productionTarget: v })}
         />
 
-        {/* Product lineup */}
+        {/* ── 상품 라인업: 선택 → 가격 ────────────────────────────────── */}
         <div className="mt-4">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">상품 라인업</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">상품 라인업 선택</div>
           <div className="space-y-2">
             {productDefs.map((def, i) => {
               const isRndProduct = def.isRndUnlock;
               const isUnlocked = isRndProduct ? rndUnlockDone : true;
               const meetsQuality = company.quality >= def.qualityRequired;
-              const isActive = isUnlocked && meetsQuality;
+              const canEnable = isUnlocked && meetsQuality;
+              const isOn = productEnabled[i] && canEnable;
               const currentPrice = productPrices[i] ?? Math.round(industry.basePrice * def.priceRatio);
               const defaultPrice = Math.round(industry.basePrice * def.priceRatio);
-
-              if (isRndProduct && !rndUnlockDone) {
-                return (
-                  <div key={def.id} className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 opacity-60">
-                    <span className="text-base">{def.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-slate-500">{def.name}</div>
-                      <div className="text-xs text-slate-400">R&D 품질 75 달성 시 잠금 해제</div>
-                    </div>
-                    <span className="text-xs text-slate-400">🔒 R&D</span>
-                  </div>
-                );
-              }
+              const tierRef = industry.basePrice * def.priceRatio;
+              const priceSignal = currentPrice > tierRef * 1.5 ? "high" : currentPrice < tierRef * 0.6 ? "low" : "ok";
 
               return (
                 <div
                   key={def.id}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                    isActive
-                      ? "border-brand-200 bg-brand-50"
-                      : "border-slate-200 bg-slate-50 opacity-70"
+                  className={`rounded-xl border transition-all ${
+                    isOn
+                      ? "border-brand-300 bg-brand-50"
+                      : canEnable
+                        ? "border-slate-200 bg-white hover:border-slate-300"
+                        : "border-dashed border-slate-200 bg-slate-50 opacity-50"
                   }`}
                 >
-                  <span className="text-base">{def.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-xs font-semibold ${isActive ? "text-brand-700" : "text-slate-500"}`}>
-                      {def.name}
-                      {isRndProduct && <span className="ml-1 rounded px-1 py-0.5 text-[9px] bg-purple-100 text-purple-600">R&D</span>}
+                  {/* 상단: 선택 토글 */}
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <span className="text-lg">{def.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-semibold leading-tight ${isOn ? "text-brand-800" : "text-slate-600"}`}>
+                        {def.name}
+                        {isRndProduct && <span className="ml-1 rounded px-1.5 py-0.5 text-[10px] bg-purple-100 text-purple-600 font-bold">R&D</span>}
+                      </div>
+                      <div className="text-xs text-slate-400 leading-tight">
+                        {!isUnlocked
+                          ? "🔒 R&D 품질 75 달성 시 해제"
+                          : !meetsQuality
+                            ? `품질 ${def.qualityRequired}점 필요 (현재 ${Math.round(company.quality)}점)`
+                            : `수요 비중 ${Math.round(def.demandShare * 100)}% · 기준가 ${formatMoney(tierRef)}`
+                        }
+                      </div>
                     </div>
-                    {!meetsQuality && (
-                      <div className="text-xs text-amber-600">품질 {def.qualityRequired} 달성 시 활성화</div>
-                    )}
+                    {/* 토글 */}
+                    <button
+                      disabled={!canEnable}
+                      onClick={() => toggleProduct(i)}
+                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none ${
+                        isOn ? "bg-brand-500" : "bg-slate-300"
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${isOn ? "translate-x-5" : "translate-x-0"}`} />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={currentPrice}
-                      min={1}
-                      step={Math.max(1, Math.round(defaultPrice * 0.05))}
-                      disabled={!isActive}
-                      onChange={(e) => setProductPrice(i, Math.max(1, Number(e.target.value)))}
-                      className={`w-20 rounded border px-2 py-0.5 text-right text-xs font-bold outline-none ${
-                        isActive
-                          ? "border-brand-300 bg-white text-brand-700 focus:border-brand-500"
-                          : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                      }`}
-                    />
-                    <span className="text-xs text-slate-400">원</span>
-                  </div>
+
+                  {/* 하단: 가격 설정 (선택된 경우만) */}
+                  {isOn && (
+                    <div className="border-t border-brand-100 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 shrink-0">판매가</span>
+                        <input
+                          type="number"
+                          value={currentPrice}
+                          min={1}
+                          step={Math.max(1, Math.round(defaultPrice * 0.05))}
+                          onChange={(e) => setProductPrice(i, Math.max(1, Number(e.target.value)))}
+                          className="flex-1 rounded border border-brand-300 px-2 py-1 text-right text-sm font-bold text-brand-700 outline-none focus:border-brand-500 bg-white"
+                        />
+                        <span className="text-xs text-slate-400 shrink-0">원</span>
+                        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                          priceSignal === "high" ? "bg-red-100 text-red-600" :
+                          priceSignal === "low"  ? "bg-blue-100 text-blue-600" :
+                                                   "bg-green-100 text-green-700"
+                        }`}>
+                          {priceSignal === "high" ? "↑ 고가" : priceSignal === "low" ? "↓ 저가" : "✓ 적정"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

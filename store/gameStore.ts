@@ -65,6 +65,7 @@ interface GameStore {
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
   loan: (amount: number, side: "borrow" | "repay") => void;
   setProductPrice: (index: number, price: number) => void;
+  toggleProduct: (index: number) => void;
   dismissToast: () => void;
 }
 
@@ -259,6 +260,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p = player(game);
     if (!p.productPrices) p.productPrices = [];
     p.productPrices[index] = Math.max(0, price);
+    persist(game);
+    set({ game: { ...game } });
+  },
+
+  toggleProduct: (index) => {
+    const game = get().game;
+    if (!game) return;
+    const p = player(game);
+    if (!p.productEnabled) p.productEnabled = [true, false, false, false];
+    p.productEnabled = p.productEnabled.map((v, i) => (i === index ? !v : v));
     persist(game);
     set({ game: { ...game } });
   },

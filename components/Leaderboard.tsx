@@ -3,6 +3,8 @@
 import { rankings } from "@/lib/engine";
 import type { GameState } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
+import { PRESET_MAP } from "@/lib/data/companyPresets";
+import { CompanyMark } from "./CompanyMark";
 
 export function Leaderboard({
   game,
@@ -24,7 +26,7 @@ export function Leaderboard({
             }`}
           >
             <span className="w-6 text-center text-lg">{medal(i)}</span>
-            <span className="h-7 w-7 rounded-lg" style={{ background: e.logoColor }} />
+            <CompanyMark color={e.logoColor} mark={PRESET_MAP[e.companyId]?.mark} name={e.name} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-bold text-slate-800">
                 {e.name} {e.isPlayer && <span className="text-xs text-brand-600">(나)</span>}

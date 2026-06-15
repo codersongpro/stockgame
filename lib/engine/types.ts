@@ -245,6 +245,8 @@ export interface Company {
 
   /** Per-product prices. Index matches getIndustryProducts(industryId). */
   productPrices: number[];
+  /** Which products the player has chosen to actively sell (index matches productPrices). */
+  productEnabled: boolean[];
   /** True once R&D quality threshold (≥75) has been reached to unlock 4th product. */
   rndUnlockDone: boolean;
 
