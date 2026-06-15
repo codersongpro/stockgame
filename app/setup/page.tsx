@@ -32,6 +32,7 @@ function SetupInner() {
   const [color, setColor] = useState(COLORS[0]);
   const [basedOn, setBasedOn] = useState<string | undefined>(undefined);
   const [filterCountry, setFilterCountry] = useState<string>("all");
+  const [campusSize, setCampusSize] = useState<"small" | "medium" | "large">("medium");
 
   const filteredPresets = useMemo(
     () => COMPANY_PRESETS.filter((p) => filterCountry === "all" || p.countryId === filterCountry),
@@ -53,6 +54,8 @@ function SetupInner() {
     playSfx("click");
   };
 
+  const CAMPUS_SIZE_MAP = { small: 5, medium: 8, large: 12 } as const;
+
   const start = () => {
     playSfx("turn");
     newGame({
@@ -62,6 +65,7 @@ function SetupInner() {
       countryId,
       logoColor: color,
       basedOn: tab === "preset" ? basedOn : undefined,
+      mapSize: CAMPUS_SIZE_MAP[campusSize],
     });
     router.push("/play");
   };
@@ -291,6 +295,26 @@ function SetupInner() {
             </div>
           </div>
         )}
+
+        <div className="card p-5">
+          <div className="mb-3 text-sm font-semibold text-slate-600">캠퍼스 크기</div>
+          <div className="grid grid-cols-3 gap-3">
+            {(["small", "medium", "large"] as const).map((sz) => {
+              const info = { small: { label: "작게", grid: "5×5", desc: "빠르게 집중" }, medium: { label: "중간", grid: "8×8", desc: "균형 있게" }, large: { label: "크게", grid: "12×12", desc: "넓고 자유롭게" } }[sz];
+              return (
+                <button
+                  key={sz}
+                  onClick={() => setCampusSize(sz)}
+                  className={`rounded-xl p-3 text-center ring-2 transition ${campusSize === sz ? "ring-brand-500 bg-brand-50" : "ring-slate-200 hover:ring-slate-300"}`}
+                >
+                  <div className="font-bold text-slate-800">{info.label}</div>
+                  <div className="font-mono text-xs text-slate-500">{info.grid}</div>
+                  <div className="mt-0.5 text-xs text-slate-400">{info.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="flex justify-between">
           <button className="btn-ghost" onClick={() => setPhase("story")}>

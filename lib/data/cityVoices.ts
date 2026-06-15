@@ -1,4 +1,4 @@
-import type { Company, EconomyPhase } from "../engine/types";
+import type { Company, EconomyPhase, VisitorInfo } from "../engine/types";
 
 // Flavour dialogue for the little people walking around a company campus.
 // Touching a pedestrian shows what they think about the company — lines are
@@ -208,4 +208,72 @@ export function pickCityVoice(
   if (company.lastProfit < 0) pool.push(...LOSS(company));
 
   return pool[Math.floor(rand() * pool.length)] ?? GENERIC(company)[0];
+}
+
+// ---------------------------------------------------------------------------
+// Visitor dialogue — context-reactive lines per kind of VIP
+// ---------------------------------------------------------------------------
+
+const VISITOR_POOLS: Record<VisitorInfo["kind"], (name: string, c: Company) => string[]> = {
+  politician: (name, c) => [
+    `${c.name}의 일자리 창출에 깊이 감사드립니다!`,
+    `${name}입니다. 이런 기업이 많아야 나라가 삽니다.`,
+    `고용도 늘리고 세금도 잘 내시고, 훌륭합니다!`,
+    `기업 투자 환경 개선에 최선을 다하겠습니다.`,
+    `${c.name}의 성장이 곧 국민의 행복이에요.`,
+    `직원 복지 수준이 정말 인상적이군요.`,
+    `다음 산업 정책에 좋은 사례로 소개하겠습니다.`,
+    `이 규모 캠퍼스라면 지역 경제에도 큰 힘이 되겠네요.`,
+  ],
+  ceo: (name, c) => [
+    `${name}입니다. 협업 기회를 한번 논의해 봤으면 합니다.`,
+    `${c.name}의 비즈니스 모델, 매우 흥미롭습니다.`,
+    `이 규모의 캠퍼스라니 — 인상적이군요.`,
+    `직원들 표정이 밝네요. 좋은 문화가 있다는 증거죠.`,
+    `우리 회사와 시너지를 낼 수 있을 것 같습니다.`,
+    `성장 잠재력이 상당해 보입니다.`,
+    `인재 경쟁 상대가 될 수도 있겠는데요?`,
+    `벤치마킹하고 싶은 부분이 많네요.`,
+  ],
+  celebrity: (name, c) => [
+    `와, 여기 분위기 완전 좋다! ✨`,
+    `${name}이에요! ${c.name} 팬이에요~`,
+    `${c.name} 제품 저도 써봤어요. 완전 마음에 들었어요!`,
+    `여기서 화보 촬영 하면 대박일 것 같아!`,
+    `이런 회사에서 일하면 매일이 행복할 것 같아요.`,
+    `셀카 한 장 찍어도 될까요? 📸`,
+    `팔로워들한테 꼭 소개해줄게요!`,
+    `건물 디자인이 진짜 예뻐요~`,
+  ],
+  investor: (name, c) => [
+    `${name}입니다. 투자 가능성을 검토 중입니다.`,
+    `${c.name}의 수익률을 눈여겨봐 왔습니다.`,
+    `재무 지표가 꽤 안정적이군요.`,
+    `성장성과 수익성, 둘 다 보입니다.`,
+    `이 정도 현금 흐름이면 투자 가치가 충분합니다.`,
+    `리스크 대비 리턴이 매력적이네요.`,
+    `다음 분기 실적도 기대해도 될까요?`,
+    `포트폴리오에 추가를 심각하게 고려해 보겠습니다.`,
+  ],
+};
+
+/**
+ * Build the full set of dialogue lines for a VIP visitor touring the campus.
+ * Returns every available line; the caller cycles through them.
+ */
+export function pickVisitorVoices(
+  visitor: Pick<VisitorInfo, "kind" | "name">,
+  company: Company,
+): string[] {
+  const base = VISITOR_POOLS[visitor.kind]?.(visitor.name, company) ?? [
+    `${company.name}을 방문하게 되어 영광입니다!`,
+    "정말 훌륭한 캠퍼스네요.",
+  ];
+  const extra: string[] = [];
+  if (company.reputation >= 65) extra.push(`${company.name} 명성이 자자하더니 역시 다르네요!`);
+  if (company.morale >= 65) extra.push("직원들이 정말 활기차 보입니다!");
+  if (company.quality >= 60) extra.push("제품 퀄리티가 높다더니, 캠퍼스에서도 느껴지네요.");
+  if (company.lastProfit > 0) extra.push("흑자 경영이라는 게 분위기에서도 느껴져요.");
+  if (company.cash > 2_000_000) extra.push("재정이 탄탄하니 앞으로도 기대됩니다!");
+  return [...base, ...extra];
 }

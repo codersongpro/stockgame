@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Html, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
@@ -8,7 +8,7 @@ import { useGameStore } from "@/store/gameStore";
 import { BUILDING_LIST, buildingCostFor } from "@/lib/engine";
 import type { BuildingType, Company, GameState, PlacedBuilding } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
-import { pickCityVoice } from "@/lib/data/cityVoices";
+import { pickCityVoice, pickVisitorVoices } from "@/lib/data/cityVoices";
 import { getIndustry } from "@/lib/data/industries";
 import { BuildingInteriorModal } from "./BuildingInteriorModal";
 import { BUILDING_IMG } from "@/lib/assetMap";
@@ -637,24 +637,128 @@ function IndustryLandmark({ industryId, color, x, z }: { industryId: string; col
   );
 }
 
-function VisitorAgent({ visitor, half }: { visitor: NonNullable<Company["visitor"]>; half: number }) {
-  const color = visitor.kind === "politician" ? "#1e3a8a" : visitor.kind === "ceo" ? "#374151" : "#db2777";
+const VISITOR_KIND_COLOR: Record<string, string> = {
+  politician: "#1e3a8a",
+  ceo: "#374151",
+  celebrity: "#db2777",
+  investor: "#d97706",
+};
+const VISITOR_KIND_SEED: Record<string, number> = {
+  politician: 11, ceo: 22, celebrity: 33, investor: 44,
+};
+
+function VisitorAgent({
+  visitor, half, company,
+}: {
+  visitor: NonNullable<Company["visitor"]>;
+  half: number;
+  company: Company;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const [voiceIdx, setVoiceIdx] = useState(0);
+
+  const voices = useMemo(
+    () => pickVisitorVoices(visitor, company),
+    // Re-generate when company state changes meaningfully.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visitor.kind, visitor.name, company.reputation, company.morale, company.lastProfit],
+  );
+
+  // Tour waypoints that wander the campus interior (stay within ±half*0.75).
+  const waypoints = useMemo(() => {
+    const r = half * 0.72;
+    return [
+      { x: 0,        z: r * 0.85 },   // bottom-center (entry)
+      { x: -r * 0.6, z: r * 0.4 },    // bottom-left
+      { x: -r * 0.8, z: -r * 0.2 },   // left
+      { x: -r * 0.3, z: -r * 0.75 },  // top-left
+      { x: r * 0.5,  z: -r * 0.65 },  // top-right
+      { x: r * 0.8,  z: r * 0.2 },    // right
+      { x: r * 0.4,  z: r * 0.7 },    // bottom-right
+      { x: 0,        z: 0 },           // center (linger)
+    ];
+  }, [half]);
+
+  const SEG_DUR = 9; // seconds per waypoint segment
+
+  // Cycle through dialogue automatically every 5 s.
+  useEffect(() => {
+    const id = setInterval(
+      () => setVoiceIdx((i) => (i + 1) % voices.length),
+      5000,
+    );
+    return () => clearInterval(id);
+  }, [voices.length]);
+
+  useFrame((state) => {
+    if (!ref.current) return;
+    const t = state.clock.elapsedTime;
+    const n = waypoints.length;
+    const segF = (t / SEG_DUR) % n;
+    const segI = Math.floor(segF);
+    const segT = segF - segI;
+    const from = waypoints[segI];
+    const to = waypoints[(segI + 1) % n];
+    // Smooth-step so the visitor decelerates into each waypoint.
+    const st = segT * segT * (3 - 2 * segT);
+    ref.current.position.set(
+      from.x + (to.x - from.x) * st,
+      0,
+      from.z + (to.z - from.z) * st,
+    );
+    const dx = to.x - from.x, dz = to.z - from.z;
+    if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+      ref.current.rotation.y = Math.atan2(dx, dz);
+    }
+  });
+
+  const kindColor = VISITOR_KIND_COLOR[visitor.kind] ?? "#374151";
+  const kindSeed = VISITOR_KIND_SEED[visitor.kind] ?? 0;
+
   return (
-    <group position={[0, 0, half + 0.6]}>
-      <mesh position={[0, 0.16, 0]} castShadow>
-        <cylinderGeometry args={[0.08, 0.09, 0.24, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 0.36, 0]}>
-        <sphereGeometry args={[0.08, 12, 12]} />
-        <meshStandardMaterial color="#fcd5b5" />
-      </mesh>
-      <Html position={[0, 0.62, 0]} center distanceFactor={9}>
-        <div style={{
-          background: color, color: "white", borderRadius: 999, padding: "3px 9px",
-          fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-        }}>
+    <group ref={ref}>
+      {/* Slightly larger than regular employees so they stand out. */}
+      <group
+        scale={1.4}
+        onClick={(e) => { e.stopPropagation(); setVoiceIdx((i) => (i + 1) % voices.length); }}
+      >
+        <PersonModel kind="man" seed={kindSeed} walking={true} gait={2.1} />
+        {/* Glowing star crown to mark VIP status */}
+        <mesh position={[0, 0.52, 0]}>
+          <sphereGeometry args={[0.032, 8, 8]} />
+          <meshStandardMaterial color="#fde047" emissive="#fde047" emissiveIntensity={2} />
+        </mesh>
+      </group>
+
+      {/* Name badge (always visible) */}
+      <Html position={[0, 0.78, 0]} center distanceFactor={8} zIndexRange={[50, 0]}>
+        <div
+          style={{
+            background: kindColor, color: "white", borderRadius: 999,
+            padding: "3px 10px", fontSize: 12, fontWeight: 700,
+            whiteSpace: "nowrap", boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
+            cursor: "pointer",
+          }}
+          onClick={() => setVoiceIdx((i) => (i + 1) % voices.length)}
+        >
           {visitor.emoji} {visitor.name}
+        </div>
+      </Html>
+
+      {/* Auto-cycling speech bubble */}
+      <Html position={[0, 1.15, 0]} center distanceFactor={8} zIndexRange={[51, 0]}>
+        <div
+          style={{
+            background: "white", border: `2px solid ${kindColor}`,
+            borderRadius: 12, padding: "6px 10px",
+            fontSize: 11, lineHeight: 1.45, maxWidth: 165,
+            textAlign: "center", color: "#334155",
+            boxShadow: "0 4px 16px rgba(15,23,42,0.2)",
+            cursor: "pointer",
+          }}
+          onClick={() => setVoiceIdx((i) => (i + 1) % voices.length)}
+        >
+          {voices[voiceIdx]}
         </div>
       </Html>
     </group>
@@ -853,7 +957,9 @@ function Scene({
 
       <IndustryLandmark industryId={company.industryId} color={company.logoColor} x={-(half + 0.35)} z={half + 0.35} />
 
-      {company.visitor && <VisitorAgent visitor={company.visitor} half={half} />}
+      {company.visitor && (
+        <VisitorAgent visitor={company.visitor} half={half} company={company} />
+      )}
 
       <OrbitControls
         enablePan={false}
