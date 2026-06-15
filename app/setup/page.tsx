@@ -14,6 +14,16 @@ import { formatMoney } from "@/lib/format";
 import { getIndustry } from "@/lib/data/industries";
 
 const COLORS = ["#6366f1", "#ef4444", "#16a34a", "#f59e0b", "#0ea5e9", "#db2777", "#7c3aed", "#0d9488"];
+const CAMPUS_SIZE_MAP = { small: 5, medium: 8, large: 12 } as const;
+
+// Wizard steps
+const WIZARD_STEPS = [
+  { id: "type",   label: "유형 선택" },
+  { id: "detail", label: "회사 설정" },
+  { id: "campus", label: "캠퍼스" },
+  { id: "start",  label: "시작" },
+] as const;
+type WizardStep = typeof WIZARD_STEPS[number]["id"];
 
 function SetupInner() {
   const router = useRouter();
@@ -23,7 +33,8 @@ function SetupInner() {
 
   const scenes = STORY[level];
   const [sceneIdx, setSceneIdx] = useState(0);
-  const [phase, setPhase] = useState<"story" | "form">("story");
+  const [phase, setPhase] = useState<"story" | "wizard">("story");
+  const [wizardStep, setWizardStep] = useState<WizardStep>("type");
 
   const [tab, setTab] = useState<"preset" | "custom">("preset");
   const [name, setName] = useState("");
@@ -54,8 +65,6 @@ function SetupInner() {
     playSfx("click");
   };
 
-  const CAMPUS_SIZE_MAP = { small: 5, medium: 8, large: 12 } as const;
-
   const start = () => {
     playSfx("turn");
     newGame({
@@ -68,6 +77,20 @@ function SetupInner() {
       mapSize: CAMPUS_SIZE_MAP[campusSize],
     });
     router.push("/play");
+  };
+
+  const goWizard = (step: WizardStep) => setWizardStep(step);
+  const wizardIdx = WIZARD_STEPS.findIndex((s) => s.id === wizardStep);
+
+  const goNext = () => {
+    const next = WIZARD_STEPS[wizardIdx + 1];
+    if (next) goWizard(next.id);
+    else start();
+  };
+  const goPrev = () => {
+    const prev = WIZARD_STEPS[wizardIdx - 1];
+    if (prev) goWizard(prev.id);
+    else setPhase("story");
   };
 
   // --- Story phase ---
@@ -88,7 +111,7 @@ function SetupInner() {
             ))}
           </div>
           <div className="mt-6 flex justify-center gap-3">
-            <button className="btn-ghost" onClick={() => setPhase("form")}>
+            <button className="btn-ghost" onClick={() => setPhase("wizard")}>
               건너뛰기
             </button>
             <button
@@ -96,7 +119,7 @@ function SetupInner() {
               onClick={() => {
                 playSfx("click");
                 if (sceneIdx < scenes.length - 1) setSceneIdx(sceneIdx + 1);
-                else setPhase("form");
+                else setPhase("wizard");
               }}
             >
               {sceneIdx < scenes.length - 1 ? "다음 ▶" : "회사 만들기 ▶"}
@@ -107,225 +130,300 @@ function SetupInner() {
     );
   }
 
-  // --- Form phase ---
+  // --- Wizard phase ---
   const levelCfg = LEVEL_CONFIGS[level];
   const levelEmoji: Record<Level, string> = { elementary: "🧒", middle: "🧑‍🎓", university: "🎓" };
+  const selectedIndustry = INDUSTRIES.find((i) => i.id === industryId);
+  const selectedCountry = COUNTRIES.find((c) => c.id === countryId);
+  const selectedPreset = COMPANY_PRESETS.find((p) => p.id === basedOn);
 
   return (
     <Shell>
-      <div className="mx-auto max-w-3xl space-y-5">
-        <h2 className="text-center text-2xl font-black text-white">회사를 설정하세요</h2>
+      <div className="mx-auto max-w-2xl space-y-5">
+        <h2 className="text-center text-2xl font-black text-white">회사를 만들어요</h2>
 
-        {/* Difficulty + ranking banner */}
-        <div className="overflow-hidden rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/50">
-          {/* Difficulty row */}
-          <div className="flex items-center gap-3 border-b border-slate-700/50 px-4 py-3">
-            <span className="text-2xl">{levelEmoji[level]}</span>
-            <div className="flex-1">
-              <div className="text-sm font-bold text-white">{levelCfg.label} 난이도</div>
-              <div className="text-xs text-slate-400">{levelCfg.description}</div>
+        {/* Step progress indicator */}
+        <div className="flex items-center gap-1">
+          {WIZARD_STEPS.map((s, i) => (
+            <div key={s.id} className="flex flex-1 items-center">
+              <button
+                onClick={() => i < wizardIdx && goWizard(s.id)}
+                disabled={i > wizardIdx}
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition ${
+                  i === wizardIdx
+                    ? "bg-brand-600 text-white shadow"
+                    : i < wizardIdx
+                      ? "bg-brand-300 text-white cursor-pointer hover:bg-brand-400"
+                      : "bg-slate-700 text-slate-500"
+                }`}
+              >
+                {i < wizardIdx ? "✓" : i + 1}
+              </button>
+              <span className={`ml-1.5 text-xs font-semibold ${i === wizardIdx ? "text-white" : "text-slate-500"}`}>
+                {s.label}
+              </span>
+              {i < WIZARD_STEPS.length - 1 && (
+                <div className={`mx-2 flex-1 h-px ${i < wizardIdx ? "bg-brand-400" : "bg-slate-700"}`} />
+              )}
             </div>
-            <div className="flex gap-3 text-right text-xs">
-              <div>
-                <div className="text-slate-500">시작 자금</div>
-                <div className="font-mono font-bold text-slate-200">{formatMoney(levelCfg.startingCash)}</div>
-              </div>
-              <div>
-                <div className="text-slate-500">경쟁사</div>
-                <div className="font-mono font-bold text-slate-200">{levelCfg.aiCount}개</div>
-              </div>
-              <div>
-                <div className="text-slate-500">캠퍼스</div>
-                <div className="font-mono font-bold text-slate-200">{levelCfg.mapSize}×{levelCfg.mapSize}</div>
-              </div>
+          ))}
+        </div>
+
+        {/* Level info bar */}
+        <div className="flex items-center gap-3 rounded-xl bg-slate-800/60 px-4 py-2.5 ring-1 ring-slate-700/50">
+          <span className="text-xl">{levelEmoji[level]}</span>
+          <div className="flex-1 text-sm font-bold text-white">{levelCfg.label} 난이도</div>
+          <div className="flex gap-3 text-xs text-slate-400">
+            <span>시작금 <b className="text-slate-200">{formatMoney(levelCfg.startingCash)}</b></span>
+            <span>경쟁사 <b className="text-slate-200">{levelCfg.aiCount}개</b></span>
+          </div>
+        </div>
+
+        {/* ── Step 1: type selection ─────────────────────────────────── */}
+        {wizardStep === "type" && (
+          <div className="space-y-4 animate-popin">
+            <p className="text-center text-slate-300">어떤 방식으로 회사를 시작할까요?</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => { setTab("preset"); playSfx("click"); }}
+                className={`rounded-2xl p-5 text-left ring-2 transition ${
+                  tab === "preset" ? "bg-brand-600/20 ring-brand-400" : "bg-slate-800/60 ring-slate-700 hover:ring-slate-500"
+                }`}
+              >
+                <div className="text-3xl">🌍</div>
+                <div className="mt-2 text-lg font-bold text-white">실존 기업 모티브</div>
+                <div className="mt-1 text-sm text-slate-300">실제 기업을 모델로 시작. 업종·국가가 자동 설정됩니다.</div>
+                {tab === "preset" && <div className="mt-2 rounded-full bg-brand-400/20 px-2 py-0.5 text-xs font-bold text-brand-300 inline-block">선택됨 ✓</div>}
+              </button>
+              <button
+                onClick={() => { setTab("custom"); setBasedOn(undefined); playSfx("click"); }}
+                className={`rounded-2xl p-5 text-left ring-2 transition ${
+                  tab === "custom" ? "bg-brand-600/20 ring-brand-400" : "bg-slate-800/60 ring-slate-700 hover:ring-slate-500"
+                }`}
+              >
+                <div className="text-3xl">✨</div>
+                <div className="mt-2 text-lg font-bold text-white">새 회사 직접 만들기</div>
+                <div className="mt-1 text-sm text-slate-300">업종·국가·색상을 자유롭게 선택하세요.</div>
+                {tab === "custom" && <div className="mt-2 rounded-full bg-brand-400/20 px-2 py-0.5 text-xs font-bold text-brand-300 inline-block">선택됨 ✓</div>}
+              </button>
             </div>
           </div>
-          {/* Rank preview */}
-          <div className="px-4 py-2">
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">예상 경쟁사 순위 (규모 기준)</div>
-            <div className="flex items-end gap-2">
-              {rankPreview.map((p, i) => {
-                const ind = getIndustry(p.industryId);
-                const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
-                return (
-                  <div key={p.id} className="flex flex-1 flex-col items-center gap-1 py-1">
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
-                      style={{ background: p.logoColor + "22" }}
-                    >
-                      {ind.emoji}
-                    </span>
-                    <span className="text-[9px] font-semibold text-slate-400 text-center leading-tight truncate w-full text-center">{p.name}</span>
-                    <span className="text-xs">{medal}</span>
+        )}
+
+        {/* ── Step 2: company details ───────────────────────────────── */}
+        {wizardStep === "detail" && (
+          <div className="space-y-4 animate-popin">
+            {/* Company name */}
+            <div className="card p-4">
+              <label className="text-sm font-semibold text-slate-600">회사 이름</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={tab === "preset" && basedOn ? COMPANY_PRESETS.find(p => p.id === basedOn)!.name : "예) 유니콘 컴퍼니"}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2 text-slate-800 outline-none focus:border-brand-500"
+              />
+            </div>
+
+            {tab === "preset" ? (
+              <div className="card p-4">
+                <div className="mb-3 flex flex-wrap gap-1">
+                  <FilterChip active={filterCountry === "all"} onClick={() => setFilterCountry("all")}>전체</FilterChip>
+                  {COUNTRIES.map((c) => (
+                    <FilterChip key={c.id} active={filterCountry === c.id} onClick={() => setFilterCountry(c.id)}>
+                      {c.flag} {c.name}
+                    </FilterChip>
+                  ))}
+                </div>
+                <div className="grid max-h-[42vh] gap-2 overflow-y-auto scroll-thin sm:grid-cols-2">
+                  {filteredPresets.map((p) => {
+                    const ind = INDUSTRIES.find((i) => i.id === p.industryId)!;
+                    const ctry = COUNTRIES.find((c) => c.id === p.countryId)!;
+                    const active = basedOn === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => selectPreset(p.id)}
+                        className={`flex items-center gap-3 rounded-xl p-3 text-left ring-2 transition ${
+                          active ? "ring-brand-500" : "ring-slate-200 hover:ring-slate-300"
+                        }`}
+                      >
+                        <span
+                          className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
+                          style={{ background: p.logoColor + "22", color: p.logoColor }}
+                        >
+                          {ind.emoji}
+                        </span>
+                        <div>
+                          <div className="font-bold text-slate-800">{p.name}</div>
+                          <div className="text-xs text-slate-500">{ctry.flag} {ind.name} · {p.blurb}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="card p-4">
+                  <div className="mb-2 text-sm font-semibold text-slate-600">업종 선택</div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {INDUSTRIES.map((ind) => (
+                      <button
+                        key={ind.id}
+                        onClick={() => { setIndustryId(ind.id); setBasedOn(undefined); playSfx("click"); }}
+                        className={`rounded-xl px-3 py-2 text-left text-sm ring-2 transition ${
+                          industryId === ind.id ? "ring-brand-500" : "ring-slate-200 hover:ring-slate-300"
+                        }`}
+                      >
+                        <span className="text-lg">{ind.emoji}</span>{" "}
+                        <span className="font-semibold text-slate-700">{ind.name}</span>
+                        {ind.modern && <span className="ml-1 text-xs text-pink-500">NEW</span>}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-              <div className="flex flex-col items-center gap-1 py-1 opacity-40">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-700 text-lg">👤</span>
-                <span className="text-[9px] text-slate-500">내 회사</span>
-                <span className="text-xs text-slate-500">?위</span>
+                </div>
+                <div className="card p-4">
+                  <div className="mb-2 text-sm font-semibold text-slate-600">국가</div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {COUNTRIES.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setCountryId(c.id); setBasedOn(undefined); playSfx("click"); }}
+                        className={`rounded-xl px-3 py-2 text-left text-sm ring-2 transition ${
+                          countryId === c.id ? "ring-brand-500" : "ring-slate-200 hover:ring-slate-300"
+                        }`}
+                      >
+                        {c.flag} <span className="font-semibold text-slate-700">{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="card p-4">
+                  <div className="mb-2 text-sm font-semibold text-slate-600">로고 색상</div>
+                  <div className="flex flex-wrap gap-2">
+                    {COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setColor(c)}
+                        className={`h-9 w-9 rounded-full ring-2 ${color === c ? "ring-slate-800" : "ring-transparent"}`}
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
+        )}
 
-        <div className="card p-5">
-          <label className="text-sm font-semibold text-slate-600">회사 이름</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="예) 유니콘 컴퍼니"
-            className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2 text-slate-800 outline-none focus:border-brand-500"
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <TabBtn active={tab === "preset"} onClick={() => setTab("preset")}>
-            🌍 실존 기업 모티브
-          </TabBtn>
-          <TabBtn active={tab === "custom"} onClick={() => setTab("custom")}>
-            ✨ 새 회사 만들기
-          </TabBtn>
-        </div>
-
-        {tab === "preset" ? (
-          <div className="card p-5">
-            <div className="mb-3 flex flex-wrap gap-1">
-              <FilterChip active={filterCountry === "all"} onClick={() => setFilterCountry("all")}>
-                전체
-              </FilterChip>
-              {COUNTRIES.map((c) => (
-                <FilterChip
-                  key={c.id}
-                  active={filterCountry === c.id}
-                  onClick={() => setFilterCountry(c.id)}
-                >
-                  {c.flag} {c.name}
-                </FilterChip>
-              ))}
-            </div>
-            <div className="grid max-h-[42vh] gap-2 overflow-y-auto scroll-thin sm:grid-cols-2">
-              {filteredPresets.map((p) => {
-                const ind = INDUSTRIES.find((i) => i.id === p.industryId)!;
-                const ctry = COUNTRIES.find((c) => c.id === p.countryId)!;
-                const active = basedOn === p.id;
+        {/* ── Step 3: campus size ───────────────────────────────────── */}
+        {wizardStep === "campus" && (
+          <div className="animate-popin space-y-4">
+            <p className="text-center text-slate-300">캠퍼스 크기를 선택하세요. 건물을 배치할 수 있는 그리드 크기가 달라집니다.</p>
+            <div className="grid grid-cols-3 gap-4">
+              {(["small", "medium", "large"] as const).map((sz) => {
+                const info = {
+                  small:  { label: "작게",   grid: "5×5",   desc: "빠른 집중 플레이", emoji: "🏘️" },
+                  medium: { label: "중간",   grid: "8×8",   desc: "균형 있는 캠퍼스", emoji: "🏙️" },
+                  large:  { label: "크게",   grid: "12×12", desc: "넓고 자유로운 확장", emoji: "🌆" },
+                }[sz];
                 return (
                   <button
-                    key={p.id}
-                    onClick={() => selectPreset(p.id)}
-                    className={`flex items-center gap-3 rounded-xl p-3 text-left ring-2 transition ${
-                      active ? "ring-brand-500" : "ring-slate-200 hover:ring-slate-300"
+                    key={sz}
+                    onClick={() => { setCampusSize(sz); playSfx("click"); }}
+                    className={`rounded-2xl p-5 text-center ring-2 transition ${
+                      campusSize === sz ? "bg-brand-600/20 ring-brand-400" : "bg-slate-800/60 ring-slate-700 hover:ring-slate-500"
                     }`}
                   >
-                    <span
-                      className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
-                      style={{ background: p.logoColor + "22", color: p.logoColor }}
-                    >
-                      {ind.emoji}
-                    </span>
-                    <div>
-                      <div className="font-bold text-slate-800">{p.name}</div>
-                      <div className="text-xs text-slate-500">
-                        {ctry.flag} {ind.name} · {p.blurb}
-                      </div>
-                    </div>
+                    <div className="text-3xl">{info.emoji}</div>
+                    <div className="mt-2 font-bold text-white">{info.label}</div>
+                    <div className="mt-0.5 font-mono text-sm text-brand-300">{info.grid}</div>
+                    <div className="mt-1 text-xs text-slate-400">{info.desc}</div>
+                    {campusSize === sz && <div className="mt-2 text-xs font-bold text-brand-300">선택됨 ✓</div>}
                   </button>
                 );
               })}
             </div>
           </div>
-        ) : (
-          <div className="space-y-4">
+        )}
+
+        {/* ── Step 4: summary & start ───────────────────────────────── */}
+        {wizardStep === "start" && (
+          <div className="animate-popin space-y-4">
             <div className="card p-5">
-              <div className="mb-2 text-sm font-semibold text-slate-600">업종</div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {INDUSTRIES.map((ind) => (
-                  <button
-                    key={ind.id}
-                    onClick={() => {
-                      setIndustryId(ind.id);
-                      setBasedOn(undefined);
-                      playSfx("click");
-                    }}
-                    className={`rounded-xl px-3 py-2 text-left text-sm ring-2 transition ${
-                      industryId === ind.id ? "ring-brand-500" : "ring-slate-200 hover:ring-slate-300"
-                    }`}
-                  >
-                    <span className="text-lg">{ind.emoji}</span>{" "}
-                    <span className="font-semibold text-slate-700">{ind.name}</span>
-                    {ind.modern && <span className="ml-1 text-xs text-pink-500">NEW</span>}
-                  </button>
-                ))}
+              <h3 className="mb-4 text-center text-lg font-black text-slate-800">🚀 준비 완료!</h3>
+              <div className="space-y-3">
+                <SummaryRow label="회사 이름" value={name || (selectedPreset?.name ?? "내 회사")} />
+                {selectedIndustry && <SummaryRow label="업종" value={`${selectedIndustry.emoji} ${selectedIndustry.name}`} />}
+                {selectedCountry && <SummaryRow label="국가" value={`${selectedCountry.flag} ${selectedCountry.name}`} />}
+                <SummaryRow label="캠퍼스 크기" value={`${CAMPUS_SIZE_MAP[campusSize]}×${CAMPUS_SIZE_MAP[campusSize]} (${campusSize === "small" ? "작게" : campusSize === "medium" ? "중간" : "크게"})`} />
+                <SummaryRow label="시작 자금" value={formatMoney(levelCfg.startingCash)} />
+                <SummaryRow label="난이도" value={`${levelEmoji[level]} ${levelCfg.label}`} />
+              </div>
+              <div className="mt-4 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">
+                💡 <b>팁:</b> 처음에는 기본 상품(p1)만 판매하고 R&D에 투자해 품질을 높이면 더 비싼 상품을 판매할 수 있습니다!
               </div>
             </div>
 
-            <div className="card p-5">
-              <div className="mb-2 text-sm font-semibold text-slate-600">국가</div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {COUNTRIES.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      setCountryId(c.id);
-                      setBasedOn(undefined);
-                      playSfx("click");
-                    }}
-                    className={`rounded-xl px-3 py-2 text-left text-sm ring-2 transition ${
-                      countryId === c.id ? "ring-brand-500" : "ring-slate-200 hover:ring-slate-300"
-                    }`}
-                  >
-                    {c.flag} <span className="font-semibold text-slate-700">{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="card p-5">
-              <div className="mb-2 text-sm font-semibold text-slate-600">로고 색상</div>
-              <div className="flex flex-wrap gap-2">
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    className={`h-9 w-9 rounded-full ring-2 ${color === c ? "ring-slate-800" : "ring-transparent"}`}
-                    style={{ background: c }}
-                  />
-                ))}
+            {/* Competitor preview */}
+            <div className="overflow-hidden rounded-2xl bg-slate-800/60 ring-1 ring-slate-700/50">
+              <div className="px-4 py-3 text-sm font-bold text-white">예상 경쟁사 순위</div>
+              <div className="flex items-end gap-2 px-4 pb-3">
+                {rankPreview.map((p, i) => {
+                  const ind = getIndustry(p.industryId);
+                  const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+                  return (
+                    <div key={p.id} className="flex flex-1 flex-col items-center gap-1 py-1">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl text-lg" style={{ background: p.logoColor + "22" }}>
+                        {ind.emoji}
+                      </span>
+                      <span className="text-[9px] font-semibold text-slate-400 text-center leading-tight truncate w-full">{p.name}</span>
+                      <span className="text-xs">{medal}</span>
+                    </div>
+                  );
+                })}
+                <div className="flex flex-col items-center gap-1 py-1 opacity-60">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-lg" style={{ background: color + "44" }}>
+                    {selectedIndustry?.emoji ?? "🏢"}
+                  </span>
+                  <span className="text-[9px] text-slate-400">내 회사</span>
+                  <span className="text-xs text-slate-400">?위</span>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="card p-5">
-          <div className="mb-3 text-sm font-semibold text-slate-600">캠퍼스 크기</div>
-          <div className="grid grid-cols-3 gap-3">
-            {(["small", "medium", "large"] as const).map((sz) => {
-              const info = { small: { label: "작게", grid: "5×5", desc: "빠르게 집중" }, medium: { label: "중간", grid: "8×8", desc: "균형 있게" }, large: { label: "크게", grid: "12×12", desc: "넓고 자유롭게" } }[sz];
-              return (
-                <button
-                  key={sz}
-                  onClick={() => setCampusSize(sz)}
-                  className={`rounded-xl p-3 text-center ring-2 transition ${campusSize === sz ? "ring-brand-500 bg-brand-50" : "ring-slate-200 hover:ring-slate-300"}`}
-                >
-                  <div className="font-bold text-slate-800">{info.label}</div>
-                  <div className="font-mono text-xs text-slate-500">{info.grid}</div>
-                  <div className="mt-0.5 text-xs text-slate-400">{info.desc}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex justify-between">
-          <button className="btn-ghost" onClick={() => setPhase("story")}>
-            ◀ 뒤로
+        {/* Navigation buttons */}
+        <div className="flex items-center justify-between pt-2">
+          <button className="btn-ghost" onClick={goPrev}>
+            ◀ 이전
           </button>
-          <button className="btn-primary px-8" onClick={start}>
-            게임 시작 🚀
-          </button>
+          {wizardStep !== "start" ? (
+            <button
+              className="btn-primary px-8"
+              onClick={goNext}
+              disabled={wizardStep === "detail" && tab === "preset" && !basedOn}
+            >
+              다음 ▶
+            </button>
+          ) : (
+            <button className="btn-primary px-8" onClick={start}>
+              게임 시작 🚀
+            </button>
+          )}
         </div>
       </div>
     </Shell>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+      <span className="text-sm text-slate-500">{label}</span>
+      <span className="text-sm font-bold text-slate-800">{value}</span>
+    </div>
   );
 }
 
@@ -334,19 +432,6 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 px-4 py-10">
       {children}
     </main>
-  );
-}
-
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition ${
-        active ? "bg-brand-600 text-white" : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 

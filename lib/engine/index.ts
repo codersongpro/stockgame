@@ -134,6 +134,7 @@ function makeCompany(opts: {
       i < 3 ? Math.round(industry.basePrice * p.priceRatio) : 0
     ),
     productEnabled: getIndustryProducts(opts.industryId).map((_, i) => i === 0),
+    productInventory: getIndustryProducts(opts.industryId).map(() => 0),
     rndUnlockDone: false,
   };
 }
@@ -242,6 +243,7 @@ export { BUILDINGS, BUILDING_LIST, buildingCostFor } from "./buildings";
 export { ROLE_LABELS, roleBonuses } from "./characters";
 export {
   productionCapacity,
+  factoryCapacity,
   estimateDemand,
   marketAttractiveness,
   defaultDecisions,

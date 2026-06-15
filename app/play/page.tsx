@@ -21,6 +21,7 @@ import { Secretary } from "@/components/Secretary";
 import { WorldMap } from "@/components/WorldMap";
 import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
+import { Tutorial } from "@/components/Tutorial";
 import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
@@ -174,6 +175,7 @@ export default function PlayPage() {
             {muted ? "🔇" : "🔊"}
           </button>
           <button
+            id="btn-next-turn"
             onClick={handleNext}
             disabled={ended || !!eventPopup || !!resultsPopup}
             className="btn-primary whitespace-nowrap"
@@ -187,6 +189,7 @@ export default function PlayPage() {
           {TABS.map((t) => (
             <button
               key={t.id}
+              id={`tab-${t.id}`}
               onClick={() => setTab(t.id)}
               className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                 tab === t.id ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
@@ -256,8 +259,11 @@ export default function PlayPage() {
       {/* Game over overlay */}
       {ended && <GameOver game={game} onRestart={() => router.push("/")} />}
 
-      {/* Help center (manual / tutorial / glossary) */}
-      {help !== null && (
+      {/* iorad-style tutorial overlay */}
+      {help === "tutorial" && <Tutorial onClose={() => setHelp(null)} />}
+
+      {/* Help center (manual / glossary) */}
+      {help !== null && help !== "tutorial" && (
         <HelpModal open initialTab={help} onClose={() => setHelp(null)} />
       )}
     </div>

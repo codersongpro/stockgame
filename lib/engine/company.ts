@@ -18,7 +18,7 @@ import type { RngState } from "./rng";
 // quality/reputation/morale/safety. Buildings and hired talent feed in as
 // capability and role bonuses.
 
-const BASE_CAPACITY = 400;
+const BASE_CAPACITY = 100;
 
 export interface CompanyTurnResult {
   revenue: number;
@@ -39,10 +39,16 @@ export function defaultDecisions(industry: IndustryDef): CompanyDecisions {
   };
 }
 
-/** Operational production capacity from buildings + base. */
+/** Operational production capacity from buildings + base (no employee bonus). */
 export function productionCapacity(company: Company, config: LevelConfig): number {
   const caps = aggregateBuildingCaps(company.buildings, config.adjacencyBonus);
-  return BASE_CAPACITY + caps.productionCapacity + company.employees * 20;
+  return BASE_CAPACITY + caps.productionCapacity;
+}
+
+/** Factory-only capacity for UI slider cap (each level-1 factory = 600 units). */
+export function factoryCapacity(company: Company, config: LevelConfig): number {
+  const caps = aggregateBuildingCaps(company.buildings, config.adjacencyBonus);
+  return Math.max(BASE_CAPACITY, caps.productionCapacity);
 }
 
 /**
@@ -61,10 +67,7 @@ export function marketAttractiveness(
   const price = Math.max(1, company.decisions.price);
 
   const priceRatio = industry.basePrice / price;
-  // No artificial floor — demand falls naturally with price.
-  // Above 2× base price, an additional quadratic penalty kicks in so that
-  // raising price beyond the normal range cannot exploit inelastic demand
-  // to generate unlimited revenue.
+  // Above 2× base price, an additional quadratic penalty kicks in.
   const premiumPenalty =
     price > industry.basePrice * 2
       ? Math.pow((industry.basePrice * 2) / price, 2)
@@ -92,9 +95,7 @@ export function marketAttractiveness(
  *
  * `marketPressure` is the average attractiveness of all competitors this turn.
  * When provided, demand is scaled by the company's share of that pull, so a
- * static strategy steadily loses customers as rivals keep improving — standing
- * still is no longer enough to stay on top. Omitted (e.g. UI previews) → no
- * competitive pressure is applied.
+ * static strategy steadily loses customers as rivals keep improving.
  */
 export function estimateDemand(
   company: Company,
@@ -106,9 +107,6 @@ export function estimateDemand(
 ): number {
   const ownPull = marketAttractiveness(company, industry, config);
 
-  // Competitive share: rewards staying ahead of the field and gently penalises
-  // falling behind as rivals improve. Bounded so it pressures without bankrupting
-  // a company that simply isn't the market leader.
   const shareFactor =
     marketPressure && marketPressure > 0
       ? clamp(Math.pow(ownPull / marketPressure, 0.5), 0.72, 1.7)
@@ -142,24 +140,15 @@ export function runCompanyTurn(
   const d = company.decisions;
 
   // --- Production ---
-  const capacity = BASE_CAPACITY + caps.productionCapacity + company.employees * 20;
+  const capacity = BASE_CAPACITY + caps.productionCapacity;
   const efficiency = Math.min(0.6, caps.productionEfficiency + bonuses.productionEfficiency);
   const unitCost = industry.unitCost * country.laborCost * (1 - efficiency);
 
   const wantToProduce = Math.max(0, Math.min(d.productionTarget, capacity));
-  // Production can draw on cash PLUS a short-term working-capital line tied to
-  // recent sales. Previously a company at zero cash could produce nothing, which
-  // guaranteed an unrecoverable loss spiral (only fixed costs, no revenue).
   const workingCapital = Math.max(company.cash * 0.7, company.lastRevenue * 0.6, 60_000);
   const affordableUnits = unitCost > 0 ? Math.floor(Math.max(0, workingCapital) / unitCost) : wantToProduce;
   const produced = Math.max(0, Math.min(wantToProduce, affordableUnits));
-  company.inventory += produced;
   const productionCost = produced * unitCost;
-
-  // --- Sales ---
-  const demand = estimateDemand(company, industry, country, macro, config, marketPressure);
-  const unitsSold = Math.min(company.inventory, demand);
-  company.inventory -= unitsSold;
 
   // Check if R&D quality threshold was crossed → unlock 4th product
   const productDefs = getIndustryProducts(company.industryId);
@@ -167,42 +156,83 @@ export function runCompanyTurn(
     company.rndUnlockDone = true;
   }
 
-  // Compute effective price as weighted average across active product lines.
-  // productEnabled lets the player choose which products to sell.
-  // Demand share is penalised when price is too high relative to the product tier
-  // or when quality is insufficient for the tier.
+  // --- Per-product price & share computation (BEFORE demand calc) ---
+  // This ensures demand uses the correct effective price rather than the
+  // legacy global decisions.price slider.
   const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
   const productEnabled = company.productEnabled ?? productDefs.map((_, i) => i === 0);
+  const productInventory = company.productInventory ?? productDefs.map(() => 0);
+
+  const perShare: number[] = [];
+  const perFinalPrice: number[] = [];
   let totalShare = 0;
   let weightedPrice = 0;
+
   for (let i = 0; i < productDefs.length; i++) {
     const def = productDefs[i];
-    const pPrice = productPrices[i] ?? 0;
+    const pPriceRaw = productPrices[i] ?? 0;
     const enabled = productEnabled[i] ?? false;
     const meetsQuality = company.quality >= def.qualityRequired;
     const isRndOk = i < 3 || (company.rndUnlockDone ?? false);
-    if (!enabled || !meetsQuality || !isRndOk || pPrice <= 0) continue;
 
-    // Quality penalty: selling premium tier with just-enough quality reduces appeal
+    if (!enabled || !meetsQuality || !isRndOk || pPriceRaw <= 0) {
+      perShare.push(0);
+      perFinalPrice.push(0);
+      continue;
+    }
+
+    // Quality-based price ceiling: higher quality unlocks higher pricing power.
+    const tierRef = industry.basePrice * def.priceRatio;
+    const maxAllowedPrice = tierRef * (1 + company.quality / 100);
+    const pPrice = Math.min(pPriceRaw, maxAllowedPrice);
+
+    // Quality scale: selling premium tier with just-enough quality reduces appeal.
     const qualityScale = def.qualityRequired > 0
       ? clamp(company.quality / Math.max(1, def.qualityRequired), 0.5, 1.2)
       : 1;
 
-    // Price penalty: charge >1.5× tier reference → demand share shrinks
-    const tierRef = industry.basePrice * def.priceRatio;
-    const pricePenalty = pPrice > tierRef * 1.5
-      ? Math.pow(tierRef * 1.5 / pPrice, industry.demandElasticity + 0.5)
+    // Price penalty: starts at tierRef (not 1.5×). Stronger exponent punishes overpricing.
+    const pricePenalty = pPrice > tierRef
+      ? Math.pow(tierRef / pPrice, industry.demandElasticity + 1.2)
       : pPrice < tierRef * 0.5
-        ? 0.85 // too cheap undercuts perceived quality slightly
+        ? 0.85
         : 1;
 
     const share = def.demandShare * qualityScale * pricePenalty;
+    perShare.push(share);
+    perFinalPrice.push(pPrice);
     totalShare += share;
     weightedPrice += share * pPrice;
   }
+
   const effectivePrice = totalShare > 0 ? weightedPrice / totalShare : d.price;
 
-  const revenue = unitsSold * effectivePrice;
+  // Update decisions.price so estimateDemand uses the correct blended price.
+  company.decisions.price = effectivePrice;
+
+  // --- Demand (now uses correct effective price via marketAttractiveness) ---
+  const demand = estimateDemand(company, industry, country, macro, config, marketPressure);
+
+  // --- Per-product inventory and sales ---
+  let revenue = 0;
+  let unitsSold = 0;
+
+  for (let i = 0; i < productDefs.length; i++) {
+    const shareI = totalShare > 0 ? perShare[i] / totalShare : 0;
+    const productProduced = Math.round(produced * shareI);
+    const productDemand = Math.round(demand * shareI);
+
+    productInventory[i] = (productInventory[i] ?? 0) + productProduced;
+    const sold = Math.min(productInventory[i], productDemand);
+    productInventory[i] -= sold;
+
+    revenue += sold * (perFinalPrice[i] ?? 0);
+    unitsSold += sold;
+  }
+
+  company.productInventory = productInventory;
+  // Keep legacy inventory in sync for UI components that still read it.
+  company.inventory = productInventory.reduce((a, b) => a + b, 0);
 
   // --- Costs & profit ---
   const upkeep = totalUpkeep(company.buildings);
@@ -223,22 +253,16 @@ export function runCompanyTurn(
   if (company.profitHistory.length > 40) company.profitHistory.shift();
 
   // --- Stat updates ---
-  // Quality grows with R&D (budget + lab power), more for R&D-heavy industries.
   const rndPower = caps.rndPower + bonuses.rndPower + Math.sqrt(Math.max(0, d.rndBudget) / 3000);
-  const qualityGain = rndPower * 0.15 * (0.5 + industry.rndDependence) - 0.5; // slight decay
+  const qualityGain = rndPower * 0.15 * (0.5 + industry.rndDependence) - 0.5;
   company.quality = clamp(company.quality + qualityGain, 0, 100);
 
-  // Morale from HR buildings/leaders + welfare spending, minus stress if unpaid.
   const moraleTarget = 55 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000);
   company.morale = clamp(company.morale + (moraleTarget - company.morale) * 0.3, 0, 100);
 
-  // Reputation drifts with profitability and any positive bonuses. A single
-  // down quarter shouldn't tank reputation (that fed the loss spiral); the
-  // penalty is milder than the reward so recovery stays possible.
   const repDrift = (profit > 0 ? 1 : -0.7) + bonuses.reputationAdd + caps.reputation * 0.1;
   company.reputation = clamp(company.reputation + repDrift * 0.5, 0, 100);
 
-  // Safety eases toward a level set by R&D investment and morale.
   const safetyTarget =
     45 + company.morale * 0.2 + bonuses.safetyAdd + Math.min(20, d.rndBudget / 4000) + Math.min(25, safetyBudget / 3500);
   company.safety = clamp(company.safety + (safetyTarget - company.safety) * 0.25, 0, 100);
