@@ -243,6 +243,11 @@ export interface Company {
 
   portfolio: Portfolio;
 
+  /** Per-product prices. Index matches getIndustryProducts(industryId). */
+  productPrices: number[];
+  /** True once R&D quality threshold (≥75) has been reached to unlock 4th product. */
+  rndUnlockDone: boolean;
+
   /** A notable visitor currently at the campus (cleared each turn). */
   visitor?: VisitorInfo;
 }

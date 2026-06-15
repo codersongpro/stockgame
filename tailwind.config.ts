@@ -7,6 +7,20 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["'GmarketSans'", "-apple-system", "BlinkMacSystemFont", "'Apple SD Gothic Neo'", "'Malgun Gothic'", "sans-serif"],
+      },
+      fontSize: {
+        xs:   ["13px", { lineHeight: "1.5" }],
+        sm:   ["15px", { lineHeight: "1.5" }],
+        base: ["17px", { lineHeight: "1.6" }],
+        lg:   ["19px", { lineHeight: "1.5" }],
+        xl:   ["21px", { lineHeight: "1.4" }],
+        "2xl": ["24px", { lineHeight: "1.3" }],
+        "3xl": ["30px", { lineHeight: "1.25" }],
+        "4xl": ["36px", { lineHeight: "1.2" }],
+        "5xl": ["48px", { lineHeight: "1.1" }],
+      },
       colors: {
         brand: {
           50: "#eef2ff",

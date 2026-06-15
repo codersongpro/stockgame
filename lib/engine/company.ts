@@ -11,6 +11,7 @@ import { roleBonuses, totalSalary, updateLoyalty } from "./characters";
 import { demandMultiplier } from "./economy";
 import { getCountry } from "../data/countries";
 import { getIndustry } from "../data/industries";
+import { getIndustryProducts } from "../data/products";
 import type { RngState } from "./rng";
 
 // Per-company turn resolution: produce, sell, and book profit; then update
@@ -31,8 +32,8 @@ export function defaultDecisions(industry: IndustryDef): CompanyDecisions {
   return {
     price: industry.basePrice,
     productionTarget: industry.baseDemand,
-    marketingBudget: 15_000,
-    rndBudget: 15_000,
+    marketingBudget: 0,
+    rndBudget: 0,
     welfareBudget: 0,
     safetyBudget: 0,
   };
@@ -159,7 +160,34 @@ export function runCompanyTurn(
   const demand = estimateDemand(company, industry, country, macro, config, marketPressure);
   const unitsSold = Math.min(company.inventory, demand);
   company.inventory -= unitsSold;
-  const revenue = unitsSold * d.price;
+
+  // Check if R&D quality threshold was crossed → unlock 4th product
+  const productDefs = getIndustryProducts(company.industryId);
+  if (!company.rndUnlockDone && company.quality >= 75 && productDefs[3]) {
+    company.rndUnlockDone = true;
+  }
+
+  // Compute effective price as weighted average across active product lines
+  const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
+  let totalShare = 0;
+  let weightedPrice = 0;
+  for (let i = 0; i < productDefs.length; i++) {
+    const def = productDefs[i];
+    const pPrice = productPrices[i] ?? 0;
+    const isActive = i < 3
+      ? (company.quality >= def.qualityRequired && pPrice > 0)
+      : ((company.rndUnlockDone ?? false) && company.quality >= def.qualityRequired && pPrice > 0);
+    if (!isActive) continue;
+    const qualityScale = def.qualityRequired > 0
+      ? Math.min(1, company.quality / Math.max(1, def.qualityRequired))
+      : 1;
+    const share = def.demandShare * qualityScale;
+    totalShare += share;
+    weightedPrice += share * pPrice;
+  }
+  const effectivePrice = totalShare > 0 ? weightedPrice / totalShare : d.price;
+
+  const revenue = unitsSold * effectivePrice;
 
   // --- Costs & profit ---
   const upkeep = totalUpkeep(company.buildings);

@@ -15,7 +15,7 @@ import { Sparkline } from "./Sparkline";
 import { CompanyCity } from "./CompanyCity";
 import { CampusStrip } from "./CampusStrip";
 import { Term } from "./Term";
-import { FINANCE_ICONS } from "@/lib/assetMap";
+import { FINANCE_ICONS, FACT_ICONS } from "@/lib/assetMap";
 
 export function Dashboard({ game }: { game: GameState }) {
   const p = game.companies.find((c) => c.id === game.playerCompanyId)!;
@@ -69,17 +69,17 @@ export function Dashboard({ game }: { game: GameState }) {
       <div className="card p-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">🏙️ 우리 회사 전경</h3>
-          <span className="text-[11px] text-slate-400">드래그로 둘러보기</span>
+          <span className="text-xs text-slate-400">드래그로 둘러보기</span>
         </div>
         <CompanyCity game={game} company={p} readOnly overview />
       </div>
 
       {/* Quick facts */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Mini label={<Term term="매출">지난 매출</Term>} value={formatMoney(p.lastRevenue)} emoji="💵" />
-        <Mini label={<Term term="이익">지난 이익</Term>} value={formatMoney(p.lastProfit)} emoji={p.lastProfit >= 0 ? "📈" : "📉"} />
-        <Mini label="건물" value={`${p.buildings.length}개`} emoji="🏗️" />
-        <Mini label="임원" value={`${p.hired.length}명`} emoji="👔" />
+        <Mini label={<Term term="매출">지난 매출</Term>} value={formatMoney(p.lastRevenue)} icon={FACT_ICONS.revenue} />
+        <Mini label={<Term term="이익">지난 이익</Term>} value={formatMoney(p.lastProfit)} icon={FACT_ICONS.profit} />
+        <Mini label="건물" value={`${p.buildings.length}개`} icon={FACT_ICONS.buildings} />
+        <Mini label="임원" value={`${p.hired.length}명`} icon={FACT_ICONS.staff} />
       </div>
     </div>
   );
@@ -131,18 +131,21 @@ function Cell({ icon, label, value }: { icon?: string; label: React.ReactNode; v
   return (
     <div className="p-3 text-center">
       {icon && <img src={icon} alt="" className="mx-auto mb-1 h-5 w-5 object-contain" />}
-      <div className="text-[11px] text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
       <div className="font-bold text-slate-800">{value}</div>
     </div>
   );
 }
 
-function Mini({ label, value, emoji }: { label: React.ReactNode; value: string; emoji: string }) {
+function Mini({ label, value, icon, emoji }: { label: React.ReactNode; value: string; icon?: string; emoji?: string }) {
   return (
     <div className="card flex items-center gap-2 p-3">
-      <span className="text-xl">{emoji}</span>
+      {icon
+        ? <img src={icon} alt="" className="h-8 w-8 shrink-0 object-contain" />
+        : <span className="text-xl">{emoji}</span>
+      }
       <div>
-        <div className="text-[11px] text-slate-500">{label}</div>
+        <div className="text-xs text-slate-500">{label}</div>
         <div className="text-sm font-bold text-slate-800">{value}</div>
       </div>
     </div>

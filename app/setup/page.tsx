@@ -119,9 +119,9 @@ function SetupInner() {
             <span className="text-2xl">{levelEmoji[level]}</span>
             <div className="flex-1">
               <div className="text-sm font-bold text-white">{levelCfg.label} 난이도</div>
-              <div className="text-[11px] text-slate-400">{levelCfg.description}</div>
+              <div className="text-xs text-slate-400">{levelCfg.description}</div>
             </div>
-            <div className="flex gap-3 text-right text-[11px]">
+            <div className="flex gap-3 text-right text-xs">
               <div>
                 <div className="text-slate-500">시작 자금</div>
                 <div className="font-mono font-bold text-slate-200">{formatMoney(levelCfg.startingCash)}</div>
@@ -138,7 +138,7 @@ function SetupInner() {
           </div>
           {/* Rank preview */}
           <div className="px-4 py-2">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">예상 경쟁사 순위 (규모 기준)</div>
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">예상 경쟁사 순위 (규모 기준)</div>
             <div className="flex items-end gap-2">
               {rankPreview.map((p, i) => {
                 const ind = getIndustry(p.industryId);
@@ -152,14 +152,14 @@ function SetupInner() {
                       {ind.emoji}
                     </span>
                     <span className="text-[9px] font-semibold text-slate-400 text-center leading-tight truncate w-full text-center">{p.name}</span>
-                    <span className="text-[11px]">{medal}</span>
+                    <span className="text-xs">{medal}</span>
                   </div>
                 );
               })}
               <div className="flex flex-col items-center gap-1 py-1 opacity-40">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-700 text-lg">👤</span>
                 <span className="text-[9px] text-slate-500">내 회사</span>
-                <span className="text-[10px] text-slate-500">?위</span>
+                <span className="text-xs text-slate-500">?위</span>
               </div>
             </div>
           </div>
@@ -249,7 +249,7 @@ function SetupInner() {
                   >
                     <span className="text-lg">{ind.emoji}</span>{" "}
                     <span className="font-semibold text-slate-700">{ind.name}</span>
-                    {ind.modern && <span className="ml-1 text-[10px] text-pink-500">NEW</span>}
+                    {ind.modern && <span className="ml-1 text-xs text-pink-500">NEW</span>}
                   </button>
                 ))}
               </div>

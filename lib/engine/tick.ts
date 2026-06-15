@@ -57,12 +57,13 @@ export function advanceTurn(state: GameState): TurnSummary {
   }
   if (Math.abs(rateChange) >= 0.1 && enabled.has("monetary")) {
     const hike = rateChange > 0;
+    const oldRate = state.macro.interestRate - rateChange;
     pushNews(state, {
       layer: "monetary",
-      tone: "neutral",
+      tone: hike ? "negative" : "positive",
       emoji: hike ? "📈" : "📉",
       title: `${homeCountry.centralBank} 기준금리 ${hike ? "인상" : "인하"}`,
-      body: `기준금리가 ${state.macro.interestRate.toFixed(2)}%로 ${hike ? "올랐" : "내렸"}습니다.`,
+      body: `기준금리가 ${oldRate.toFixed(2)}%에서 ${state.macro.interestRate.toFixed(2)}%로 ${hike ? "인상" : "인하"}되었습니다. ${hike ? "성장주와 부동산이 영향을 받을 수 있습니다." : "경기 부양 효과가 예상됩니다."}`,
       tags: ["monetary"],
     });
   }

@@ -28,7 +28,7 @@ export function Secretary({ game }: { game: GameState }) {
         />
         <div className="flex-1">
           <div className="text-sm font-bold">비서</div>
-          <div className="text-[11px] opacity-90">대표님께 드리는 조언</div>
+          <div className="text-xs opacity-90">대표님께 드리는 조언</div>
         </div>
         <span className="text-xs">{open ? "▲" : "▼"}</span>
       </button>

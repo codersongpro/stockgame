@@ -10,14 +10,71 @@ import {
 } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { getCountry } from "@/lib/data/countries";
+import { getIndustryProducts } from "@/lib/data/products";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
 import { MGMT_ICONS, BUILDING_IMG } from "@/lib/assetMap";
 
+// Management action definitions for button-based UI
+const ACTION_SECTIONS = [
+  {
+    key: "marketing",
+    label: "마케팅",
+    icon: MGMT_ICONS.marketing,
+    actions: [
+      { id: "mkt_basic",     label: "기본 마케팅",     cost: 30_000 },
+      { id: "mkt_active",    label: "적극 마케팅",     cost: 80_000 },
+      { id: "mkt_intensive", label: "집중 캠페인",     cost: 150_000 },
+      { id: "mkt_event",     label: "특별 이벤트",     cost: 50_000 },
+    ],
+  },
+  {
+    key: "rnd",
+    label: "연구개발",
+    icon: MGMT_ICONS.rnd,
+    actions: [
+      { id: "rnd_basic",  label: "기초 연구", cost: 30_000 },
+      { id: "rnd_active", label: "기술 개발", cost: 80_000 },
+      { id: "rnd_patent", label: "특허 출원", cost: 100_000 },
+    ],
+  },
+  {
+    key: "welfare",
+    label: "직원 복지",
+    icon: MGMT_ICONS.welfare,
+    actions: [
+      { id: "wlf_dinner",   label: "직원 회식", cost: 20_000 },
+      { id: "wlf_training", label: "사내 교육", cost: 40_000 },
+      { id: "wlf_workshop", label: "워크숍",    cost: 60_000 },
+    ],
+  },
+  {
+    key: "safety",
+    label: "안전 관리",
+    icon: MGMT_ICONS.safety,
+    actions: [
+      { id: "sft_inspect",  label: "안전 점검", cost: 15_000 },
+      { id: "sft_training", label: "안전 교육", cost: 30_000 },
+    ],
+  },
+  {
+    key: "extra",
+    label: "기타 경영",
+    icon: undefined as string | undefined,
+    actions: [
+      { id: "csr",         label: "ESG활동",    cost: 50_000 },
+      { id: "consulting",  label: "외부컨설팅", cost: 80_000 },
+      { id: "pr_campaign", label: "언론홍보",   cost: 40_000 },
+    ],
+  },
+] as const;
+
 export function CompanyPanel({ game, company }: { game: GameState; company: Company }) {
   const setDecisions = useGameStore((s) => s.setDecisions);
+  const companyAction = useGameStore((s) => s.companyAction);
   const loan = useGameStore((s) => s.loan);
+  const setProductPrice = useGameStore((s) => s.setProductPrice);
   const [loanAmt, setLoanAmt] = useState(0);
 
   // Per-quarter interest ≈ debt × (annual rate / 4). (engine: company.ts)
@@ -30,6 +87,10 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const capacity = productionCapacity(company, game.config);
   const demand = estimateDemand(company, industry, country, game.macro, game.config);
   const d = company.decisions;
+
+  const productDefs = getIndustryProducts(company.industryId);
+  const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
+  const rndUnlockDone = company.rndUnlockDone ?? false;
 
   return (
     <div className="space-y-4">
@@ -59,46 +120,107 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           format={(v) => `${formatNum(v)}개`}
           onChange={(v) => setDecisions({ productionTarget: v })}
         />
-        <Slider
-          icon={MGMT_ICONS.marketing}
-          label={<><Term term="마케팅" /> 예산</>}
-          value={d.marketingBudget}
-          min={0}
-          max={200000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ marketingBudget: v })}
-        />
-        <Slider
-          icon={MGMT_ICONS.rnd}
-          label={<><Term term="R&D" /> 예산</>}
-          value={d.rndBudget}
-          min={0}
-          max={200000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ rndBudget: v })}
-        />
-        <Slider
-          icon={MGMT_ICONS.welfare}
-          label={<><Term term="사기">복지</Term> 예산</>}
-          value={d.welfareBudget ?? 0}
-          min={0}
-          max={150000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ welfareBudget: v })}
-        />
-        <Slider
-          icon={MGMT_ICONS.safety}
-          label={<><Term term="안전">안전</Term> 예산</>}
-          value={d.safetyBudget ?? 0}
-          min={0}
-          max={150000}
-          step={5000}
-          format={(v) => formatMoney(v)}
-          onChange={(v) => setDecisions({ safetyBudget: v })}
-        />
+
+        {/* Product lineup */}
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">상품 라인업</div>
+          <div className="space-y-2">
+            {productDefs.map((def, i) => {
+              const isRndProduct = def.isRndUnlock;
+              const isUnlocked = isRndProduct ? rndUnlockDone : true;
+              const meetsQuality = company.quality >= def.qualityRequired;
+              const isActive = isUnlocked && meetsQuality;
+              const currentPrice = productPrices[i] ?? Math.round(industry.basePrice * def.priceRatio);
+              const defaultPrice = Math.round(industry.basePrice * def.priceRatio);
+
+              if (isRndProduct && !rndUnlockDone) {
+                return (
+                  <div key={def.id} className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 opacity-60">
+                    <span className="text-base">{def.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-slate-500">{def.name}</div>
+                      <div className="text-xs text-slate-400">R&D 품질 75 달성 시 잠금 해제</div>
+                    </div>
+                    <span className="text-xs text-slate-400">🔒 R&D</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={def.id}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                    isActive
+                      ? "border-brand-200 bg-brand-50"
+                      : "border-slate-200 bg-slate-50 opacity-70"
+                  }`}
+                >
+                  <span className="text-base">{def.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-xs font-semibold ${isActive ? "text-brand-700" : "text-slate-500"}`}>
+                      {def.name}
+                      {isRndProduct && <span className="ml-1 rounded px-1 py-0.5 text-[9px] bg-purple-100 text-purple-600">R&D</span>}
+                    </div>
+                    {!meetsQuality && (
+                      <div className="text-xs text-amber-600">품질 {def.qualityRequired} 달성 시 활성화</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={currentPrice}
+                      min={1}
+                      step={Math.max(1, Math.round(defaultPrice * 0.05))}
+                      disabled={!isActive}
+                      onChange={(e) => setProductPrice(i, Math.max(1, Number(e.target.value)))}
+                      className={`w-20 rounded border px-2 py-0.5 text-right text-xs font-bold outline-none ${
+                        isActive
+                          ? "border-brand-300 bg-white text-brand-700 focus:border-brand-500"
+                          : "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                      }`}
+                    />
+                    <span className="text-xs text-slate-400">원</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Management action buttons */}
+        <div className="mt-4 space-y-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">경영 활동</div>
+          {ACTION_SECTIONS.map((section) => (
+            <div key={section.key}>
+              <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+                {section.icon && <img src={section.icon} alt="" className="h-4 w-4 object-contain" />}
+                {section.label}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {section.actions.map((action) => {
+                  const canAfford = company.cash >= action.cost;
+                  return (
+                    <button
+                      key={action.id}
+                      disabled={!canAfford}
+                      onClick={() => companyAction(action.id)}
+                      className={`rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${
+                        canAfford
+                          ? "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 active:bg-brand-200"
+                          : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                      }`}
+                    >
+                      <div className="font-semibold leading-tight">{action.label}</div>
+                      <div className={`mt-0.5 text-xs ${canAfford ? "text-brand-500" : "text-slate-400"}`}>
+                        {formatMoney(action.cost)}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
           <Info label="생산 능력" value={`${formatNum(capacity)}개`} />
@@ -221,7 +343,7 @@ function Info({ label, value, hint, tone }: { label: string; value: string; hint
       <div className={`font-bold ${tone === "good" ? "text-bull" : tone === "bad" ? "text-bear" : "text-slate-800"}`}>
         {value}
       </div>
-      {hint && <div className="text-[10px] text-amber-600">{hint}</div>}
+      {hint && <div className="text-xs text-amber-600">{hint}</div>}
     </div>
   );
 }
@@ -234,7 +356,7 @@ function StatBar({ label, value, color, hint }: { label: React.ReactNode; value:
         <span className="font-semibold text-slate-700">{Math.round(value)}</span>
       </div>
       <Bar value={value} color={color} />
-      {hint && <div className="mt-0.5 text-[10px] text-amber-600">{hint}</div>}
+      {hint && <div className="mt-0.5 text-xs text-amber-600">{hint}</div>}
     </div>
   );
 }

@@ -954,8 +954,8 @@ export function CompanyMap3D({
                   ) : (
                     <span className="text-xl">{d.emoji}</span>
                   )}
-                  <span className="text-[11px] font-semibold text-slate-700">{d.name}</span>
-                  <span className="text-[10px] text-slate-500">{formatMoney(cost)}</span>
+                  <span className="text-xs font-semibold text-slate-700">{d.name}</span>
+                  <span className="text-xs text-slate-500">{formatMoney(cost)}</span>
                 </button>
               );
             })}

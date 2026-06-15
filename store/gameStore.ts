@@ -64,6 +64,7 @@ interface GameStore {
   tradeStock: (companyId: string, shares: number, side: "buy" | "sell") => boolean;
   tradeAsset: (assetClass: AssetClass, units: number, side: "buy" | "sell") => boolean;
   loan: (amount: number, side: "borrow" | "repay") => void;
+  setProductPrice: (index: number, price: number) => void;
   dismissToast: () => void;
 }
 
@@ -171,7 +172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
     playSfx("click");
     persist(game);
-    set({ game: { ...game }, toast: { text: "실행 완료!", tone: "good" } });
+    set({ game: { ...game }, toast: { text: res.message ?? "실행 완료!", tone: "good" } });
   },
 
   proposeDeal: (targetCompanyId, dealId) => {
@@ -179,9 +180,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = proposeDeal(game, player(game), targetCompanyId, dealId);
     if (!res.ok) return showToast(set, res.error ?? "제안 실패", "bad");
-    playSfx("hire");
+    const succeeded = !res.message?.includes("결렬");
+    playSfx(succeeded ? "hire" : "click");
     persist(game);
-    set({ game: { ...game }, toast: { text: "교류 성사!", tone: "good" } });
+    set({ game: { ...game }, toast: { text: res.message ?? "교류 성사!", tone: succeeded ? "good" : "info" } });
   },
 
   hire: (characterId) => {
@@ -249,6 +251,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: side === "borrow" ? "대출 실행" : "상환 완료", tone: "good" } });
+  },
+
+  setProductPrice: (index, price) => {
+    const game = get().game;
+    if (!game) return;
+    const p = player(game);
+    if (!p.productPrices) p.productPrices = [];
+    p.productPrices[index] = Math.max(0, price);
+    persist(game);
+    set({ game: { ...game } });
   },
 
   dismissToast: () => set({ toast: null }),

@@ -67,7 +67,7 @@ export function Term({ term, children }: { term: string; children?: React.ReactN
         className="cursor-help underline decoration-dotted decoration-brand-400 underline-offset-2"
       >
         {text}
-        <span className="ml-0.5 text-[10px] text-brand-500">❓</span>
+        <span className="ml-0.5 text-xs text-brand-500">❓</span>
       </button>
       {open && pos && typeof document !== "undefined" &&
         createPortal(
