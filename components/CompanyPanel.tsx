@@ -16,6 +16,7 @@ import { Bar } from "./Sparkline";
 import { Term } from "./Term";
 import { MGMT_ICONS, BUILDING_IMG } from "@/lib/assetMap";
 import { CompanyTicker } from "./CompanyTicker";
+import { getStrategicTiming } from "@/lib/engine/strategyTiming";
 
 // Management action definitions for button-based UI
 const ACTION_SECTIONS = [
@@ -124,6 +125,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const productEnabled = company.productEnabled ?? productDefs.map((_, i) => i === 0);
   const productInventory = company.productInventory ?? productDefs.map(() => 0);
   const rndUnlockDone = company.rndUnlockDone ?? false;
+  const timing = getStrategicTiming(company, game);
 
   // Active product tab index (defaults to first enabled product)
   const firstActive = productEnabled.findIndex(Boolean);
@@ -141,6 +143,32 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
       {/* ── Ticker ─────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl shadow-sm">
         <CompanyTicker game={game} company={company} />
+      </div>
+
+      {/* ── Strategy timing ───────────────────────────────────────────── */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TimingCard
+          icon="🔬"
+          title={sl ? "연구하기 좋은 때?" : "연구개발 타이밍"}
+          score={timing.rnd.score}
+          label={timing.rnd.label}
+          summary={timing.rnd.summary}
+          reasons={timing.rnd.reasons}
+          actionLabel={sl ? "연구하기" : "기술 연구 실행"}
+          disabled={company.cash < 80_000}
+          onAction={() => companyAction("rnd_active")}
+        />
+        <TimingCard
+          icon="🏭"
+          title={sl ? "많이 만들 때?" : "대량생산 타이밍"}
+          score={timing.massProduction.score}
+          label={timing.massProduction.label}
+          summary={`${timing.massProduction.summary} 추천 ${formatNum(timing.massProduction.recommendedProduction)}개`}
+          reasons={timing.massProduction.reasons}
+          actionLabel={sl ? "추천대로 만들기" : "추천 생산량 적용"}
+          disabled={timing.massProduction.recommendedProduction === d.productionTarget}
+          onAction={() => setDecisions({ productionTarget: timing.massProduction.recommendedProduction })}
+        />
       </div>
 
       {/* ── 상품 라인업 탭 (최상단) ────────────────────────────────────── */}
@@ -487,6 +515,61 @@ function Info({ label, value, hint, tone }: { label: string; value: string; hint
         {value}
       </div>
       {hint && <div className="text-xs text-amber-600">{hint}</div>}
+    </div>
+  );
+}
+
+function TimingCard({
+  icon,
+  title,
+  score,
+  label,
+  summary,
+  reasons,
+  actionLabel,
+  disabled,
+  onAction,
+}: {
+  icon: string;
+  title: string;
+  score: number;
+  label: string;
+  summary: string;
+  reasons: string[];
+  actionLabel: string;
+  disabled?: boolean;
+  onAction: () => void;
+}) {
+  const tone = score >= 75 ? "good" : score >= 55 ? "ok" : "wait";
+  const bar = tone === "good" ? "bg-emerald-500" : tone === "ok" ? "bg-amber-400" : "bg-slate-300";
+  const badge = tone === "good" ? "bg-emerald-100 text-emerald-700" : tone === "ok" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500";
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-2xl">{icon}</span>
+          <div className="min-w-0">
+            <div className="text-sm font-black text-slate-800">{title}</div>
+            <div className="mt-0.5 text-xs text-slate-500">{summary}</div>
+          </div>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${badge}`}>{label}</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${bar}`} style={{ width: `${score}%` }} />
+      </div>
+      <div className="mt-2 space-y-1">
+        {reasons.slice(0, 2).map((reason) => (
+          <div key={reason} className="text-xs leading-snug text-slate-500">• {reason}</div>
+        ))}
+      </div>
+      <button
+        className="btn-primary mt-3 w-full !py-2 text-xs"
+        disabled={disabled}
+        onClick={onAction}
+      >
+        {actionLabel}
+      </button>
     </div>
   );
 }

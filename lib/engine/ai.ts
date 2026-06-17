@@ -1,6 +1,7 @@
 import type { BuildingType, Character, Company, GameState } from "./types";
 import { getIndustry } from "../data/industries";
 import { getCountry } from "../data/countries";
+import { getIndustryProducts } from "../data/products";
 import { estimateDemand, productionCapacity } from "./company";
 import {
   buildBuilding,
@@ -43,6 +44,7 @@ export function runAiTurn(state: GameState, company: Company): void {
   // goods is the classic way to bleed cash, so a smart AI builds just above what
   // it can sell, capped by capacity. Existing inventory offsets what to make.
   const country = getCountry(company.countryId);
+  tuneProductLineup(company);
   const expectedDemand = estimateDemand(company, industry, country, state.macro, state.config);
   const targetStock = expectedDemand * (1.02 + aggression * 0.06);
   company.decisions.productionTarget = Math.round(
@@ -52,20 +54,26 @@ export function runAiTurn(state: GameState, company: Company): void {
   // Reinvest into the things that drive share (quality, marketing, morale).
   // Floors keep early-game AIs competitive; the revenue share scales them up.
   // Kept sustainable so the wider field stays roughly break-even, not bankrupt.
-  const opBudget = Math.max(50_000, company.lastRevenue * 0.22);
-  company.decisions.marketingBudget = Math.round(opBudget * 0.4);
-  company.decisions.rndBudget = Math.round(opBudget * 0.4 * (0.6 + industry.rndDependence));
-  company.decisions.welfareBudget = Math.round(opBudget * 0.2);
+  const stress = company.cash < 180_000 || company.debt > Math.max(120_000, company.cash * 0.7) || company.lastProfit < -45_000;
+  const revenueBase = company.lastRevenue > 0 ? company.lastRevenue : Math.max(20_000, company.cash * 0.08);
+  const opBudget = Math.min(
+    stress ? company.cash * 0.05 : company.cash * 0.12,
+    Math.max(stress ? 8_000 : 18_000, revenueBase * (stress ? 0.07 : 0.16)),
+  );
+  company.decisions.marketingBudget = Math.round(opBudget * (stress ? 0.45 : 0.38));
+  company.decisions.rndBudget = Math.round(opBudget * (stress ? 0.2 : 0.38) * (0.6 + industry.rndDependence));
+  company.decisions.welfareBudget = Math.round(opBudget * (stress ? 0.08 : 0.16));
+  company.decisions.safetyBudget = Math.round(opBudget * (stress ? 0.04 : 0.08));
 
   // --- Expansion: build through the game, more when flush with cash. ---
-  if (company.cash > 500_000 && company.debt < company.cash * 1.4 && nextFloat(rng) < 0.62) {
+  if (!stress && company.cash > 650_000 && company.debt < company.cash * 0.8 && nextFloat(rng) < 0.42) {
     expand(state, company);
     // A cash-rich AI puts a second building down the same quarter to compound.
     if (company.cash > 1_800_000 && nextFloat(rng) < 0.45) expand(state, company);
   }
 
   // --- Hiring: keep a solid bench of strong talent ---
-  if (company.cash > 350_000 && company.debt < company.cash && company.hired.length < 5 && nextFloat(rng) < 0.5) {
+  if (!stress && company.cash > 450_000 && company.debt < company.cash * 0.7 && company.hired.length < 5 && nextFloat(rng) < 0.35) {
     const affordable = state.talentPool
       .filter((c) => c.salary < Math.max(18_000, company.lastRevenue * 0.25))
       .sort((a, b) => statSum(b) - statSum(a));
@@ -73,7 +81,7 @@ export function runAiTurn(state: GameState, company: Company): void {
   }
 
   // --- Poaching: flip low-loyalty rivals to grow the bench ---
-  if (company.cash > 600_000 && company.hired.length < 5 && nextFloat(rng) < 0.2) {
+  if (!stress && company.cash > 750_000 && company.hired.length < 5 && nextFloat(rng) < 0.15) {
     const rivals = shuffle(rng, state.companies.filter((c) => c.id !== company.id && c.isAI));
     for (const rival of rivals) {
       const weak = rival.hired
@@ -93,7 +101,23 @@ export function runAiTurn(state: GameState, company: Company): void {
   }
 
   // --- Investing: deploy genuinely spare cash; take profits sometimes ---
-  if (company.cash > 550_000 && nextFloat(rng) < 0.45) investSpareCash(state, company, aggression, rng);
+  if (!stress && company.cash > 650_000 && nextFloat(rng) < 0.35) investSpareCash(state, company, aggression, rng);
+}
+
+function tuneProductLineup(company: Company): void {
+  const industry = getIndustry(company.industryId);
+  const products = getIndustryProducts(company.industryId);
+  company.productEnabled = products.map((product, index) => {
+    if (index === 0) return true;
+    if (product.isRndUnlock && !company.rndUnlockDone) return false;
+    return company.quality >= product.qualityRequired;
+  });
+  company.productPrices = products.map((product, index) => {
+    if (!company.productEnabled[index]) return company.productPrices[index] ?? 0;
+    const tierRef = industry.basePrice * product.priceRatio;
+    const qualityPremium = Math.min(0.45, Math.max(0, company.quality - product.qualityRequired) / 180);
+    return Math.round(tierRef * (1 + qualityPremium));
+  });
 }
 
 /** Build the most useful available building, or upgrade if the map is full. */

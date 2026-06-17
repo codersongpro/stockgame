@@ -11,6 +11,7 @@ import { adjustRivalry, getRivalry } from "./relations";
 import { shockStock } from "./market";
 import { nextFloat } from "./rng";
 import { getRecruitmentNegotiationProfile } from "./recruitment";
+import { getStrategicTiming, timingBonusFromScore } from "./strategyTiming";
 
 // Mutating player/AI actions that happen *between* turns (they don't advance
 // the clock). Single-sourced so the AI and the human player obey the same rules.
@@ -243,8 +244,12 @@ export function applyCompanyAction(
   const def = COMPANY_ACTIONS[actionId];
   if (!def) return { ok: false, error: "알 수 없는 활동입니다." };
   if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
+  const timingBonus = def.cat === "rnd"
+    ? timingBonusFromScore(getStrategicTiming(company, state).rnd.score)
+    : 0;
   company.cash -= def.cost;
   def.apply(company);
+  if (timingBonus > 0) company.quality = Math.min(100, company.quality + timingBonus);
 
   // Push news item for the action
   if (def.desc) {
@@ -260,7 +265,12 @@ export function applyCompanyAction(
     });
   }
 
-  return { ok: true, message: `${def.label} 완료!` };
+  return {
+    ok: true,
+    message: timingBonus > 0
+      ? `${def.label} 완료! 연구 타이밍 보너스 +${timingBonus}`
+      : `${def.label} 완료!`,
+  };
 }
 
 export function upgradeBuilding(

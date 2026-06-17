@@ -7,7 +7,7 @@ import { netWorth, playerRank, rankings, LAYER_LABELS } from "@/lib/engine";
 import type { NewsItem } from "@/lib/engine";
 import type { TurnSummary } from "@/lib/engine/tick";
 import { formatMoney } from "@/lib/format";
-import { initAudio, isMuted, setMuted, startBgm, stopBgm } from "@/lib/audio";
+import { initAudio, isMuted, setMuted } from "@/lib/audio";
 
 import { Dashboard } from "@/components/Dashboard";
 import { CompanyCity } from "@/components/CompanyCity";
@@ -113,17 +113,6 @@ export default function PlayPage() {
     }
   }, [loadSave, router]);
 
-  // BGM follows market mood.
-  useEffect(() => {
-    if (!game || muted) {
-      stopBgm();
-      return;
-    }
-    const mood = game.macro.sentiment > 0.25 ? "bright" : game.macro.sentiment < -0.25 ? "tense" : "neutral";
-    startBgm(mood);
-    return () => stopBgm();
-  }, [game?.macro.phase, muted, game]);
-
   // Auto-dismiss toast.
   useEffect(() => {
     if (!toast) return;
@@ -181,7 +170,7 @@ export default function PlayPage() {
           <button onClick={() => setHelp("manual")} className="btn-ghost !px-2.5 !py-2" title="도움말">
             ❓
           </button>
-          <button onClick={toggleMute} className="btn-ghost !px-2.5 !py-2" title="소리">
+          <button onClick={toggleMute} className="btn-ghost !px-2.5 !py-2" title="효과음">
             {muted ? "🔇" : "🔊"}
           </button>
           <button

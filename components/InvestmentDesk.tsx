@@ -12,6 +12,7 @@ import { ASSET_ICONS } from "@/lib/assetMap";
 import { PRESET_MAP } from "@/lib/data/companyPresets";
 import { CompanyMark } from "./CompanyMark";
 import { Term } from "./Term";
+import { incrementTradeQuantity } from "@/lib/engine/tradeQuantity";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -796,7 +797,7 @@ function TradeModal({
             {[1, 10, 100].map((n) => (
               <button
                 key={n}
-                onClick={() => setQty(n)}
+                onClick={() => setQty(incrementTradeQuantity(qty, n))}
                 className="flex-1 rounded-lg py-2 text-xs font-semibold text-slate-400 transition hover:text-slate-200"
                 style={{ background: "rgba(255,255,255,0.04)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}

@@ -1,6 +1,5 @@
-// Lightweight sound engine using the Web Audio API — synthesised SFX plus a
-// simple ambient BGM pad, so there are no audio asset files to ship. Respects a
-// global mute flag persisted in localStorage.
+// Lightweight sound engine using the Web Audio API for synthesised SFX.
+// Respects a global mute flag persisted in localStorage.
 
 type Sfx =
   | "click"
@@ -15,8 +14,6 @@ type Sfx =
 
 let ctx: AudioContext | null = null;
 let muted = false;
-let bgmGain: GainNode | null = null;
-let bgmTimer: ReturnType<typeof setInterval> | null = null;
 
 function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -44,7 +41,6 @@ export function setMuted(value: boolean): void {
   if (typeof window !== "undefined") {
     window.localStorage.setItem("uc-muted", value ? "1" : "0");
   }
-  if (value) stopBgm();
 }
 
 function tone(freq: number, durMs: number, type: OscillatorType, gain: number, delay = 0): void {
@@ -101,46 +97,3 @@ export function playSfx(name: Sfx): void {
   }
 }
 
-// Simple BGM: a slow arpeggio whose mood (major/minor) follows the game state.
-export function startBgm(mood: "bright" | "tense" | "neutral"): void {
-  const c = ensureCtx();
-  if (!c || muted) return;
-  stopBgm();
-  bgmGain = c.createGain();
-  bgmGain.gain.value = 0.03;
-  bgmGain.connect(c.destination);
-
-  const scales: Record<typeof mood, number[]> = {
-    bright: [261.6, 329.6, 392.0, 523.3],
-    neutral: [261.6, 311.1, 392.0, 466.2],
-    tense: [220.0, 261.6, 311.1, 415.3],
-  };
-  const notes = scales[mood];
-  let i = 0;
-  const step = () => {
-    if (!bgmGain || muted) return;
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "sine";
-    osc.frequency.value = notes[i % notes.length];
-    g.gain.setValueAtTime(0, c.currentTime);
-    g.gain.linearRampToValueAtTime(0.5, c.currentTime + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.6);
-    osc.connect(g).connect(bgmGain);
-    osc.start();
-    osc.stop(c.currentTime + 0.65);
-    i++;
-  };
-  bgmTimer = setInterval(step, 650);
-}
-
-export function stopBgm(): void {
-  if (bgmTimer) {
-    clearInterval(bgmTimer);
-    bgmTimer = null;
-  }
-  if (bgmGain) {
-    bgmGain.disconnect();
-    bgmGain = null;
-  }
-}
