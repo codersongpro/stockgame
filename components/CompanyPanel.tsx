@@ -10,7 +10,7 @@ import {
 } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
 import { getCountry } from "@/lib/data/countries";
-import { getIndustryProducts } from "@/lib/data/products";
+import { getIndustryProducts, productDisplayName } from "@/lib/data/products";
 import { formatMoney, formatNum } from "@/lib/format";
 import { Bar } from "./Sparkline";
 import { Term } from "./Term";
@@ -119,6 +119,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
   const d = company.decisions;
 
   const productDefs = getIndustryProducts(company.industryId);
+  const productNames = productDefs.map((p) => productDisplayName(p, sl));
   const productPrices = company.productPrices ?? productDefs.map((p) => Math.round(industry.basePrice * p.priceRatio));
   const productEnabled = company.productEnabled ?? productDefs.map((_, i) => i === 0);
   const productInventory = company.productInventory ?? productDefs.map(() => 0);
@@ -148,7 +149,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
             {sl ? "📦 우리 상품" : "📦 상품 라인업"}
           </h3>
-          {!sl && <span className="text-xs text-slate-400">R&D 투자로 가격 한도 ↑</span>}
+          <span className="text-xs text-slate-400">{sl ? "연구를 하면 더 좋은 상품을 팔 수 있어요" : "R&D 투자로 가격 한도 ↑"}</span>
         </div>
 
         {/* Product tabs */}
@@ -174,7 +175,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                 }`}
               >
                 <span className="text-lg leading-none">{def.emoji}</span>
-                <span className="text-xs font-semibold leading-tight">{def.name}</span>
+                <span className="text-xs font-semibold leading-tight">{productNames[i]}</span>
                 {!canEnable && (
                   <span className="text-xs leading-tight opacity-70">
                     {!isUnlocked ? "🔒" : `품질${def.qualityRequired}`}
@@ -214,9 +215,11 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">{activeDef.emoji}</span>
                   <div>
-                    <div className="font-bold text-slate-800">{activeDef.name}</div>
+                    <div className="font-bold text-slate-800">{productNames[activeIdx]}</div>
                     <div className="text-xs text-slate-500">
-                      수요 비중 {Math.round(activeDef.demandShare * 100)}% · 기준가 {formatMoney(activeTierRef)}
+                      {sl
+                        ? `찾는 손님 ${Math.round(activeDef.demandShare * 100)}% · 보통 가격 ${formatMoney(activeTierRef)}`
+                        : `수요 비중 ${Math.round(activeDef.demandShare * 100)}% · 기준가 ${formatMoney(activeTierRef)}`}
                     </div>
                   </div>
                 </div>
@@ -242,7 +245,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                 <div className="space-y-2">
                   {/* Price input with cap indicator */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500 shrink-0 w-10">판매가</span>
+                    <span className="text-xs text-slate-500 shrink-0 w-10">{sl ? "가격" : "판매가"}</span>
                     <input
                       type="number"
                       value={activePrice}
@@ -270,7 +273,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                   </div>
                   {/* Max price bar */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 w-10">한도</span>
+                    <span className="text-xs text-slate-400 w-10">{sl ? "최대" : "한도"}</span>
                     <div className="relative flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
                       <div
                         className="absolute inset-y-0 left-0 rounded-full bg-brand-400 transition-all"
@@ -280,7 +283,9 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
                     <span className="text-xs text-slate-500 shrink-0">{formatMoney(activeMaxPrice)}</span>
                   </div>
                   <div className="text-xs text-slate-400">
-                    최대 가격 = 기준가 × (1 + 품질/100). 지금 품질 {Math.round(company.quality)} → 최대 {formatMoney(activeMaxPrice)}
+                    {sl
+                      ? `물건이 좋아질수록 더 높은 가격을 받을 수 있어요. 지금 최대 ${formatMoney(activeMaxPrice)}`
+                      : `최대 가격 = 기준가 × (1 + 품질/100). 지금 품질 ${Math.round(company.quality)} → 최대 ${formatMoney(activeMaxPrice)}`}
                   </div>
 
                   {/* Inventory */}

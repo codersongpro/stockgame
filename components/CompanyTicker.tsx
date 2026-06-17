@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { Company, GameState } from "@/lib/engine";
 import { playerRank } from "@/lib/engine";
 import { getIndustry } from "@/lib/data/industries";
-import { getIndustryProducts } from "@/lib/data/products";
+import { getIndustryProducts, productDisplayName } from "@/lib/data/products";
 import { formatMoney } from "@/lib/format";
 
 interface Item { text: string; tone: "pos" | "neg" | "neu" }
@@ -12,6 +12,7 @@ interface Item { text: string; tone: "pos" | "neg" | "neu" }
 function buildItems(game: GameState, company: Company): Item[] {
   const industry = getIndustry(company.industryId);
   const productDefs = getIndustryProducts(company.industryId);
+  const productName = (index: number) => productDefs[index] ? productDisplayName(productDefs[index], game.config.simplifiedLabels) : "";
   const items: Item[] = [];
 
   // ── 1. 품질 ──────────────────────────────────────────────────────────────
@@ -93,12 +94,12 @@ function buildItems(game: GameState, company: Company): Item[] {
 
   // ── 9. 상품 라인업 힌트 ──────────────────────────────────────────────────
   if (company.rndUnlockDone && productDefs[3]) {
-    items.push({ text: `🔬 R&D 성과 — ${productDefs[3].name} 출시 가능! 상품 라인업에서 활성화하세요`, tone: "pos" });
+    items.push({ text: `🔬 연구 성공 — ${productName(3)} 출시 가능! 상품 화면에서 켜 보세요`, tone: "pos" });
   }
   const enabled = company.productEnabled ?? [true, false, false, false];
   const activeCount = enabled.filter(Boolean).length;
   if (activeCount <= 1 && company.quality >= 25 && productDefs[1]) {
-    items.push({ text: `📦 품질이 충분히 올랐습니다 — ${productDefs[1].name} 추가 판매로 매출 다각화 가능`, tone: "neu" });
+    items.push({ text: `📦 품질이 충분히 올랐습니다 — ${productName(1)}도 팔 수 있어요`, tone: "neu" });
   }
 
   // ── 10. 순위 힌트 ────────────────────────────────────────────────────────

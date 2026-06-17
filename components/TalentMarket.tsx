@@ -7,6 +7,7 @@ import type { Character, Company, GameState } from "@/lib/engine";
 import { formatMoney } from "@/lib/format";
 import { TALENT_IMGS, idToIndex, BUILDING_IMG } from "@/lib/assetMap";
 import { CampusStrip } from "./CampusStrip";
+import { getRecruitmentNegotiationProfile } from "@/lib/engine/recruitment";
 
 function Avatar({ characterId, emoji }: { characterId: string; emoji: string }) {
   const img = TALENT_IMGS[idToIndex(characterId, TALENT_IMGS.length)];
@@ -230,16 +231,10 @@ function PoachModal({
   );
 }
 
-// ── Legendary negotiation (multi-step) ─────────────────────────────────────
-const LEGENDARY_DEMANDS = [
-  "평판이 충분해야 합니다 (60점 이상)",
-  "계약금은 최소 3개월치 연봉이 필요합니다",
-  "저는 최고의 역할(임원직)을 보장받아야 합니다",
-];
+// ── Recruitment negotiation (multi-step) ───────────────────────────────────
+type RecruitNegStep = "check" | "negotiate" | "minigame" | "confirm";
 
-type LegNegStep = "check" | "negotiate" | "minigame" | "confirm";
-
-function LegendaryNegotiationModal({
+function RecruitmentNegotiationModal({
   ch,
   company,
   fromRival,
@@ -254,35 +249,50 @@ function LegendaryNegotiationModal({
   onClose: () => void;
   onConfirm: (salary: number, loyaltyBonus: number) => void;
 }) {
-  const [step, setStep] = useState<LegNegStep>("check");
-  const [salaryPct, setSalaryPct] = useState(200);
+  const profile = getRecruitmentNegotiationProfile(ch.rarity);
+  const [step, setStep] = useState<RecruitNegStep>("check");
+  const [salaryPct, setSalaryPct] = useState(fromRival ? Math.max(profile.minPct + 15, 125) : profile.minPct);
   const [reflexBonus, setReflexBonus] = useState<number | null>(null);
   const [round, setRound] = useState(1); // negotiation rounds 1-3
 
-  const MIN_PCT = fromRival ? 170 : 180;
-  const MAX_PCT = 350;
+  const MIN_PCT = fromRival ? Math.max(profile.minPct + 15, 125) : profile.minPct;
+  const MAX_PCT = profile.maxPct;
 
   const reputation = Math.round(company.reputation);
-  const minCash = ch.salary * 3;
-  const reputationOk = reputation >= 60;
+  const minCash = ch.salary * profile.signingMonths;
+  const reputationOk = !profile.requiresReputation || reputation >= profile.requiredReputation;
   const cashOk = company.cash >= minCash;
-  const noLegendaryHired = !company.hired.some((h) => h.rarity === "legendary");
 
   const canProceed = reputationOk && cashOk;
   const finalSalary = Math.round(ch.salary * salaryPct / 100);
-  const loyaltyGain = Math.round(Math.min(40, (salaryPct - MIN_PCT) * 0.3)) + (reflexBonus ?? 0);
-  const newLoyalty = Math.min(100, 55 + loyaltyGain);
+  const loyaltyCap = ch.rarity === "legendary" ? 40 : ch.rarity === "epic" ? 34 : 28;
+  const loyaltyGain = Math.round(Math.min(loyaltyCap, (salaryPct - MIN_PCT) * 0.32)) + (reflexBonus ?? 0);
+  const newLoyalty = Math.min(100, profile.baseLoyalty + loyaltyGain);
+  const accentButton = ch.rarity === "legendary"
+    ? "!bg-amber-500"
+    : ch.rarity === "epic"
+      ? "!bg-violet-600"
+      : ch.rarity === "rare"
+        ? "!bg-sky-500"
+        : "";
+  const headerClass = ch.rarity === "legendary"
+    ? "bg-gradient-to-r from-amber-500 to-yellow-400"
+    : ch.rarity === "epic"
+      ? "bg-gradient-to-r from-violet-600 to-fuchsia-500"
+      : ch.rarity === "rare"
+        ? "bg-gradient-to-r from-sky-500 to-cyan-400"
+        : "bg-gradient-to-r from-brand-600 to-indigo-500";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="card w-full max-w-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-3 bg-gradient-to-r from-amber-500 to-yellow-400 p-4 text-white">
+        <div className={`flex items-center gap-3 p-4 text-white ${headerClass}`}>
           <span className="text-3xl">{ch.avatar}</span>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-black">{ch.name}</span>
-              <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">⭐ 전설</span>
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">{profile.badge}</span>
             </div>
             <div className="text-xs opacity-90">{ROLE_LABELS[ch.preferredRole]} · {ch.traitName}</div>
           </div>
@@ -291,7 +301,7 @@ function LegendaryNegotiationModal({
 
         {/* Step indicator */}
         <div className="flex gap-0">
-          {(["check", "negotiate", "minigame", "confirm"] as LegNegStep[]).map((s, i) => (
+          {(["check", "negotiate", "minigame", "confirm"] as RecruitNegStep[]).map((s, i) => (
             <div
               key={s}
               className={`flex-1 py-1 text-center text-xs font-bold ${
@@ -300,7 +310,7 @@ function LegendaryNegotiationModal({
                 "bg-slate-50 text-slate-400"
               }`}
             >
-              {["조건 확인", "협상", "미니게임", "최종 계약"][i]}
+              {profile.stepLabels[i]}
             </div>
           ))}
         </div>
@@ -309,12 +319,12 @@ function LegendaryNegotiationModal({
           {/* Step 1: Requirements check */}
           {step === "check" && (
             <>
-              <div className="text-sm font-bold text-slate-700">전설 인재의 요구 조건</div>
+              <div className="text-sm font-bold text-slate-700">{profile.title}</div>
               <div className="space-y-2">
                 {[
-                  { label: `평판 60점 이상 (현재 ${reputation}점)`, ok: reputationOk },
-                  { label: `계약금 ${formatMoney(minCash)} 이상 (보유 ${formatMoney(Math.round(company.cash))})`, ok: cashOk },
-                  { label: "임원직(역할) 자리 필요", ok: noLegendaryHired || true },
+                  ...(profile.requiresReputation ? [{ label: `평판 ${profile.requiredReputation}점 이상 (현재 ${reputation}점)`, ok: reputationOk }] : []),
+                  { label: `계약 준비금 ${formatMoney(minCash)} 이상 (보유 ${formatMoney(Math.round(company.cash))})`, ok: cashOk },
+                  { label: `${ROLE_LABELS[ch.preferredRole]} 역할 제안`, ok: true },
                 ].map(({ label, ok }) => (
                   <div key={label} className={`flex items-center gap-2 rounded-lg p-2 text-xs ${ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
                     <span>{ok ? "✓" : "✗"}</span>
@@ -323,7 +333,12 @@ function LegendaryNegotiationModal({
                 ))}
               </div>
               <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-                <b>💡 전설 인재</b>란? 특수 능력과 높은 스탯을 갖춘 핵심 인재입니다. 영입 과정이 복잡하지만 그만큼 강력합니다.
+                <b>협상 포인트</b>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {profile.perks.map((perk) => (
+                    <span key={perk} className="rounded-full bg-white px-2 py-0.5 font-semibold text-amber-700">{perk}</span>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-2">
                 <button className="btn-ghost flex-1" onClick={onClose}>돌아가기</button>
@@ -342,7 +357,7 @@ function LegendaryNegotiationModal({
                 <div className="text-xs text-slate-400">현재 연봉 {formatMoney(ch.salary)}</div>
               </div>
               <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600 italic">
-                "{round === 1 ? "제 능력에 걸맞은 대우가 필요합니다." : round === 2 ? "조금 더 좋은 조건을 제시해 주신다면..." : "이 정도라면 함께 일해볼 만 하겠군요."}"
+                "{profile.quote[round - 1]}"
               </div>
               <div>
                 <div className="mb-1 flex justify-between text-xs">
@@ -360,7 +375,7 @@ function LegendaryNegotiationModal({
                   <span>최대 {MAX_PCT}%</span>
                 </div>
               </div>
-              {salaryPct < 200 && (
+              {salaryPct <= MIN_PCT + 10 && (
                 <div className="rounded-lg bg-orange-50 px-3 py-2 text-xs text-orange-600">
                   ⚠ 제안이 너무 낮습니다. {ch.name}이(가) 거절할 가능성이 높아요.
                 </div>
@@ -372,8 +387,8 @@ function LegendaryNegotiationModal({
                       조금 더 올리기 (+20%)
                     </button>
                     <button
-                      className="btn-primary flex-1 !bg-amber-500"
-                      disabled={salaryPct < 180}
+                      className={`btn-primary flex-1 ${accentButton}`}
+                      disabled={salaryPct < MIN_PCT}
                       onClick={() => setRound(r => { if (r >= 3) { setStep("minigame"); return r; } return r + 1; })}
                     >
                       {round < 3 ? `다음 라운드 (${round + 1}/3) ▶` : "미니게임 ▶"}
@@ -381,8 +396,8 @@ function LegendaryNegotiationModal({
                   </>
                 ) : (
                   <button
-                    className="btn-primary w-full !bg-amber-500"
-                    disabled={salaryPct < 180}
+                    className={`btn-primary w-full ${accentButton}`}
+                    disabled={salaryPct < MIN_PCT}
                     onClick={() => setStep("minigame")}
                   >
                     협상 완료 → 미니게임 ▶
@@ -406,7 +421,7 @@ function LegendaryNegotiationModal({
                 </div>
               )}
               {reflexBonus !== null && (
-                <button className="btn-primary w-full !bg-amber-500" onClick={() => setStep("confirm")}>
+                <button className={`btn-primary w-full ${accentButton}`} onClick={() => setStep("confirm")}>
                   최종 계약 확인 ▶
                 </button>
               )}
@@ -439,11 +454,11 @@ function LegendaryNegotiationModal({
               <div className="flex gap-2">
                 <button className="btn-ghost flex-1" onClick={onClose}>취소</button>
                 <button
-                  className="btn-primary flex-1 !bg-amber-500"
+                  className={`btn-primary flex-1 ${accentButton}`}
                   disabled={company.cash < finalSalary}
                   onClick={() => onConfirm(finalSalary, reflexBonus ?? 0)}
                 >
-                  ⭐ 계약 체결
+                  계약 체결
                 </button>
               </div>
               {company.cash < finalSalary && (
@@ -466,8 +481,8 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
 
   const [salaryTarget, setSalaryTarget]           = useState<Character | null>(null);
   const [poachTarget, setPoachTarget]             = useState<{ ch: Character; companyId: string } | null>(null);
-  const [legendaryTarget, setLegendaryTarget]     = useState<Character | null>(null);
-  const [legendaryPoachTarget, setLegendaryPoachTarget] = useState<{ ch: Character; companyId: string } | null>(null);
+  const [recruitTarget, setRecruitTarget]         = useState<Character | null>(null);
+  const [recruitPoachTarget, setRecruitPoachTarget] = useState<{ ch: Character; companyId: string } | null>(null);
   const [rivalTab, setRivalTab]                   = useState<string | null>(null);
 
   const rivals = game.companies.filter((c) => !c.isPlayer && c.hired.length > 0);
@@ -589,14 +604,10 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
                         className={`!px-3 !py-1.5 text-xs ${ch.rarity === "legendary" ? "!bg-amber-500" : ""} btn-primary`}
                         disabled={!canAfford || company.hired.length >= 6}
                         onClick={() => {
-                          if (ch.rarity === "legendary") {
-                            setLegendaryPoachTarget({ ch, companyId: selectedRival.id });
-                          } else {
-                            setPoachTarget({ ch, companyId: selectedRival.id });
-                          }
+                          setRecruitPoachTarget({ ch, companyId: selectedRival.id });
                         }}
                       >
-                        {ch.rarity === "legendary" ? "⭐ 협상 스카우트" : "스카우트"}
+                        협상 스카우트
                       </button>
                     </div>
                   </div>
@@ -621,8 +632,7 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
               affordable={company.cash >= ch.salary}
               detailed={game.config.characterDepth !== "simple"}
               onHire={() => {
-                if (ch.rarity === "legendary") setLegendaryTarget(ch);
-                else hire(ch.id);
+                setRecruitTarget(ch);
               }}
             />
           ))}
@@ -659,30 +669,29 @@ export function TalentMarket({ game, company }: { game: GameState; company: Comp
           }}
         />
       )}
-      {/* Legendary talent: multi-step negotiation (from talent pool) */}
-      {legendaryTarget && (
-        <LegendaryNegotiationModal
-          ch={legendaryTarget}
+      {/* Talent recruitment: multi-step negotiation (from talent pool) */}
+      {recruitTarget && (
+        <RecruitmentNegotiationModal
+          ch={recruitTarget}
           company={company}
-          onClose={() => setLegendaryTarget(null)}
+          onClose={() => setRecruitTarget(null)}
           onConfirm={(salary, loyaltyBonus) => {
-            // Hire at negotiated salary via the regular hire action (salary is overridden in store)
-            hire(legendaryTarget.id, salary, loyaltyBonus);
-            setLegendaryTarget(null);
+            hire(recruitTarget.id, salary, loyaltyBonus);
+            setRecruitTarget(null);
           }}
         />
       )}
-      {/* Legendary talent: multi-step negotiation (from rival poach) */}
-      {legendaryPoachTarget && (
-        <LegendaryNegotiationModal
-          ch={legendaryPoachTarget.ch}
+      {/* Talent recruitment: multi-step negotiation (from rival poach) */}
+      {recruitPoachTarget && (
+        <RecruitmentNegotiationModal
+          ch={recruitPoachTarget.ch}
           company={company}
           fromRival
-          rivalCompanyName={game.companies.find((c) => c.id === legendaryPoachTarget.companyId)?.name ?? ""}
-          onClose={() => setLegendaryPoachTarget(null)}
+          rivalCompanyName={game.companies.find((c) => c.id === recruitPoachTarget.companyId)?.name ?? ""}
+          onClose={() => setRecruitPoachTarget(null)}
           onConfirm={(salary, loyaltyBonus) => {
-            poach(legendaryPoachTarget.companyId, legendaryPoachTarget.ch.id, salary, loyaltyBonus);
-            setLegendaryPoachTarget(null);
+            poach(recruitPoachTarget.companyId, recruitPoachTarget.ch.id, salary, loyaltyBonus);
+            setRecruitPoachTarget(null);
           }}
         />
       )}

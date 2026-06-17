@@ -10,6 +10,7 @@ import { autoAssignRole, generateCharacter } from "./characters";
 import { adjustRivalry, getRivalry } from "./relations";
 import { shockStock } from "./market";
 import { nextFloat } from "./rng";
+import { getRecruitmentNegotiationProfile } from "./recruitment";
 
 // Mutating player/AI actions that happen *between* turns (they don't advance
 // the clock). Single-sourced so the AI and the human player obey the same rules.
@@ -294,7 +295,7 @@ export function hireCharacter(
   if (company.cash < signingBonus) return { ok: false, error: "영입 비용이 부족합니다." };
 
   company.cash -= signingBonus;
-  const baseLoyalty = character.rarity === "legendary" ? 60 : 75;
+  const baseLoyalty = getRecruitmentNegotiationProfile(character.rarity).baseLoyalty;
   const hired = { ...character, salary, loyalty: Math.min(100, baseLoyalty + (loyaltyBonus ?? 0)) };
   autoAssignRole(company, hired);
   company.hired.push(hired);
@@ -340,7 +341,7 @@ export function poachCharacter(
   if (company.cash < poachCost) return { ok: false, error: "스카우트 비용이 부족합니다." };
   company.cash -= poachCost;
   const newSalary = overrideSalary ?? Math.round(ch.salary * 1.25);
-  const newLoyalty = Math.min(100, 55 + (loyaltyBonus ?? 0));
+  const newLoyalty = Math.min(100, getRecruitmentNegotiationProfile(ch.rarity).baseLoyalty + (loyaltyBonus ?? 0));
   const poached = { ...ch, salary: newSalary, loyalty: newLoyalty };
   autoAssignRole(company, poached);
   company.hired.push(poached);
