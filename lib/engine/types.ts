@@ -4,7 +4,13 @@
 
 import type { RngState } from "./rng";
 
-export type Level = "elementary_low" | "elementary" | "middle" | "university";
+export type Level =
+  | "elementary_low"
+  | "elementary_mid"
+  | "elementary_high"
+  | "middle"
+  | "high"
+  | "adult";
 
 // ---------------------------------------------------------------------------
 // Macro economy
@@ -318,6 +324,7 @@ export interface LevelConfig {
   level: Level;
   label: string;
   description: string;
+  recommendedAge: string;
   mapSize: number; // grid is mapSize x mapSize
   instantBuild: boolean;
   adjacencyBonus: boolean;
@@ -330,6 +337,9 @@ export interface LevelConfig {
   showAdvancedMetrics: boolean; // financials, debt, FX...
   characterDepth: "simple" | "roles" | "full";
   simplifiedLabels: boolean; // kid-friendly section/button text (elementary_low only)
+  maxChoices: number;
+  numberScale: "small" | "medium" | "large" | "advanced";
+  feedbackDepth: "picture" | "simple" | "reason" | "analysis";
   aiCount: number;
 }
 

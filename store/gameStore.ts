@@ -4,6 +4,7 @@ import { create } from "zustand";
 import {
   advanceTurn,
   createGame,
+  migrateSavedGame,
   type AssetClass,
   type BuildingType,
   type CompanyDecisions,
@@ -33,6 +34,7 @@ import { playSfx } from "@/lib/audio";
 import { formatMoney } from "@/lib/format";
 
 const SAVE_KEY = "uc-save-single";
+const SAVE_BACKUP_KEY = "uc-save-single-backup-v1";
 
 export interface NewGameInput {
   level: Level;
@@ -87,6 +89,17 @@ function persist(game: GameState): void {
   }
 }
 
+function backupLegacySave(raw: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!window.localStorage.getItem(SAVE_BACKUP_KEY)) {
+      window.localStorage.setItem(SAVE_BACKUP_KEY, raw);
+    }
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   game: null,
   lastSummary: null,
@@ -103,7 +116,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const raw = window.localStorage.getItem(SAVE_KEY);
       if (!raw) return false;
-      const game = JSON.parse(raw) as GameState;
+      const game = migrateSavedGame(JSON.parse(raw));
+      if (!game) return false;
+      backupLegacySave(raw);
+      persist(game);
       set({ game, lastSummary: null });
       return true;
     } catch {
@@ -113,7 +129,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   hasSave: () => {
     if (typeof window === "undefined") return false;
-    return !!window.localStorage.getItem(SAVE_KEY);
+    try {
+      const raw = window.localStorage.getItem(SAVE_KEY);
+      return !!raw && !!migrateSavedGame(JSON.parse(raw));
+    } catch {
+      return false;
+    }
   },
 
   clearSave: () => {

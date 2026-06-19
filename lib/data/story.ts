@@ -22,7 +22,19 @@ export const STORY: Record<Level, StoryScene[]> = {
       body: "번 돈은 저금통(예금)에 차곡차곡. 회사를 점점 크게 키워봐요!",
     },
   ],
-  elementary: [
+  elementary_mid: [
+    {
+      emoji: "🏪",
+      title: "우리 가게를 열어요",
+      body: "수입과 지출을 살펴보며 예산 안에서 가게를 운영해요.",
+    },
+    {
+      emoji: "🧮",
+      title: "계획이 필요해요",
+      body: "돈을 어디에 쓸지 정하면 가게가 더 안정적으로 자라요.",
+    },
+  ],
+  elementary_high: [
     {
       emoji: "🏪",
       title: "작은 가게에서 시작해요",
@@ -51,7 +63,19 @@ export const STORY: Record<Level, StoryScene[]> = {
       body: "금리, 경기, 뉴스, 경쟁사… 다양한 사건이 시장을 흔듭니다. 현명하게 대응하세요.",
     },
   ],
-  university: [
+  high: [
+    {
+      emoji: "📊",
+      title: "전략 경영자의 시야",
+      body: "현금, 부채, 수익률을 나눠 보고 경기 변화에 대응합니다.",
+    },
+    {
+      emoji: "⚖️",
+      title: "선택에는 비용이 있습니다",
+      body: "성장과 안정 사이에서 근거 있는 결정을 내려 보세요.",
+    },
+  ],
+  adult: [
     {
       emoji: "🏛️",
       title: "시장 브리핑",

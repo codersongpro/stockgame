@@ -18,12 +18,14 @@ import { defaultDecisions } from "./company";
 import { shuffle } from "./rng";
 import { recordNetWorth } from "./ranking";
 import { getIndustryProducts } from "../data/products";
+import { GAME_VERSION } from "./version";
+import { normalizeLevel } from "./saveMigration";
 
-export const GAME_VERSION = 1;
+export { GAME_VERSION } from "./version";
 export const DEFAULT_MAX_TURNS = 100;
 
 export interface NewGameOptions {
-  level: Level;
+  level: Level | "elementary" | "university";
   seed?: number;
   playerCompanyName: string;
   industryId: string;
@@ -141,7 +143,9 @@ function makeCompany(opts: {
 
 export function createGame(opts: NewGameOptions): GameState {
   companyCounter = 0;
-  const baseConfig = getLevelConfig(opts.level);
+  const level = normalizeLevel(opts.level);
+  if (!level) throw new Error(`Unsupported level: ${String(opts.level)}`);
+  const baseConfig = getLevelConfig(level);
   const config = opts.mapSize
     ? { ...baseConfig, mapSize: opts.mapSize }
     : baseConfig;
@@ -232,7 +236,7 @@ export function createGame(opts: NewGameOptions): GameState {
     version: GAME_VERSION,
     seed,
     rng,
-    level: opts.level,
+    level,
     config,
     turn: 0,
     maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,
@@ -266,6 +270,7 @@ export {
   type StockMetrics,
 } from "./market";
 export { LEVEL_CONFIGS, getLevelConfig } from "./levels";
+export { migrateSavedGame, normalizeLevel } from "./saveMigration";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";
 export { BUILDINGS, BUILDING_LIST, buildingCostFor } from "./buildings";
