@@ -8,6 +8,7 @@ import { COMPANY_PRESETS } from "@/lib/data/companyPresets";
 import { STORY } from "@/lib/data/story";
 import { LEVEL_CONFIGS } from "@/lib/engine";
 import type { Level } from "@/lib/engine";
+import { normalizeLevel } from "@/lib/engine";
 import { useGameStore } from "@/store/gameStore";
 import { playSfx } from "@/lib/audio";
 import { formatMoney } from "@/lib/format";
@@ -28,7 +29,7 @@ type WizardStep = typeof WIZARD_STEPS[number]["id"];
 function SetupInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const level = (params.get("level") as Level) || "middle";
+  const level = normalizeLevel(params.get("level")) ?? "middle";
   const newGame = useGameStore((s) => s.newGame);
 
   const scenes = STORY[level];
@@ -132,7 +133,14 @@ function SetupInner() {
 
   // --- Wizard phase ---
   const levelCfg = LEVEL_CONFIGS[level];
-  const levelEmoji: Record<Level, string> = { elementary_low: "🧒", elementary: "🧑", middle: "🧑‍🎓", university: "🎓" };
+  const levelEmoji: Record<Level, string> = {
+    elementary_low: "🧒",
+    elementary_mid: "🌱",
+    elementary_high: "🚀",
+    middle: "🧭",
+    high: "📊",
+    adult: "🏛️",
+  };
   const selectedIndustry = INDUSTRIES.find((i) => i.id === industryId);
   const selectedCountry = COUNTRIES.find((c) => c.id === countryId);
   const selectedPreset = COMPANY_PRESETS.find((p) => p.id === basedOn);
