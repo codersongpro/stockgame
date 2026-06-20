@@ -489,24 +489,25 @@ export function CompanyMap({
                     />
                     {speaking && (
                       <g className="bubble-pop">
-                        <foreignObject x={-78} y={-78} width={156} height={62}>
+                        <foreignObject x={-110} y={-104} width={220} height={86}>
                           <div
                             style={{
-                              background: "white",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 12,
-                              padding: "6px 9px",
-                              fontSize: 11,
-                              lineHeight: 1.25,
-                              color: "#334155",
-                              boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
+                              background: "rgba(255,255,255,0.98)",
+                              border: "2px solid #cbd5e1",
+                              borderRadius: 14,
+                              padding: "9px 12px",
+                              fontSize: 14,
+                              lineHeight: 1.35,
+                              color: "#0f172a",
+                              boxShadow: "0 10px 26px rgba(15,23,42,0.3)",
+                              fontWeight: 700,
                               textAlign: "center",
                             }}
                           >
                             {speaker?.text}
                           </div>
                         </foreignObject>
-                        <polygon points="-5,-17 5,-17 0,-11" fill="white" stroke="#e2e8f0" strokeWidth="0.5" />
+                        <polygon points="-7,-20 7,-20 0,-12" fill="white" stroke="#cbd5e1" strokeWidth="1" />
                       </g>
                     )}
                   </g>

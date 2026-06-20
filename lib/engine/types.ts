@@ -344,6 +344,66 @@ export interface LevelConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Embedded sandbox campaign
+// ---------------------------------------------------------------------------
+
+export type CampaignEvaluationTiming = "before_turn" | "after_turn";
+
+export type CampaignObjectiveKind =
+  | "production_at_most"
+  | "cash_at_least"
+  | "profit_at_least"
+  | "quality_at_least"
+  | "reputation_at_least";
+
+export interface CampaignObjective {
+  id: string;
+  label: string;
+  kind: CampaignObjectiveKind;
+  target: number;
+}
+
+export interface CampaignMission {
+  id: string;
+  level: Level;
+  title: string;
+  summary: string;
+  concept: string;
+  timing: CampaignEvaluationTiming;
+  objectives: CampaignObjective[];
+  hint: string;
+  successText: string;
+  retryText: string;
+  nextMissionId?: string;
+}
+
+export interface CampaignObjectiveState {
+  objectiveId: string;
+  passed: boolean;
+  current: number;
+  target: number;
+}
+
+export interface CampaignEvaluation {
+  missionId: string;
+  success: boolean;
+  stars: number;
+  message: string;
+  objectiveStates: CampaignObjectiveState[];
+}
+
+export interface CampaignProgress {
+  enabled: boolean;
+  activeMissionId: string;
+  completedMissionIds: string[];
+  unlockedMissionIds: string[];
+  bestStarsByMissionId: Record<string, number>;
+  attemptsByMissionId: Record<string, number>;
+  currentObjectiveState: CampaignObjectiveState[];
+  lastMessage?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Top-level game state
 // ---------------------------------------------------------------------------
 
@@ -367,6 +427,7 @@ export interface GameState {
 
   relations: RelationState;
   news: NewsItem[];
+  campaign?: CampaignProgress;
 
   createdAt: number;
   updatedAt: number;

@@ -3,7 +3,10 @@
 import { create } from "zustand";
 import {
   advanceTurn,
+  advanceCampaign,
   createGame,
+  evaluateCampaignAfterTurn,
+  evaluateCampaignBeforeTurn,
   migrateSavedGame,
   type AssetClass,
   type BuildingType,
@@ -45,6 +48,7 @@ export interface NewGameInput {
   basedOn?: string;
   maxTurns?: number;
   mapSize?: number;
+  campaignEnabled: boolean;
 }
 
 interface GameStore {
@@ -144,7 +148,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   next: () => {
     const game = get().game;
     if (!game || game.status === "ended") return;
+    const beforeEvaluation = evaluateCampaignBeforeTurn(game);
+    if (beforeEvaluation) advanceCampaign(game, beforeEvaluation);
     const summary = advanceTurn(game);
+    if (!beforeEvaluation) {
+      advanceCampaign(game, evaluateCampaignAfterTurn(game, summary));
+    }
     persist(game);
     if ((game.status as string) === "ended") playSfx("win");
     else playSfx("turn");

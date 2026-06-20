@@ -21,20 +21,20 @@ const LEVELS: Level[] = [
 ];
 
 const LEVEL_EMOJI: Record<Level, string> = {
-  elementary_low: "🧒",
-  elementary_mid: "🌱",
-  elementary_high: "🚀",
-  middle: "🧭",
-  high: "📊",
-  adult: "🏛️",
+  elementary_low: "🌱",
+  elementary_mid: "🌿",
+  elementary_high: "🌳",
+  middle: "📈",
+  high: "🏦",
+  adult: "🏢",
 };
 
 const LEVEL_TAGS: Record<Level, string[]> = {
-  elementary_low: ["2개 선택", "예금만", "그림 피드백"],
-  elementary_mid: ["예산", "수입·지출", "쉬운 설명"],
-  elementary_high: ["매출·비용", "재고", "이유 설명"],
+  elementary_low: ["짧은 목표", "쉬운 말", "2개 선택"],
+  elementary_mid: ["예산", "수입과 지출", "간단한 이유"],
+  elementary_high: ["매출과 비용", "재고", "선택 근거"],
   middle: ["금리", "기회비용", "전략"],
-  high: ["현금·부채", "시장 분석", "근거 기록"],
+  high: ["현금과 부채", "시장 분석", "근거 기록"],
   adult: ["자본 배분", "복합 이벤트", "전체 기능"],
 };
 
@@ -58,11 +58,6 @@ export default function Home() {
     router.push(`/setup?level=${level}`);
   };
 
-  const startLearning = () => {
-    playSfx("click");
-    router.push("/learn");
-  };
-
   const continueGame = () => {
     playSfx("click");
     if (loadSave()) router.push("/play");
@@ -82,54 +77,38 @@ export default function Home() {
       />
 
       <div className="mx-auto max-w-6xl px-4 pb-12">
-        <section className="grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
-          <button
-            onClick={startLearning}
-            className="rounded-2xl bg-white p-5 text-left text-slate-900 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">🎒</span>
-              <div>
-                <div className="text-xl font-black">학습 캠페인</div>
-                <div className="text-sm text-slate-500">짧은 미션으로 혼자 배우기</div>
+        <section className="rounded-2xl bg-slate-900 p-5 ring-1 ring-slate-800">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">🏙️</span>
+            <div>
+              <div className="text-xl font-black">샌드박스 모드</div>
+              <div className="text-sm text-slate-400">
+                100분기 자유 경영 안에서 학습 안내를 함께 설정합니다.
               </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600">
-              초등 1~2학년용 첫 미션 3개가 열려 있어요. 가격, 수량, 저금을 고르며 별을 모읍니다.
-            </p>
-          </button>
-
-          <div className="rounded-2xl bg-slate-900 p-5 ring-1 ring-slate-800">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">🏙️</span>
-              <div>
-                <div className="text-xl font-black">샌드박스 모드</div>
-                <div className="text-sm text-slate-400">기존 100분기 자유 경영</div>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button onClick={startSandbox} className="btn-primary px-5 py-3">
-                새 게임 시작
-              </button>
-              <button onClick={continueGame} disabled={!hasSave} className="btn-ghost px-5 py-3">
-                이어서 하기
-              </button>
-              <button
-                onClick={() => {
-                  playSfx("click");
-                  setShowHelp(true);
-                }}
-                className="btn-ghost px-5 py-3"
-              >
-                게임 방법
-              </button>
-            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={startSandbox} className="btn-primary px-5 py-3">
+              새 게임 시작
+            </button>
+            <button onClick={continueGame} disabled={!hasSave} className="btn-ghost px-5 py-3">
+              이어서 하기
+            </button>
+            <button
+              onClick={() => {
+                playSfx("click");
+                setShowHelp(true);
+              }}
+              className="btn-ghost px-5 py-3"
+            >
+              게임 방법
+            </button>
           </div>
         </section>
 
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
-            샌드박스 난이도 선택
+            샌드박스 레벨 선택
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {LEVELS.map((item) => {
@@ -181,7 +160,7 @@ export default function Home() {
             <StatCell label="시작 자금" value={formatMoney(cfg.startingCash)} />
             <StatCell label="경쟁사" value={`${cfg.aiCount}개`} />
             <StatCell label="캠퍼스" value={`${cfg.mapSize}×${cfg.mapSize}`} />
-            <StatCell label="선택 깊이" value={`${cfg.maxChoices}개`} />
+            <StatCell label="선택 폭" value={`${cfg.maxChoices}개`} />
           </div>
         </section>
       </div>

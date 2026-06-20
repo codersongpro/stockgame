@@ -24,6 +24,7 @@ import { CampusStrip } from "@/components/CampusStrip";
 import { HelpModal } from "@/components/HelpModal";
 import { Tutorial } from "@/components/Tutorial";
 import { ExecutiveBriefing } from "@/components/ExecutiveBriefing";
+import { CampaignGoalCard } from "@/components/CampaignGoalCard";
 import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
@@ -222,6 +223,7 @@ export default function PlayPage() {
 
         {/* Sidebar */}
         <aside className="space-y-4">
+          <CampaignGoalCard game={game} />
           <Secretary game={game} />
           <CompanyStatusCard game={game} company={player} />
           <EconomyIndicators game={game} />
@@ -288,6 +290,7 @@ function ResultsPopup({
   const nwDelta = nw - prevNw;
   const rank = playerRank(game);
   const stock = game.stocks[player.id];
+  const campaign = game.campaign;
   const stockChange = stock
     ? ((stock.price - (stock.history[stock.history.length - 2] ?? stock.price)) /
         (stock.history[stock.history.length - 2] ?? stock.price)) *
@@ -341,6 +344,12 @@ function ResultsPopup({
 
         {/* Executive's quarterly briefing & advice */}
         <ExecutiveBriefing game={game} />
+
+        {campaign?.enabled && campaign.lastMessage && (
+          <div className="mx-5 mb-3 rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold leading-5 text-brand-700">
+            캠페인: {campaign.lastMessage}
+          </div>
+        )}
 
         {/* Results grid */}
         <div className="divide-y divide-slate-100 px-5">

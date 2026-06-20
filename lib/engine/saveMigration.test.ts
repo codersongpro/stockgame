@@ -54,4 +54,26 @@ describe("level save migration", () => {
     expect(migrateSavedGame({ level: "adult" })).toBeNull();
     expect(migrateSavedGame({ version: 1, level: "not-real", companies: [] })).toBeNull();
   });
+
+  it("drops malformed campaign progress while keeping the sandbox save", () => {
+    const game = createGame({
+      level: "elementary_low",
+      seed: 777,
+      playerCompanyName: "테스트 상점",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+
+    const migrated = migrateSavedGame({
+      ...game,
+      campaign: {
+        enabled: true,
+        activeMissionId: 123,
+      },
+    });
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.campaign).toBeUndefined();
+  });
 });

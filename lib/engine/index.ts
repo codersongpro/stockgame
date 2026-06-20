@@ -20,6 +20,7 @@ import { recordNetWorth } from "./ranking";
 import { getIndustryProducts } from "../data/products";
 import { GAME_VERSION } from "./version";
 import { normalizeLevel } from "./saveMigration";
+import { createCampaignProgress } from "./campaign";
 
 export { GAME_VERSION } from "./version";
 export const DEFAULT_MAX_TURNS = 100;
@@ -34,6 +35,7 @@ export interface NewGameOptions {
   basedOn?: string; // preset id
   maxTurns?: number;
   mapSize?: number; // override level default (5=small, 8=medium, 12=large)
+  campaignEnabled?: boolean;
 }
 
 let companyCounter = 0;
@@ -249,6 +251,7 @@ export function createGame(opts: NewGameOptions): GameState {
     talentPool: buildTalentPool(rng, 8),
     relations: createRelations(companies),
     news: [],
+    campaign: opts.campaignEnabled ? createCampaignProgress(level) : undefined,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -271,6 +274,13 @@ export {
 } from "./market";
 export { LEVEL_CONFIGS, getLevelConfig } from "./levels";
 export { migrateSavedGame, normalizeLevel } from "./saveMigration";
+export {
+  advanceCampaign,
+  createCampaignProgress,
+  evaluateCampaignAfterTurn,
+  evaluateCampaignBeforeTurn,
+  getActiveCampaignMission,
+} from "./campaign";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";
 export { BUILDINGS, BUILDING_LIST, buildingCostFor } from "./buildings";

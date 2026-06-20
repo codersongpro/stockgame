@@ -45,6 +45,7 @@ function SetupInner() {
   const [basedOn, setBasedOn] = useState<string | undefined>(undefined);
   const [filterCountry, setFilterCountry] = useState<string>("all");
   const [campusSize, setCampusSize] = useState<"small" | "medium" | "large">("medium");
+  const [campaignEnabled, setCampaignEnabled] = useState(true);
 
   const filteredPresets = useMemo(
     () => COMPANY_PRESETS.filter((p) => filterCountry === "all" || p.countryId === filterCountry),
@@ -76,6 +77,7 @@ function SetupInner() {
       logoColor: color,
       basedOn: tab === "preset" ? basedOn : undefined,
       mapSize: CAMPUS_SIZE_MAP[campusSize],
+      campaignEnabled,
     });
     router.push("/play");
   };
@@ -367,6 +369,39 @@ function SetupInner() {
                 <SummaryRow label="캠퍼스 크기" value={`${CAMPUS_SIZE_MAP[campusSize]}×${CAMPUS_SIZE_MAP[campusSize]} (${campusSize === "small" ? "작게" : campusSize === "medium" ? "중간" : "크게"})`} />
                 <SummaryRow label="시작 자금" value={formatMoney(levelCfg.startingCash)} />
                 <SummaryRow label="난이도" value={`${levelEmoji[level]} ${levelCfg.label}`} />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCampaignEnabled(!campaignEnabled);
+                  playSfx("click");
+                }}
+                className={`mt-4 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left ring-2 transition ${
+                  campaignEnabled
+                    ? "bg-brand-50 text-brand-700 ring-brand-200"
+                    : "bg-slate-50 text-slate-600 ring-slate-200"
+                }`}
+              >
+                <span>
+                  <span className="block text-sm font-black">학습 안내 켜기</span>
+                  <span className="mt-0.5 block text-xs opacity-75">
+                    실제 샌드박스 플레이 안에서 목표와 힌트를 함께 보여줍니다.
+                  </span>
+                </span>
+                <span
+                  className={`relative h-6 w-11 rounded-full transition ${
+                    campaignEnabled ? "bg-brand-500" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+                      campaignEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </span>
+              </button>
+              <div className="mt-3">
+                <SummaryRow label="학습 안내" value={campaignEnabled ? "켜짐" : "꺼짐"} />
               </div>
               <div className="mt-4 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">
                 💡 <b>팁:</b> 처음에는 기본 상품(p1)만 판매하고 R&D에 투자해 품질을 높이면 더 비싼 상품을 판매할 수 있습니다!
