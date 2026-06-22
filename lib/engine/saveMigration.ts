@@ -4,6 +4,8 @@ import type { CampaignProgress, GameState, Level } from "./types";
 import { GAME_VERSION } from "./version";
 import { createCityState } from "./city";
 import { createStrategyState } from "./strategy";
+import { createActionPointState, createPlayerCardState } from "./cards";
+import { createPriceWarRivalState } from "./rivals";
 
 type LegacyLevel = Level | "elementary" | "university";
 
@@ -41,6 +43,15 @@ export function migrateSavedGame(value: unknown): GameState | null {
   migrated.city = createCityState(level, player);
   migrated.strategy = migrateStrategyState(value.strategy, migrated);
   migrated.campaign = migrateCampaignProgress(value.campaign);
+  if (migrated.campaign?.enabled) {
+    migrated.actionPoints = migrateActionPoints(value.actionPoints, level);
+    migrated.cards = migrateCards(value.cards, level);
+    migrated.rival = migrateRivalState(value.rival, level);
+  } else {
+    migrated.actionPoints = undefined;
+    migrated.cards = undefined;
+    migrated.rival = undefined;
+  }
   migrated.version = GAME_VERSION;
   migrated.updatedAt = Date.now();
   return migrated;
@@ -99,9 +110,71 @@ function migrateStrategyState(value: unknown, game: GameState): GameState["strat
   };
 }
 
+function migrateActionPoints(value: unknown, level: Level): GameState["actionPoints"] {
+  const fallback = createActionPointState(level);
+  if (!isRecord(value)) return fallback;
+  if (typeof value.current !== "number" || typeof value.max !== "number") return fallback;
+  return {
+    current: Math.max(0, Math.min(value.current, value.max)),
+    max: Math.max(1, value.max),
+    freeActionsUsed: typeof value.freeActionsUsed === "number" ? Math.max(0, value.freeActionsUsed) : 0,
+  };
+}
+
+function migrateCards(value: unknown, level: Level): GameState["cards"] {
+  const fallback = createPlayerCardState(level);
+  if (!isRecord(value)) return fallback;
+  if (!Array.isArray(value.unlockedCardIds)
+    || !Array.isArray(value.deckCardIds)
+    || !Array.isArray(value.handCardIds)
+    || !Array.isArray(value.discardCardIds)
+    || !isStringNumberRecord(value.cooldowns)) {
+    return fallback;
+  }
+  return {
+    unlockedCardIds: value.unlockedCardIds.filter(isString),
+    deckCardIds: value.deckCardIds.filter(isString),
+    handCardIds: value.handCardIds.filter(isString),
+    discardCardIds: value.discardCardIds.filter(isString),
+    cooldowns: value.cooldowns,
+    playedThisTurn: Array.isArray(value.playedThisTurn) ? value.playedThisTurn.filter(isString) : [],
+  };
+}
+
+function migrateRivalState(value: unknown, level: Level): GameState["rival"] {
+  const fallback = createPriceWarRivalState(level);
+  if (!isRecord(value)) return fallback;
+  if (value.schemaVersion !== 1) return fallback;
+  if (typeof value.activeRivalId !== "string") return fallback;
+  if (typeof value.chapterId !== "string") return fallback;
+  if (value.status !== "active" && value.status !== "won" && value.status !== "lost") return fallback;
+  if (typeof value.turnInChapter !== "number" || typeof value.turnsTotal !== "number") return fallback;
+  if (typeof value.playerMarketShare !== "number" || typeof value.rivalMarketShare !== "number") return fallback;
+  if (!Array.isArray(value.specialMovesUsed)) return fallback;
+  return {
+    schemaVersion: 1,
+    activeRivalId: value.activeRivalId,
+    chapterId: value.chapterId,
+    status: value.status,
+    turnInChapter: Math.max(0, value.turnInChapter),
+    turnsTotal: Math.max(1, value.turnsTotal),
+    playerMarketShare: Math.max(0, Math.min(100, value.playerMarketShare)),
+    rivalMarketShare: Math.max(0, Math.min(100, value.rivalMarketShare)),
+    specialMovesUsed: value.specialMovesUsed.filter(isString),
+    currentTaunt: typeof value.currentTaunt === "string" ? value.currentTaunt : fallback.currentTaunt,
+    objectiveStates: Array.isArray(value.objectiveStates)
+      ? value.objectiveStates.filter(isRivalObjectiveState)
+      : [],
+  };
+}
+
 function isStringNumberRecord(value: unknown): value is Record<string, number> {
   if (!isRecord(value)) return false;
   return Object.values(value).every((item) => typeof item === "number" && Number.isFinite(item));
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
 }
 
 function isCampaignObjectiveState(value: unknown): value is {
@@ -112,6 +185,15 @@ function isCampaignObjectiveState(value: unknown): value is {
 } {
   return isRecord(value)
     && typeof value.objectiveId === "string"
+    && typeof value.passed === "boolean"
+    && typeof value.current === "number"
+    && typeof value.target === "number";
+}
+
+function isRivalObjectiveState(value: unknown): value is NonNullable<GameState["rival"]>["objectiveStates"][number] {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && typeof value.label === "string"
     && typeof value.passed === "boolean"
     && typeof value.current === "number"
     && typeof value.target === "number";

@@ -7,6 +7,7 @@ import {
   createGame,
   evaluateCampaignAfterTurn,
   evaluateCampaignBeforeTurn,
+  executeActionCard,
   migrateSavedGame,
   recordCampaignAction,
   type AssetClass,
@@ -78,6 +79,7 @@ interface GameStore {
   loan: (amount: number, side: "borrow" | "repay") => void;
   setProductPrice: (index: number, price: number) => void;
   toggleProduct: (index: number) => void;
+  playActionCard: (cardId: string) => void;
   dismissToast: () => void;
 }
 
@@ -368,6 +370,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     applyImmediateCampaign(game);
     persist(game);
     set({ game: { ...game } });
+  },
+
+  playActionCard: (cardId) => {
+    const game = get().game;
+    if (!game) return;
+    const result = executeActionCard(game, cardId);
+    if (!result.ok) return showToast(set, result.error ?? "카드를 사용할 수 없습니다.", "bad");
+    applyImmediateCampaign(game);
+    playSfx("click");
+    persist(game);
+    set({ game: { ...game }, toast: { text: result.message ?? "카드 실행 완료", tone: "good" } });
   },
 
   dismissToast: () => set({ toast: null }),

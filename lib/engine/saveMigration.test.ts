@@ -100,4 +100,25 @@ describe("level save migration", () => {
     expect(migrated).not.toBeNull();
     expect(migrated?.campaign).toBeUndefined();
   });
+
+  it("keeps campaign rival progress inside the saved game", () => {
+    const game = createGame({
+      level: "elementary_mid",
+      seed: 779,
+      playerCompanyName: "Test Shop",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+    game.rival!.turnInChapter = 3;
+    game.rival!.playerMarketShare = 42;
+    game.rival!.specialMovesUsed = ["price-cut-2"];
+
+    const migrated = migrateSavedGame(game);
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.rival?.turnInChapter).toBe(3);
+    expect(migrated?.rival?.playerMarketShare).toBe(42);
+    expect(migrated?.rival?.specialMovesUsed).toEqual(["price-cut-2"]);
+  });
 });

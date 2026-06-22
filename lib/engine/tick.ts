@@ -12,6 +12,8 @@ import { recordNetWorth } from "./ranking";
 import { topUpTalentPool } from "./characters";
 import { cityTurnEffects, updateCityState } from "./city";
 import { updateStrategyState } from "./strategy";
+import { refreshActionCardsForTurn } from "./cards";
+import { advanceRivalTurn } from "./rivals";
 
 export interface TurnSummary {
   turn: number;
@@ -119,6 +121,8 @@ export function advanceTurn(state: GameState): TurnSummary {
 
   // 8) Advance the clock.
   state.turn += 1;
+  advanceRivalTurn(state, playerResult);
+  refreshActionCardsForTurn(state);
   if (state.turn >= state.maxTurns) state.status = "ended";
   state.updatedAt = Date.now();
 

@@ -346,6 +346,7 @@ export interface CityState {
 
 export type StrategyActionType =
   | "decision"
+  | "card_play"
   | "build"
   | "upgrade"
   | "demolish"
@@ -394,6 +395,113 @@ export interface StrategyState {
   actionLog: StrategyAction[];
   majorEvents: StrategyEvent[];
   rivalryPressureByCompanyId: Record<string, number>;
+}
+
+// ---------------------------------------------------------------------------
+// Campaign action cards
+// ---------------------------------------------------------------------------
+
+export interface ActionPointState {
+  current: number;
+  max: number;
+  freeActionsUsed: number;
+}
+
+export type ActionCardCategory =
+  | "production"
+  | "pricing"
+  | "marketing"
+  | "rnd"
+  | "people"
+  | "finance"
+  | "ethics";
+
+export type CardRarity = "common" | "rare" | "epic" | "legendary";
+
+export type CardEffectKind =
+  | "production_target_delta"
+  | "product_price_multiplier"
+  | "inventory_delta"
+  | "quality_delta"
+  | "reputation_delta"
+  | "morale_delta"
+  | "cash_delta"
+  | "debt_delta"
+  | "loyalty_delta";
+
+export interface CardEffect {
+  kind: CardEffectKind;
+  value: number;
+  productIndex?: number;
+}
+
+export interface ActionCardDefinition {
+  id: string;
+  name: string;
+  emoji: string;
+  category: ActionCardCategory;
+  rarity: CardRarity;
+  description: string;
+  simpleDescription: string;
+  actionPointCost: number;
+  cashCost?: number;
+  cooldownTurns?: number;
+  levelMin: Level;
+  tags: string[];
+  effects: CardEffect[];
+}
+
+export interface PlayerCardState {
+  unlockedCardIds: string[];
+  deckCardIds: string[];
+  handCardIds: string[];
+  discardCardIds: string[];
+  cooldowns: Record<string, number>;
+  playedThisTurn: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Campaign rivals
+// ---------------------------------------------------------------------------
+
+export type RivalArchetype = "price_destroyer";
+
+export interface RivalDefinition {
+  id: string;
+  name: string;
+  title: string;
+  emoji: string;
+  archetype: RivalArchetype;
+  chapterId: string;
+  chapterTitle: string;
+  intro: string;
+  taunts: string[];
+  victoryText: string;
+  defeatText: string;
+}
+
+export type RivalChapterStatus = "active" | "won" | "lost";
+
+export interface RivalObjectiveState {
+  id: string;
+  label: string;
+  passed: boolean;
+  current: number;
+  target: number;
+}
+
+export interface RivalState {
+  schemaVersion: number;
+  activeRivalId: string;
+  chapterId: string;
+  status: RivalChapterStatus;
+  turnInChapter: number;
+  turnsTotal: number;
+  playerMarketShare: number;
+  rivalMarketShare: number;
+  specialMovesUsed: string[];
+  currentTaunt: string;
+  objectiveStates: RivalObjectiveState[];
 }
 
 // ---------------------------------------------------------------------------
@@ -556,6 +664,9 @@ export interface GameState {
   news: NewsItem[];
   city: CityState;
   strategy: StrategyState;
+  actionPoints?: ActionPointState;
+  cards?: PlayerCardState;
+  rival?: RivalState;
   campaign?: CampaignProgress;
 
   createdAt: number;
