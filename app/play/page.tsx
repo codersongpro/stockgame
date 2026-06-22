@@ -325,13 +325,13 @@ function ResultsPopup({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="card w-full max-w-sm animate-popin overflow-hidden"
+        className="card flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm animate-popin flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with banner */}
-        <div className="relative overflow-hidden">
+        <div className="relative shrink-0 overflow-hidden">
           <img src={BANNER_IMGS.report} alt="" className="w-full object-cover" style={{ maxHeight: 110 }} />
           <div className="absolute inset-0 flex items-end bg-black/30 px-5 pb-3">
             <div className="text-white drop-shadow">
@@ -344,6 +344,7 @@ function ResultsPopup({
           </div>
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-thin">
         {/* Executive's quarterly briefing & advice */}
         <ExecutiveBriefing game={game} />
 
@@ -373,7 +374,9 @@ function ResultsPopup({
           ))}
         </div>
 
-        <div className="px-5 pb-5 pt-2">
+        </div>
+
+        <div className="shrink-0 border-t border-slate-100 bg-white px-5 pb-4 pt-3">
           <button
             className="btn-primary w-full"
             onClick={onClose}
