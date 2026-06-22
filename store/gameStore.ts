@@ -8,6 +8,7 @@ import {
   evaluateCampaignAfterTurn,
   evaluateCampaignBeforeTurn,
   migrateSavedGame,
+  recordCampaignAction,
   type AssetClass,
   type BuildingType,
   type CompanyDecisions,
@@ -93,6 +94,11 @@ function persist(game: GameState): void {
   }
 }
 
+function applyImmediateCampaign(game: GameState): void {
+  const evaluation = evaluateCampaignBeforeTurn(game);
+  if (evaluation) advanceCampaign(game, evaluation);
+}
+
 function backupLegacySave(raw: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -164,6 +170,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const game = get().game;
     if (!game) return;
     Object.assign(player(game).decisions, partial);
+    for (const [targetId, value] of Object.entries(partial)) {
+      if (typeof value === "number") {
+        recordCampaignAction(game, { type: "decision", area: "company", targetId, value });
+      }
+    }
+    applyImmediateCampaign(game);
     persist(game);
     set({ game: { ...game } });
   },
@@ -176,6 +188,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!cell) return showToast(set, "빈 칸이 없습니다.", "bad");
     const res = buildBuilding(game, p, type, cell.x, cell.y);
     if (!res.ok) return showToast(set, res.error ?? "건설 실패", "bad");
+    recordCampaignAction(game, { type: "build", area: "city", targetId: type });
+    applyImmediateCampaign(game);
     playSfx("build");
     persist(game);
     set({ game: { ...game }, toast: { text: "건설 완료!", tone: "good" } });
@@ -186,6 +200,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = upgradeBuilding(game, player(game), buildingId);
     if (!res.ok) return showToast(set, res.error ?? "업그레이드 실패", "bad");
+    recordCampaignAction(game, { type: "upgrade", area: "city", targetId: buildingId });
+    applyImmediateCampaign(game);
     playSfx("build");
     persist(game);
     set({ game: { ...game }, toast: { text: "업그레이드 완료!", tone: "good" } });
@@ -196,6 +212,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = sellBuilding(game, player(game), buildingId);
     if (!res.ok) return showToast(set, res.error ?? "매각 실패", "bad");
+    recordCampaignAction(game, { type: "demolish", area: "city", targetId: buildingId });
+    applyImmediateCampaign(game);
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: `건물 매각 · +${formatMoney(res.refund ?? 0)} 환급`, tone: "good" } });
@@ -206,6 +224,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = applyCompanyAction(game, player(game), actionId);
     if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
+    recordCampaignAction(game, { type: "company_action", area: "strategy", targetId: actionId });
+    applyImmediateCampaign(game);
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: res.message ?? "실행 완료!", tone: "good" } });
@@ -216,6 +236,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = proposeDeal(game, player(game), targetCompanyId, dealId);
     if (!res.ok) return showToast(set, res.error ?? "제안 실패", "bad");
+    recordCampaignAction(game, { type: "deal", area: "strategy", targetId: dealId });
+    applyImmediateCampaign(game);
     const succeeded = !res.message?.includes("결렬");
     playSfx(succeeded ? "hire" : "click");
     persist(game);
@@ -227,6 +249,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = hireCharacter(game, player(game), characterId, overrideSalary, loyaltyBonus);
     if (!res.ok) return showToast(set, res.error ?? "영입 실패", "bad");
+    recordCampaignAction(game, { type: "hire", area: "talent", targetId: characterId });
+    applyImmediateCampaign(game);
     playSfx("hire");
     persist(game);
     const msg = overrideSalary ? "⭐ 전설 인재 계약 체결!" : "인재 영입 성공!";
@@ -238,6 +262,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = fireCharacter(game, player(game), characterId);
     if (!res.ok) return showToast(set, res.error ?? "해고 실패", "bad");
+    recordCampaignAction(game, { type: "fire", area: "talent", targetId: characterId });
+    applyImmediateCampaign(game);
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: "해고 처리 완료", tone: "info" } });
@@ -248,6 +274,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = poachCharacter(game, player(game), targetCompanyId, characterId, overrideSalary, loyaltyBonus);
     if (!res.ok) return showToast(set, res.error ?? "스카우트 실패", "bad");
+    recordCampaignAction(game, { type: "poach", area: "talent", targetId: characterId });
+    applyImmediateCampaign(game);
     playSfx("hire");
     persist(game);
     set({ game: { ...game }, toast: { text: res.message ?? "스카우트 성공!", tone: "good" } });
@@ -258,6 +286,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return;
     const res = raiseSalary(player(game), characterId, newSalary, miniGameBonus);
     if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
+    recordCampaignAction(game, { type: "salary", area: "talent", targetId: characterId, value: newSalary });
+    applyImmediateCampaign(game);
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: res.message ?? "연봉 인상 완료!", tone: "good" } });
@@ -270,6 +300,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const res =
       side === "buy" ? buyStock(game, p, companyId, shares) : sellStock(game, p, companyId, shares);
     if (!res.ok) { showToast(set, res.error ?? "거래 실패", "bad"); return false; }
+    recordCampaignAction(game, { type: "stock_trade", area: "market", targetId: companyId, value: shares });
+    applyImmediateCampaign(game);
     playSfx(side === "buy" ? "buy" : "sell");
     // Spread companies array so every subscriber sees new references for the mutated player.
     const companies = game.companies.map((c) => (c.id === p.id ? { ...p, portfolio: { ...p.portfolio, stocks: { ...p.portfolio.stocks }, stockCost: { ...p.portfolio.stockCost } } } : c));
@@ -291,6 +323,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const res =
       side === "buy" ? buyAsset(game, p, assetClass, units) : sellAsset(game, p, assetClass, units);
     if (!res.ok) { showToast(set, res.error ?? "거래 실패", "bad"); return false; }
+    recordCampaignAction(game, { type: "asset_trade", area: "market", targetId: assetClass, value: units });
+    applyImmediateCampaign(game);
     playSfx(side === "buy" ? "buy" : "sell");
     const companies = game.companies.map((c) => (c.id === p.id ? { ...p, portfolio: { ...p.portfolio, assets: { ...p.portfolio.assets } } } : c));
     const updated = { ...game, companies };
@@ -305,6 +339,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p = player(game);
     const res = side === "borrow" ? takeLoan(p, amount) : repayLoan(p, amount);
     if (!res.ok) return showToast(set, res.error ?? "실패", "bad");
+    recordCampaignAction(game, { type: "loan", area: "market", targetId: side, value: amount });
+    applyImmediateCampaign(game);
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: side === "borrow" ? "대출 실행" : "상환 완료", tone: "good" } });
@@ -316,6 +352,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p = player(game);
     if (!p.productPrices) p.productPrices = [];
     p.productPrices[index] = Math.max(0, price);
+    recordCampaignAction(game, { type: "product_price", area: "company", targetId: String(index), value: price });
+    applyImmediateCampaign(game);
     persist(game);
     set({ game: { ...game } });
   },
@@ -326,6 +364,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p = player(game);
     if (!p.productEnabled) p.productEnabled = [true, false, false, false];
     p.productEnabled = p.productEnabled.map((v, i) => (i === index ? !v : v));
+    recordCampaignAction(game, { type: "product_toggle", area: "company", targetId: String(index) });
+    applyImmediateCampaign(game);
     persist(game);
     set({ game: { ...game } });
   },

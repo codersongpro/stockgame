@@ -25,6 +25,7 @@ import { HelpModal } from "@/components/HelpModal";
 import { Tutorial } from "@/components/Tutorial";
 import { ExecutiveBriefing } from "@/components/ExecutiveBriefing";
 import { CampaignGoalCard } from "@/components/CampaignGoalCard";
+import { CityStrategyPanel } from "@/components/CityStrategyPanel";
 import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
@@ -224,6 +225,7 @@ export default function PlayPage() {
         {/* Sidebar */}
         <aside className="space-y-4">
           <CampaignGoalCard game={game} />
+          <CityStrategyPanel game={game} />
           <Secretary game={game} />
           <CompanyStatusCard game={game} company={player} />
           <EconomyIndicators game={game} />

@@ -12,9 +12,19 @@ export function CampaignGoalCard({ game }: { game: GameState }) {
 
   return (
     <section className="card p-4">
-      <div className="text-xs font-bold uppercase tracking-wide text-brand-600">현재 캠페인 목표</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-brand-600">
+        현재 캠페인 목표
+      </div>
       <div className="mt-1 text-base font-black text-slate-800">{mission.title}</div>
       <p className="mt-2 text-sm leading-5 text-slate-600">{mission.summary}</p>
+
+      <div className="mt-3 rounded-lg bg-white px-3 py-2 text-xs leading-5 ring-1 ring-brand-100">
+        <div className="font-bold text-brand-700">해야 할 일</div>
+        <div className="text-slate-700">{mission.targetAction}</div>
+        <div className="mt-1 text-slate-500">
+          {mission.timing === "before_turn" ? "조작하면 바로 확인" : "다음 분기 후 확인"}
+        </div>
+      </div>
 
       <div className="mt-3 space-y-2">
         {mission.objectives.map((objective) => {
@@ -37,7 +47,7 @@ export function CampaignGoalCard({ game }: { game: GameState }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-        <span>다음 분기 후 확인</span>
+        <span>{mission.concept}</span>
         <span>
           {attempts > 0 ? `${attempts}회 시도` : "첫 시도"} · {"★".repeat(stars)}
         </span>

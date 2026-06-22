@@ -28,6 +28,15 @@ export interface CompanyTurnResult {
   quitCount: number;
 }
 
+export interface CompanyTurnEffects {
+  productionBonus?: number;
+  qualityBonus?: number;
+  commerceBonus?: number;
+  moraleBonus?: number;
+  safetyBonus?: number;
+  financeBonus?: number;
+}
+
 export function defaultDecisions(industry: IndustryDef): CompanyDecisions {
   return {
     price: industry.basePrice,
@@ -128,6 +137,7 @@ export function runCompanyTurn(
   config: LevelConfig,
   rng: RngState,
   marketPressure?: number,
+  effects: CompanyTurnEffects = {},
 ): CompanyTurnResult {
   const industry = getIndustry(company.industryId);
   const country = getCountry(company.countryId);
@@ -140,8 +150,11 @@ export function runCompanyTurn(
   const d = company.decisions;
 
   // --- Production ---
-  const capacity = BASE_CAPACITY + caps.productionCapacity;
-  const efficiency = Math.min(0.6, caps.productionEfficiency + bonuses.productionEfficiency);
+  const capacity = Math.round((BASE_CAPACITY + caps.productionCapacity) * (1 + (effects.productionBonus ?? 0)));
+  const efficiency = Math.min(
+    0.6,
+    caps.productionEfficiency + bonuses.productionEfficiency + (effects.productionBonus ?? 0) * 0.4,
+  );
   const unitCost = industry.unitCost * country.laborCost * (1 - efficiency);
 
   const wantToProduce = Math.max(0, Math.min(d.productionTarget, capacity));
@@ -226,7 +239,7 @@ export function runCompanyTurn(
     const sold = Math.min(productInventory[i], productDemand);
     productInventory[i] -= sold;
 
-    revenue += sold * (perFinalPrice[i] ?? 0);
+    revenue += sold * (perFinalPrice[i] ?? 0) * (1 + (effects.commerceBonus ?? 0));
     unitsSold += sold;
   }
 
@@ -238,7 +251,7 @@ export function runCompanyTurn(
   const upkeep = totalUpkeep(company.buildings);
   const salaries = totalSalary(company);
   const interest = (company.debt * (macro.interestRate / 100)) / 4 * bonuses.financeCostMult;
-  const fixedCosts = upkeep + salaries + interest;
+  const fixedCosts = (upkeep + salaries + interest) * (1 - (effects.financeBonus ?? 0));
   const welfareBudget = Math.max(0, d.welfareBudget ?? 0);
   const safetyBudget = Math.max(0, d.safetyBudget ?? 0);
   const grossProfit =
@@ -254,12 +267,12 @@ export function runCompanyTurn(
 
   // --- Stat updates ---
   const rndPower = caps.rndPower + bonuses.rndPower + Math.sqrt(Math.max(0, d.rndBudget) / 3000);
-  const qualityGain = rndPower * 0.15 * (0.5 + industry.rndDependence) - 0.5;
+  const qualityGain = rndPower * 0.15 * (0.5 + industry.rndDependence) - 0.5 + (effects.qualityBonus ?? 0) * 3;
   company.quality = clamp(company.quality + qualityGain, 0, 100);
 
   // Morale decays toward 40 without investment; welfare + buildings lift it.
   // Losses push the target down 8 extra points so bad quarters feel painful.
-  const moraleBase = 40 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000);
+  const moraleBase = 40 + caps.morale + bonuses.moraleAdd + Math.min(25, welfareBudget / 4000) + (effects.moraleBonus ?? 0) * 20;
   const moraleTarget = profit > 0 ? moraleBase : moraleBase - 8;
   company.morale = clamp(company.morale + (moraleTarget - company.morale) * 0.25 - 0.8, 0, 100);
 
@@ -269,7 +282,7 @@ export function runCompanyTurn(
   company.reputation = clamp(company.reputation + repDrift, 0, 100);
 
   // Safety decays ~0.6/quarter; safety budget and morale fight the decay.
-  const safetyBase = 35 + company.morale * 0.15 + bonuses.safetyAdd +
+  const safetyBase = 35 + company.morale * 0.15 + bonuses.safetyAdd + (effects.safetyBonus ?? 0) * 20 +
     Math.min(20, d.rndBudget / 4000) + Math.min(25, safetyBudget / 3500);
   company.safety = clamp(company.safety + (safetyBase - company.safety) * 0.2 - 0.6, 0, 100);
 

@@ -2,6 +2,8 @@ import { getLevelConfig } from "./levels";
 import { getCampaignMission } from "../data/learning/campaigns";
 import type { CampaignProgress, GameState, Level } from "./types";
 import { GAME_VERSION } from "./version";
+import { createCityState } from "./city";
+import { createStrategyState } from "./strategy";
 
 type LegacyLevel = Level | "elementary" | "university";
 
@@ -35,6 +37,9 @@ export function migrateSavedGame(value: unknown): GameState | null {
   const migrated = value as unknown as GameState;
   migrated.level = level;
   migrated.config = getLevelConfig(level);
+  const player = migrated.companies.find((company) => company.id === migrated.playerCompanyId);
+  migrated.city = createCityState(level, player);
+  migrated.strategy = migrateStrategyState(value.strategy, migrated);
   migrated.campaign = migrateCampaignProgress(value.campaign);
   migrated.version = GAME_VERSION;
   migrated.updatedAt = Date.now();
@@ -48,6 +53,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function migrateCampaignProgress(value: unknown): CampaignProgress | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) return undefined;
+  if (value.schemaVersion !== 2) return undefined;
   if (value.enabled !== true) return undefined;
   if (typeof value.activeMissionId !== "string") return undefined;
   if (!getCampaignMission(value.activeMissionId)) return undefined;
@@ -58,6 +64,7 @@ function migrateCampaignProgress(value: unknown): CampaignProgress | undefined {
   if (!Array.isArray(value.currentObjectiveState)) return undefined;
 
   return {
+    schemaVersion: 2,
     enabled: true,
     activeMissionId: value.activeMissionId,
     completedMissionIds: value.completedMissionIds.filter((item): item is string => typeof item === "string"),
@@ -73,6 +80,22 @@ function migrateCampaignProgress(value: unknown): CampaignProgress | undefined {
         target: state.target,
       })),
     lastMessage: typeof value.lastMessage === "string" ? value.lastMessage : undefined,
+  };
+}
+
+function migrateStrategyState(value: unknown, game: GameState): GameState["strategy"] {
+  const fallback = createStrategyState(game);
+  if (!isRecord(value)) return fallback;
+  const actionLog = Array.isArray(value.actionLog)
+    ? value.actionLog.filter(isStrategyAction).slice(-40)
+    : [];
+  const majorEvents = Array.isArray(value.majorEvents)
+    ? value.majorEvents.filter(isStrategyEvent).slice(-6)
+    : [];
+  return {
+    ...fallback,
+    actionLog,
+    majorEvents,
   };
 }
 
@@ -92,4 +115,27 @@ function isCampaignObjectiveState(value: unknown): value is {
     && typeof value.passed === "boolean"
     && typeof value.current === "number"
     && typeof value.target === "number";
+}
+
+function isStrategyAction(value: unknown): value is GameState["strategy"]["actionLog"][number] {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && typeof value.turn === "number"
+    && typeof value.type === "string"
+    && typeof value.area === "string"
+    && (value.targetId === undefined || typeof value.targetId === "string")
+    && (value.value === undefined || typeof value.value === "number");
+}
+
+function isStrategyEvent(value: unknown): value is GameState["strategy"]["majorEvents"][number] {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && typeof value.kind === "string"
+    && typeof value.title === "string"
+    && typeof value.body === "string"
+    && value.severity === "major"
+    && (value.status === "active" || value.status === "resolved")
+    && typeof value.createdTurn === "number"
+    && typeof value.expiresTurn === "number"
+    && Array.isArray(value.responseActionTypes);
 }

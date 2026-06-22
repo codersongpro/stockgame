@@ -317,6 +317,86 @@ export interface RelationState {
 }
 
 // ---------------------------------------------------------------------------
+// City and strategy layers
+// ---------------------------------------------------------------------------
+
+export type CityDistrictId =
+  | "production"
+  | "research"
+  | "commerce"
+  | "welfare"
+  | "logistics"
+  | "finance";
+
+export interface CityDistrictState {
+  id: CityDistrictId;
+  label: string;
+  unlocked: boolean;
+  level: number;
+  buildingCount: number;
+  synergy: number;
+  bonus: number;
+}
+
+export interface CityState {
+  unlockedDistrictIds: CityDistrictId[];
+  districts: Record<CityDistrictId, CityDistrictState>;
+  satisfaction: number;
+}
+
+export type StrategyActionType =
+  | "decision"
+  | "build"
+  | "upgrade"
+  | "demolish"
+  | "company_action"
+  | "deal"
+  | "hire"
+  | "fire"
+  | "poach"
+  | "salary"
+  | "stock_trade"
+  | "asset_trade"
+  | "loan"
+  | "product_price"
+  | "product_toggle";
+
+export interface StrategyAction {
+  id: string;
+  turn: number;
+  type: StrategyActionType;
+  area: "company" | "city" | "talent" | "strategy" | "market";
+  targetId?: string;
+  value?: number;
+}
+
+export type StrategyEventKind =
+  | "rival_price_pressure"
+  | "talent_poach"
+  | "supply_problem"
+  | "customer_complaint"
+  | "investor_visit";
+
+export interface StrategyEvent {
+  id: string;
+  kind: StrategyEventKind;
+  title: string;
+  body: string;
+  severity: "notice" | "major";
+  status: "active" | "resolved";
+  rivalCompanyId?: string;
+  createdTurn: number;
+  expiresTurn: number;
+  responseActionTypes: StrategyActionType[];
+}
+
+export interface StrategyState {
+  actionLog: StrategyAction[];
+  majorEvents: StrategyEvent[];
+  rivalryPressureByCompanyId: Record<string, number>;
+}
+
+// ---------------------------------------------------------------------------
 // Level configuration (difficulty presets)
 // ---------------------------------------------------------------------------
 
@@ -350,25 +430,71 @@ export interface LevelConfig {
 export type CampaignEvaluationTiming = "before_turn" | "after_turn";
 
 export type CampaignObjectiveKind =
-  | "production_at_most"
-  | "cash_at_least"
-  | "profit_at_least"
-  | "quality_at_least"
-  | "reputation_at_least";
+  | "decision_at_most"
+  | "decision_at_least"
+  | "product_price_between"
+  | "company_metric_at_least"
+  | "company_metric_at_most"
+  | "turn_metric_at_least"
+  | "turn_metric_at_most"
+  | "building_count_at_least"
+  | "district_level_at_least"
+  | "district_synergy_at_least"
+  | "hired_count_at_least"
+  | "role_assigned"
+  | "action_recorded"
+  | "relationship_at_most"
+  | "portfolio_value_at_least";
+
+export type CampaignCompanyMetric =
+  | "cash"
+  | "debt"
+  | "inventory"
+  | "quality"
+  | "reputation"
+  | "morale"
+  | "safety";
+
+export type CampaignDecisionMetric =
+  | "price"
+  | "productionTarget"
+  | "marketingBudget"
+  | "rndBudget"
+  | "welfareBudget"
+  | "safetyBudget";
+
+export type CampaignTurnMetric =
+  | "revenue"
+  | "unitsSold"
+  | "unitsProduced"
+  | "profit"
+  | "quitCount";
 
 export interface CampaignObjective {
   id: string;
   label: string;
   kind: CampaignObjectiveKind;
   target: number;
+  min?: number;
+  max?: number;
+  metric?: CampaignCompanyMetric | CampaignDecisionMetric | CampaignTurnMetric;
+  productIndex?: number;
+  buildingType?: BuildingType;
+  districtId?: CityDistrictId;
+  role?: CharacterRole;
+  actionType?: StrategyActionType;
+  targetId?: string;
 }
 
 export interface CampaignMission {
   id: string;
   level: Level;
+  levelBand: Level;
   title: string;
   summary: string;
   concept: string;
+  targetAction: string;
+  targetArea: "company" | "city" | "talent" | "strategy" | "market";
   timing: CampaignEvaluationTiming;
   objectives: CampaignObjective[];
   hint: string;
@@ -393,6 +519,7 @@ export interface CampaignEvaluation {
 }
 
 export interface CampaignProgress {
+  schemaVersion: number;
   enabled: boolean;
   activeMissionId: string;
   completedMissionIds: string[];
@@ -427,6 +554,8 @@ export interface GameState {
 
   relations: RelationState;
   news: NewsItem[];
+  city: CityState;
+  strategy: StrategyState;
   campaign?: CampaignProgress;
 
   createdAt: number;

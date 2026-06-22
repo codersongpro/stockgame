@@ -47,6 +47,8 @@ describe("level save migration", () => {
     expect(migrated?.level).toBe("elementary_high");
     expect(migrated?.config.level).toBe("elementary_high");
     expect(migrated?.config).toEqual(LEVEL_CONFIGS.elementary_high);
+    expect(migrated?.city.unlockedDistrictIds).toContain("production");
+    expect(migrated?.strategy.actionLog).toEqual([]);
   });
 
   it("rejects malformed saved data instead of trusting localStorage", () => {
@@ -70,6 +72,28 @@ describe("level save migration", () => {
       campaign: {
         enabled: true,
         activeMissionId: 123,
+      },
+    });
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.campaign).toBeUndefined();
+  });
+
+  it("resets old campaign progress that does not match the embedded campaign schema", () => {
+    const game = createGame({
+      level: "elementary_low",
+      seed: 778,
+      playerCompanyName: "Test Shop",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+
+    const migrated = migrateSavedGame({
+      ...game,
+      campaign: {
+        ...game.campaign,
+        schemaVersion: undefined,
       },
     });
 

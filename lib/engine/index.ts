@@ -21,6 +21,8 @@ import { getIndustryProducts } from "../data/products";
 import { GAME_VERSION } from "./version";
 import { normalizeLevel } from "./saveMigration";
 import { createCampaignProgress } from "./campaign";
+import { createCityState } from "./city";
+import { createStrategyState } from "./strategy";
 
 export { GAME_VERSION } from "./version";
 export const DEFAULT_MAX_TURNS = 100;
@@ -251,6 +253,8 @@ export function createGame(opts: NewGameOptions): GameState {
     talentPool: buildTalentPool(rng, 8),
     relations: createRelations(companies),
     news: [],
+    city: createCityState(level, player),
+    strategy: createStrategyState(),
     campaign: opts.campaignEnabled ? createCampaignProgress(level) : undefined,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -280,7 +284,10 @@ export {
   evaluateCampaignAfterTurn,
   evaluateCampaignBeforeTurn,
   getActiveCampaignMission,
+  recordCampaignAction,
 } from "./campaign";
+export { createCityState, updateCityState, cityBonusFor } from "./city";
+export { createStrategyState, recordStrategyAction, updateStrategyState } from "./strategy";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";
 export { BUILDINGS, BUILDING_LIST, buildingCostFor } from "./buildings";
