@@ -47,11 +47,78 @@ describe("level save migration", () => {
     expect(migrated?.level).toBe("elementary_high");
     expect(migrated?.config.level).toBe("elementary_high");
     expect(migrated?.config).toEqual(LEVEL_CONFIGS.elementary_high);
+    expect(migrated?.city.unlockedDistrictIds).toContain("production");
+    expect(migrated?.strategy.actionLog).toEqual([]);
   });
 
   it("rejects malformed saved data instead of trusting localStorage", () => {
     expect(migrateSavedGame(null)).toBeNull();
     expect(migrateSavedGame({ level: "adult" })).toBeNull();
     expect(migrateSavedGame({ version: 1, level: "not-real", companies: [] })).toBeNull();
+  });
+
+  it("drops malformed campaign progress while keeping the sandbox save", () => {
+    const game = createGame({
+      level: "elementary_low",
+      seed: 777,
+      playerCompanyName: "테스트 상점",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+
+    const migrated = migrateSavedGame({
+      ...game,
+      campaign: {
+        enabled: true,
+        activeMissionId: 123,
+      },
+    });
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.campaign).toBeUndefined();
+  });
+
+  it("resets old campaign progress that does not match the embedded campaign schema", () => {
+    const game = createGame({
+      level: "elementary_low",
+      seed: 778,
+      playerCompanyName: "Test Shop",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+
+    const migrated = migrateSavedGame({
+      ...game,
+      campaign: {
+        ...game.campaign,
+        schemaVersion: undefined,
+      },
+    });
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.campaign).toBeUndefined();
+  });
+
+  it("keeps campaign rival progress inside the saved game", () => {
+    const game = createGame({
+      level: "elementary_mid",
+      seed: 779,
+      playerCompanyName: "Test Shop",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+    game.rival!.turnInChapter = 3;
+    game.rival!.playerMarketShare = 42;
+    game.rival!.specialMovesUsed = ["price-cut-2"];
+
+    const migrated = migrateSavedGame(game);
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.rival?.turnInChapter).toBe(3);
+    expect(migrated?.rival?.playerMarketShare).toBe(42);
+    expect(migrated?.rival?.specialMovesUsed).toEqual(["price-cut-2"]);
   });
 });

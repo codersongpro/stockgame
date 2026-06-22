@@ -495,19 +495,19 @@ function Car({ a }: { a: AgentPath }) {
         </group>
       </group>
       {showInfo && a.destination && (
-        <Html position={[0, 0.55, 0]} center distanceFactor={6} zIndexRange={[40, 0]}>
+        <Html position={[0, 0.62, 0]} center distanceFactor={5} zIndexRange={[70, 0]}>
           <div
             style={{
               background: "white", border: "1px solid #e2e8f0", borderRadius: 9,
-              padding: "3px 6px", fontSize: 10, lineHeight: 1.25, maxWidth: 110,
-              textAlign: "center", color: "#334155", boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
+              padding: "6px 9px", fontSize: 13, lineHeight: 1.35, maxWidth: 180,
+              textAlign: "center", color: "#1e293b", boxShadow: "0 8px 22px rgba(15,23,42,0.28)",
               cursor: "pointer",
             }}
             onClick={() => setShowInfo(false)}
           >
             <div style={{ fontWeight: 700 }}>→ {a.destination}</div>
             {a.destinationReason && (
-              <div style={{ fontSize: 9, color: "#64748b" }}>{a.destinationReason}</div>
+              <div style={{ fontSize: 12, color: "#475569" }}>{a.destinationReason}</div>
             )}
           </div>
         </Html>
@@ -699,11 +699,12 @@ function Person({
         <PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />
       </group>
       {speaking && (
-        <Html position={[0, 0.5, 0]} center distanceFactor={6} zIndexRange={[40, 0]}>
+        <Html position={[0, 0.66, 0]} center distanceFactor={5} zIndexRange={[75, 0]}>
           <div style={{
-            background: "white", border: "1px solid #e2e8f0", borderRadius: 9,
-            padding: "3px 7px", fontSize: 11, lineHeight: 1.2, width: 120,
-            textAlign: "center", color: "#334155", boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
+            background: "rgba(255,255,255,0.98)", border: "2px solid #cbd5e1", borderRadius: 12,
+            padding: "7px 10px", fontSize: 14, lineHeight: 1.35, width: 190,
+            textAlign: "center", color: "#0f172a", boxShadow: "0 10px 26px rgba(15,23,42,0.3)",
+            fontWeight: 700,
           }}>
             {speaking}
           </div>
@@ -823,11 +824,11 @@ function VisitorAgent({
       </group>
 
       {/* Name badge (always visible) */}
-      <Html position={[0, 0.78, 0]} center distanceFactor={6} zIndexRange={[50, 0]}>
+      <Html position={[0, 0.84, 0]} center distanceFactor={5} zIndexRange={[80, 0]}>
         <div
           style={{
             background: kindColor, color: "white", borderRadius: 999,
-            padding: "2px 8px", fontSize: 10, fontWeight: 700,
+            padding: "4px 10px", fontSize: 12, fontWeight: 700,
             whiteSpace: "nowrap", boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
             cursor: "pointer",
           }}
@@ -839,15 +840,16 @@ function VisitorAgent({
 
       {/* Auto-cycling speech bubble — offset to the right so it doesn't
           cover the visitor model on screen. */}
-      <Html position={[1.6, 0.6, 0]} center distanceFactor={6} zIndexRange={[51, 0]}>
+      <Html position={[1.8, 0.86, 0]} center distanceFactor={5} zIndexRange={[81, 0]}>
         <div
           style={{
             background: "white", border: `2px solid ${kindColor}`,
-            borderRadius: 11, padding: "4px 8px",
-            fontSize: 10, lineHeight: 1.35, maxWidth: 130,
-            textAlign: "center", color: "#334155",
-            boxShadow: "0 4px 16px rgba(15,23,42,0.2)",
+            borderRadius: 12, padding: "8px 11px",
+            fontSize: 14, lineHeight: 1.4, maxWidth: 230,
+            textAlign: "center", color: "#0f172a",
+            boxShadow: "0 12px 28px rgba(15,23,42,0.32)",
             cursor: "pointer", whiteSpace: "pre-wrap",
+            fontWeight: 700,
           }}
           onClick={() => setVoiceIdx((i) => (i + 1) % voices.length)}
         >

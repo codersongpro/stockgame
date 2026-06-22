@@ -20,6 +20,11 @@ import { recordNetWorth } from "./ranking";
 import { getIndustryProducts } from "../data/products";
 import { GAME_VERSION } from "./version";
 import { normalizeLevel } from "./saveMigration";
+import { createCampaignProgress } from "./campaign";
+import { createCityState } from "./city";
+import { createStrategyState } from "./strategy";
+import { createActionPointState, createPlayerCardState } from "./cards";
+import { createPriceWarRivalState } from "./rivals";
 
 export { GAME_VERSION } from "./version";
 export const DEFAULT_MAX_TURNS = 100;
@@ -34,6 +39,7 @@ export interface NewGameOptions {
   basedOn?: string; // preset id
   maxTurns?: number;
   mapSize?: number; // override level default (5=small, 8=medium, 12=large)
+  campaignEnabled?: boolean;
 }
 
 let companyCounter = 0;
@@ -249,6 +255,12 @@ export function createGame(opts: NewGameOptions): GameState {
     talentPool: buildTalentPool(rng, 8),
     relations: createRelations(companies),
     news: [],
+    city: createCityState(level, player),
+    strategy: createStrategyState(),
+    actionPoints: opts.campaignEnabled ? createActionPointState(level) : undefined,
+    cards: opts.campaignEnabled ? createPlayerCardState(level) : undefined,
+    rival: opts.campaignEnabled ? createPriceWarRivalState(level) : undefined,
+    campaign: opts.campaignEnabled ? createCampaignProgress(level) : undefined,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -271,6 +283,28 @@ export {
 } from "./market";
 export { LEVEL_CONFIGS, getLevelConfig } from "./levels";
 export { migrateSavedGame, normalizeLevel } from "./saveMigration";
+export {
+  advanceCampaign,
+  createCampaignProgress,
+  evaluateCampaignAfterTurn,
+  evaluateCampaignBeforeTurn,
+  getActiveCampaignMission,
+  recordCampaignAction,
+} from "./campaign";
+export { createCityState, updateCityState, cityBonusFor } from "./city";
+export { createStrategyState, recordStrategyAction, updateStrategyState } from "./strategy";
+export {
+  createActionPointState,
+  createPlayerCardState,
+  ensureCampaignCardState,
+  executeActionCard,
+  refreshActionCardsForTurn,
+} from "./cards";
+export {
+  advanceRivalTurn,
+  createPriceWarRivalState,
+  priceWarProgress,
+} from "./rivals";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";
 export { BUILDINGS, BUILDING_LIST, buildingCostFor } from "./buildings";

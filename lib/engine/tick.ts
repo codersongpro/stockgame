@@ -10,6 +10,10 @@ import { generateEvents } from "./events";
 import { decayRelations } from "./relations";
 import { recordNetWorth } from "./ranking";
 import { topUpTalentPool } from "./characters";
+import { cityTurnEffects, updateCityState } from "./city";
+import { updateStrategyState } from "./strategy";
+import { refreshActionCardsForTurn } from "./cards";
+import { advanceRivalTurn } from "./rivals";
 
 export interface TurnSummary {
   turn: number;
@@ -32,6 +36,8 @@ export function advanceTurn(state: GameState): TurnSummary {
   );
 
   decayRelations(state.relations);
+  updateCityState(state);
+  updateStrategyState(state);
 
   // Clear last turn's campus visitors; events this turn may set new ones.
   for (const c of state.companies) c.visitor = undefined;
@@ -84,7 +90,14 @@ export function advanceTurn(state: GameState): TurnSummary {
 
   let playerResult: CompanyTurnResult | null = null;
   for (const company of state.companies) {
-    const result = runCompanyTurn(company, state.macro, state.config, state.rng, marketPressure);
+    const result = runCompanyTurn(
+      company,
+      state.macro,
+      state.config,
+      state.rng,
+      marketPressure,
+      company.id === state.playerCompanyId ? cityTurnEffects(state) : undefined,
+    );
     if (company.id === state.playerCompanyId) playerResult = result;
   }
 
@@ -96,6 +109,8 @@ export function advanceTurn(state: GameState): TurnSummary {
   const events = generateEvents(state);
 
   // 6) Record net worth history for charts/leaderboard.
+  updateCityState(state);
+  updateStrategyState(state);
   recordNetWorth(state);
 
   // 7) Keep the talent market steadily stocked every turn.
@@ -106,6 +121,8 @@ export function advanceTurn(state: GameState): TurnSummary {
 
   // 8) Advance the clock.
   state.turn += 1;
+  advanceRivalTurn(state, playerResult);
+  refreshActionCardsForTurn(state);
   if (state.turn >= state.maxTurns) state.status = "ended";
   state.updatedAt = Date.now();
 
