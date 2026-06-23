@@ -161,6 +161,7 @@ function migrateRivalState(value: unknown, level: Level): GameState["rival"] {
     playerMarketShare: Math.max(0, Math.min(100, value.playerMarketShare)),
     rivalMarketShare: Math.max(0, Math.min(100, value.rivalMarketShare)),
     specialMovesUsed: value.specialMovesUsed.filter(isString),
+    responsesUsed: Array.isArray(value.responsesUsed) ? value.responsesUsed.filter(isString) : [],
     currentTaunt: typeof value.currentTaunt === "string" ? value.currentTaunt : fallback.currentTaunt,
     objectiveStates: Array.isArray(value.objectiveStates)
       ? value.objectiveStates.filter(isRivalObjectiveState)

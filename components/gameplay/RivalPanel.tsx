@@ -1,23 +1,31 @@
 "use client";
 
+import { SpriteSheetImage } from "@/components/SpriteSheetImage";
+import { RIVAL_ART } from "@/lib/assetMap";
 import { getRival } from "@/lib/data/campaign/rivals";
-import { priceWarProgress, type GameState } from "@/lib/engine";
+import { getRivalResponseGuide, priceWarProgress, type GameState } from "@/lib/engine";
 
 export function RivalPanel({ game }: { game: GameState }) {
   if (!game.campaign?.enabled || !game.rival) return null;
 
   const rival = getRival(game.rival.activeRivalId);
+  const rivalArt = game.rival.activeRivalId ? RIVAL_ART[game.rival.activeRivalId] : undefined;
   const progress = priceWarProgress(game);
+  const responseGuide = getRivalResponseGuide(game);
   const turnsLeft = Math.max(0, game.rival.turnsTotal - game.rival.turnInChapter);
 
   return (
     <section className="card p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-red-50 text-2xl">
-          {rival?.emoji ?? "⚔️"}
-        </div>
+        {rivalArt ? (
+          <SpriteSheetImage crop={rivalArt} className="h-16 w-16 shrink-0 rounded-xl bg-red-50" />
+        ) : (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-red-50 text-2xl">
+            {rival?.emoji ?? "⚔️"}
+          </div>
+        )}
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-wide text-red-600">경쟁자 등장</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-red-600">경쟁 세력</div>
           <h3 className="mt-1 text-base font-black leading-5 text-slate-900">
             {rival?.name ?? "경쟁자"} · {rival?.title ?? "라이벌"}
           </h3>
@@ -29,9 +37,26 @@ export function RivalPanel({ game }: { game: GameState }) {
 
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <Metric label="남은 분기" value={`${turnsLeft}`} />
-        <Metric label="우리 손님" value={`${game.rival.playerMarketShare}%`} />
+        <Metric label="우리 점유율" value={`${game.rival.playerMarketShare}%`} />
         <Metric label="목표 통과" value={`${progress.passed}/${progress.total}`} />
       </div>
+
+      {responseGuide.active && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-3">
+          <div className="text-xs font-black text-red-700">{responseGuide.title ?? "가격 압박 대응"}</div>
+          <p className="mt-1 text-xs leading-5 text-red-700">
+            아래 행동 중 하나를 실제 회사 화면에서 실행하면 대응 완료로 인정됩니다.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {responseGuide.options.map((option) => (
+              <li key={option} className="flex gap-2 text-xs leading-5 text-red-800">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                <span>{option}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-3 space-y-2">
         {game.rival.objectiveStates.map((objective) => (
@@ -50,7 +75,7 @@ export function RivalPanel({ game }: { game: GameState }) {
         <div className={`mt-3 rounded-lg px-3 py-2 text-sm font-bold ${
           game.rival.status === "won" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
         }`}>
-          {game.rival.status === "won" ? "가격 전쟁에서 승리했습니다." : "가격 전쟁을 다시 준비해야 합니다."}
+          {game.rival.status === "won" ? "가격 경쟁에서 승리했습니다." : "가격 경쟁을 다시 준비해야 합니다."}
         </div>
       )}
     </section>

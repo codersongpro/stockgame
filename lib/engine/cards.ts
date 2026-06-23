@@ -12,6 +12,7 @@ import type {
   PlayerCardState,
 } from "./types";
 import { recordStrategyAction } from "./strategy";
+import { respondToRivalPressure } from "./rivals";
 
 export interface CardActionResult {
   ok: boolean;
@@ -118,6 +119,7 @@ export function executeActionCard(game: GameState, cardId: string): CardActionRe
     targetId: card.id,
     value: card.actionPointCost,
   });
+  respondToRivalPressure(game, card.id);
 
   return { ok: true, message: `${card.name} 카드 실행` };
 }

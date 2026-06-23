@@ -500,6 +500,7 @@ export interface RivalState {
   playerMarketShare: number;
   rivalMarketShare: number;
   specialMovesUsed: string[];
+  responsesUsed: string[];
   currentTaunt: string;
   objectiveStates: RivalObjectiveState[];
 }

@@ -292,7 +292,14 @@ export {
   recordCampaignAction,
 } from "./campaign";
 export { createCityState, updateCityState, cityBonusFor } from "./city";
-export { createStrategyState, recordStrategyAction, updateStrategyState } from "./strategy";
+export { getOperationsGuide, type OperationsGuide } from "./operations";
+export {
+  createStrategyState,
+  getStrategyEventGuide,
+  recordStrategyAction,
+  strategyTurnEffects,
+  updateStrategyState,
+} from "./strategy";
 export {
   createActionPointState,
   createPlayerCardState,
@@ -303,7 +310,9 @@ export {
 export {
   advanceRivalTurn,
   createPriceWarRivalState,
+  getRivalResponseGuide,
   priceWarProgress,
+  respondToRivalPressure,
 } from "./rivals";
 export { PHASE_LABELS, PHASE_EMOJI } from "./economy";
 export { LAYER_LABELS } from "./events";

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
-import { netWorth, playerRank, rankings, LAYER_LABELS } from "@/lib/engine";
+import { netWorth, playerRank, rankings, LAYER_LABELS, getRivalResponseGuide, priceWarProgress } from "@/lib/engine";
 import type { NewsItem } from "@/lib/engine";
 import type { TurnSummary } from "@/lib/engine/tick";
 import { formatMoney } from "@/lib/format";
@@ -28,7 +28,8 @@ import { CampaignGoalCard } from "@/components/CampaignGoalCard";
 import { CityStrategyPanel } from "@/components/CityStrategyPanel";
 import { ActionHand } from "@/components/gameplay/ActionHand";
 import { RivalPanel } from "@/components/gameplay/RivalPanel";
-import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS } from "@/lib/assetMap";
+import { SpriteSheetImage } from "@/components/SpriteSheetImage";
+import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS, STATUS_BANNER_ART } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
@@ -297,11 +298,14 @@ function ResultsPopup({
   const rank = playerRank(game);
   const stock = game.stocks[player.id];
   const campaign = game.campaign;
+  const rivalProgress = game.rival ? priceWarProgress(game) : null;
+  const rivalGuide = getRivalResponseGuide(game);
   const stockChange = stock
     ? ((stock.price - (stock.history[stock.history.length - 2] ?? stock.price)) /
         (stock.history[stock.history.length - 2] ?? stock.price)) *
       100
     : 0;
+  const resultBanner = resultBannerFor(r.profit, nwDelta, game.rival?.status, rivalGuide.active);
 
   const rows: { label: string; value: string; tone?: "good" | "bad" | "neutral" }[] = [
     { label: "매출", value: formatMoney(r.revenue), tone: r.revenue > 0 ? "good" : "neutral" },
@@ -336,7 +340,7 @@ function ResultsPopup({
       >
         {/* Header with banner */}
         <div className="relative shrink-0 overflow-hidden">
-          <img src={BANNER_IMGS.report} alt="" className="w-full object-cover" style={{ maxHeight: 110 }} />
+          <SpriteSheetImage crop={STATUS_BANNER_ART[resultBanner]} className="h-28 w-full" />
           <div className="absolute inset-0 flex items-end bg-black/30 px-5 pb-3">
             <div className="text-white drop-shadow">
               <div className="text-xs opacity-80">{game.turn}분기 실적 보고</div>
@@ -355,6 +359,21 @@ function ResultsPopup({
         {campaign?.enabled && campaign.lastMessage && (
           <div className="mx-5 mb-3 rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold leading-5 text-brand-700">
             캠페인: {campaign.lastMessage}
+          </div>
+        )}
+
+        {game.rival && (
+          <div className={`mx-5 mb-3 rounded-xl px-4 py-3 text-sm leading-5 ${
+            rivalGuide.active ? "bg-red-50 text-red-700" : "bg-slate-50 text-slate-700"
+          }`}>
+            <div className="font-black">
+              라이벌 장: {game.rival.playerMarketShare}% 점유 · 목표 {rivalProgress?.passed ?? 0}/{rivalProgress?.total ?? 0}
+            </div>
+            <div className="mt-1 font-semibold">
+              {rivalGuide.active
+                ? "가격 압박 발생: 가격 조정, 홍보, 마케팅, R&D, 카드 중 하나로 대응하세요."
+                : game.rival.currentTaunt}
+            </div>
           </div>
         )}
 
@@ -391,6 +410,18 @@ function ResultsPopup({
       </div>
     </div>
   );
+}
+
+function resultBannerFor(
+  profit: number,
+  netWorthDelta: number,
+  rivalStatus: "active" | "won" | "lost" | undefined,
+  rivalPressureActive: boolean,
+): keyof typeof STATUS_BANNER_ART {
+  if (rivalPressureActive || rivalStatus === "lost") return "rivalry";
+  if (profit < 0 || netWorthDelta < 0) return "warning";
+  if (rivalStatus === "won") return "city";
+  return "growth";
 }
 
 const TONE_STYLE: Record<NewsItem["tone"], { ring: string; chip: string; label: string }> = {
