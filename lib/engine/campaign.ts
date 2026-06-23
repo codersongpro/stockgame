@@ -19,6 +19,7 @@ import { portfolioValue } from "./ranking";
 import { hasRecentAction, recordStrategyAction } from "./strategy";
 import { updateCityState } from "./city";
 import { respondToRivalPressure } from "./rivals";
+import { rollItemReward } from "./items";
 
 const CAMPAIGN_SCHEMA_VERSION = 2;
 
@@ -94,6 +95,7 @@ export function advanceCampaign(game: GameState, evaluation: CampaignEvaluation 
       evaluation.stars,
     );
     if (mission.nextMissionId) unlocked.add(mission.nextMissionId);
+    rollItemReward(game, evaluation.stars >= 2 ? "campaign_star" : "campaign", 65 + evaluation.stars * 10);
   }
 
   game.campaign = {

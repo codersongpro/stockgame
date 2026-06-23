@@ -10,6 +10,7 @@ import {
   executeActionCard,
   migrateSavedGame,
   recordCampaignAction,
+  useItemForEvent,
   type AssetClass,
   type BuildingType,
   type CompanyDecisions,
@@ -80,6 +81,7 @@ interface GameStore {
   setProductPrice: (index: number, price: number) => void;
   toggleProduct: (index: number) => void;
   playActionCard: (cardId: string) => void;
+  useItem: (itemId: string, eventId: string) => void;
   dismissToast: () => void;
 }
 
@@ -381,6 +383,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playSfx("click");
     persist(game);
     set({ game: { ...game }, toast: { text: result.message ?? "카드 실행 완료", tone: "good" } });
+  },
+
+  useItem: (itemId, eventId) => {
+    const game = get().game;
+    if (!game) return;
+    const result = useItemForEvent(game, itemId, eventId);
+    if (!result.ok) return showToast(set, result.error ?? "아이템을 사용할 수 없습니다.", "bad");
+    applyImmediateCampaign(game);
+    playSfx("click");
+    persist(game);
+    const rewardText = result.reward ? " 보상 아이템도 얻었습니다." : "";
+    set({
+      game: { ...game },
+      toast: { text: `${result.message ?? "아이템을 사용했습니다."}${rewardText}`, tone: "good" },
+    });
   },
 
   dismissToast: () => set({ toast: null }),

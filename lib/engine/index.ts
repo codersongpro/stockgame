@@ -25,6 +25,7 @@ import { createCityState } from "./city";
 import { createStrategyState } from "./strategy";
 import { createActionPointState, createPlayerCardState } from "./cards";
 import { createPriceWarRivalState } from "./rivals";
+import { createItemInventory } from "./items";
 
 export { GAME_VERSION } from "./version";
 export const DEFAULT_MAX_TURNS = 100;
@@ -259,6 +260,7 @@ export function createGame(opts: NewGameOptions): GameState {
     strategy: createStrategyState(),
     actionPoints: opts.campaignEnabled ? createActionPointState(level) : undefined,
     cards: opts.campaignEnabled ? createPlayerCardState(level) : undefined,
+    items: opts.campaignEnabled ? createItemInventory(level) : undefined,
     rival: opts.campaignEnabled ? createPriceWarRivalState(level) : undefined,
     campaign: opts.campaignEnabled ? createCampaignProgress(level) : undefined,
     createdAt: Date.now(),
@@ -307,6 +309,18 @@ export {
   executeActionCard,
   refreshActionCardsForTurn,
 } from "./cards";
+export {
+  calculateManagementDiligence,
+  createItemInventory,
+  ensureItemInventory,
+  getUsableItemsForEvent,
+  grantItem,
+  normalizeItemInventory,
+  rarityWeightsForScore,
+  refreshItemsForTurn,
+  rollItemReward,
+  useItemForEvent,
+} from "./items";
 export {
   advanceRivalTurn,
   createPriceWarRivalState,

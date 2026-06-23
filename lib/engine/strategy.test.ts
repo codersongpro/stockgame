@@ -31,7 +31,7 @@ describe("strategy event guidance", () => {
 
     expect(getStrategyEventGuide(game.strategy.majorEvents[0])).toEqual({
       title: "고객 불만 확산",
-      options: ["마케팅 홍보로 신뢰 회복", "R&D 예산으로 품질 개선", "안전 예산으로 불안 줄이기"],
+      options: ["품질 개선", "고객 보상", "안전과 평판 관리"],
     });
   });
 
@@ -39,8 +39,8 @@ describe("strategy event guidance", () => {
     const game = gameWithEvent({
       id: "supply",
       kind: "supply_problem",
-      title: "공급망 문제",
-      body: "물건을 제때 만들기 어려워졌습니다.",
+      title: "재료 공급 문제",
+      body: "물건을 제때 만들기 어렵습니다.",
       severity: "major",
       status: "active",
       createdTurn: 1,
@@ -61,8 +61,8 @@ describe("strategy event guidance", () => {
     const game = gameWithEvent({
       id: "rival",
       kind: "rival_price_pressure",
-      title: "경쟁자의 가격 압박",
-      body: "경쟁자가 가격을 낮췄습니다.",
+      title: "경쟁사의 가격 공세",
+      body: "경쟁사가 가격을 낮췄습니다.",
       severity: "major",
       status: "active",
       createdTurn: 1,
@@ -95,8 +95,19 @@ describe("strategy event guidance", () => {
     const supply = gameWithEvent({
       id: "supply-pressure",
       kind: "supply_problem",
-      title: "공급망 문제",
-      body: "물건을 제때 만들기 어려워졌습니다.",
+      title: "재료 공급 문제",
+      body: "물건을 제때 만들기 어렵습니다.",
+      severity: "major",
+      status: "active",
+      createdTurn: 1,
+      expiresTurn: 4,
+      responseActionTypes: ["decision", "build", "company_action"],
+    });
+    const safety = gameWithEvent({
+      id: "safety-pressure",
+      kind: "safety_inspection",
+      title: "안전 점검",
+      body: "현장 안전 점검이 시작됐습니다.",
       severity: "major",
       status: "active",
       createdTurn: 1,
@@ -106,6 +117,7 @@ describe("strategy event guidance", () => {
 
     expect(strategyTurnEffects(complaint).commerceBonus).toBeLessThan(0);
     expect(strategyTurnEffects(supply).productionBonus).toBeLessThan(0);
+    expect(strategyTurnEffects(safety).safetyBonus).toBeLessThan(0);
 
     supply.strategy.majorEvents[0].status = "resolved";
     expect(strategyTurnEffects(supply).productionBonus).toBe(0);
@@ -136,8 +148,8 @@ describe("strategy event guidance", () => {
     pressured.strategy.majorEvents = [{
       id: "supply-pressure",
       kind: "supply_problem",
-      title: "공급망 문제",
-      body: "물건을 제때 만들기 어려워졌습니다.",
+      title: "재료 공급 문제",
+      body: "물건을 제때 만들기 어렵습니다.",
       severity: "major",
       status: "active",
       createdTurn: 0,
@@ -151,5 +163,39 @@ describe("strategy event guidance", () => {
     expect(pressuredSummary.playerResult?.unitsProduced).toBeLessThan(
       normalSummary.playerResult?.unitsProduced ?? 0,
     );
+  });
+
+  it("creates varied major events from actual company conditions", () => {
+    const game = createGame({
+      level: "middle",
+      seed: 711,
+      playerCompanyName: "Variety Run",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+    const player = game.companies.find((company) => company.id === game.playerCompanyId)!;
+    player.safety = 20;
+    player.reputation = 25;
+    player.decisions.productionTarget = 900;
+    game.turn = 4;
+
+    advanceTurn(game);
+
+    expect(game.strategy.majorEvents.length).toBeGreaterThan(0);
+    expect([
+      "customer_complaint",
+      "supply_problem",
+      "equipment_breakdown",
+      "logistics_delay",
+      "safety_inspection",
+      "local_festival",
+      "viral_trend",
+      "talent_poach",
+      "rival_price_pressure",
+      "investor_visit",
+      "cyber_incident",
+      "regulation_inspection",
+    ]).toContain(game.strategy.majorEvents[0].kind);
   });
 });

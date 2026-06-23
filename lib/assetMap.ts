@@ -188,6 +188,13 @@ export const STRATEGY_EVENT_ART: Record<StrategyEventKind, SpriteSheetCrop> = {
   supply_problem: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 2, 0, "공급 문제"),
   talent_poach: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 0, 1, "핵심 인재 스카우트"),
   investor_visit: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 1, 1, "투자자 방문"),
+  equipment_breakdown: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 2, 0, "설비 고장"),
+  logistics_delay: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 2, 0, "물류 지연"),
+  safety_inspection: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 1, 0, "안전 점검"),
+  local_festival: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 1, 1, "지역 축제"),
+  viral_trend: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 1, 1, "바이럴 유행"),
+  cyber_incident: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 1, 0, "사이버 사고"),
+  regulation_inspection: crop(UNICORN_CITY_SHEETS.strategyEvents, 3, 2, 1, 0, "규제 점검"),
 };
 
 export const ACTION_CARD_CATEGORY_ART: Record<ActionCardCategory, SpriteSheetCrop> = {

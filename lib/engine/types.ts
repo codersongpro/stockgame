@@ -376,7 +376,14 @@ export type StrategyEventKind =
   | "talent_poach"
   | "supply_problem"
   | "customer_complaint"
-  | "investor_visit";
+  | "investor_visit"
+  | "equipment_breakdown"
+  | "logistics_delay"
+  | "safety_inspection"
+  | "local_festival"
+  | "viral_trend"
+  | "cyber_incident"
+  | "regulation_inspection";
 
 export interface StrategyEvent {
   id: string;
@@ -389,6 +396,9 @@ export interface StrategyEvent {
   createdTurn: number;
   expiresTurn: number;
   responseActionTypes: StrategyActionType[];
+  recommendedItemIds?: string[];
+  resolvedByItemId?: string;
+  impactPreview?: string;
 }
 
 export interface StrategyState {
@@ -458,6 +468,68 @@ export interface PlayerCardState {
   discardCardIds: string[];
   cooldowns: Record<string, number>;
   playedThisTurn: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Strategy item bag
+// ---------------------------------------------------------------------------
+
+export type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+
+export type ItemCategory =
+  | "production"
+  | "customer"
+  | "people"
+  | "research"
+  | "finance"
+  | "strategy";
+
+export type ItemEffectKind =
+  | "cash_delta"
+  | "debt_delta"
+  | "inventory_delta"
+  | "quality_delta"
+  | "reputation_delta"
+  | "morale_delta"
+  | "safety_delta";
+
+export interface ItemEffect {
+  kind: ItemEffectKind;
+  value: number;
+}
+
+export interface ItemDefinition {
+  id: string;
+  name: string;
+  emoji: string;
+  rarity: ItemRarity;
+  levelMin: Level;
+  category: ItemCategory;
+  description: string;
+  simpleDescription: string;
+  usableEventKinds: StrategyEventKind[];
+  effects: ItemEffect[];
+}
+
+export type ItemRewardReason =
+  | "quarter"
+  | "campaign"
+  | "campaign_star"
+  | "event_response";
+
+export interface ItemRewardRecord {
+  turn: number;
+  itemId: string;
+  rarity: ItemRarity;
+  reason: ItemRewardReason;
+  score: number;
+}
+
+export interface ItemInventory {
+  schemaVersion: number;
+  quantitiesByItemId: Record<string, number>;
+  usedThisTurn: { turn: number; itemId: string; eventId: string }[];
+  recentRewards: ItemRewardRecord[];
 }
 
 // ---------------------------------------------------------------------------
@@ -667,6 +739,7 @@ export interface GameState {
   strategy: StrategyState;
   actionPoints?: ActionPointState;
   cards?: PlayerCardState;
+  items?: ItemInventory;
   rival?: RivalState;
   campaign?: CampaignProgress;
 

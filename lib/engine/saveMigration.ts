@@ -6,6 +6,7 @@ import { createCityState } from "./city";
 import { createStrategyState } from "./strategy";
 import { createActionPointState, createPlayerCardState } from "./cards";
 import { createPriceWarRivalState } from "./rivals";
+import { normalizeItemInventory } from "./items";
 
 type LegacyLevel = Level | "elementary" | "university";
 
@@ -46,10 +47,12 @@ export function migrateSavedGame(value: unknown): GameState | null {
   if (migrated.campaign?.enabled) {
     migrated.actionPoints = migrateActionPoints(value.actionPoints, level);
     migrated.cards = migrateCards(value.cards, level);
+    migrated.items = normalizeItemInventory(value.items, level);
     migrated.rival = migrateRivalState(value.rival, level);
   } else {
     migrated.actionPoints = undefined;
     migrated.cards = undefined;
+    migrated.items = undefined;
     migrated.rival = undefined;
   }
   migrated.version = GAME_VERSION;

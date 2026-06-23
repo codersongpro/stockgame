@@ -121,4 +121,29 @@ describe("level save migration", () => {
     expect(migrated?.rival?.playerMarketShare).toBe(42);
     expect(migrated?.rival?.specialMovesUsed).toEqual(["price-cut-2"]);
   });
+
+  it("keeps campaign item inventory inside the saved game", () => {
+    const game = createGame({
+      level: "elementary_mid",
+      seed: 780,
+      playerCompanyName: "Test Shop",
+      industryId: "food",
+      countryId: "kr",
+      campaignEnabled: true,
+    });
+    game.items!.quantitiesByItemId["customer-coupon"] = 3;
+    game.items!.recentRewards = [{
+      turn: 2,
+      itemId: "customer-coupon",
+      rarity: "common",
+      reason: "quarter",
+      score: 72,
+    }];
+
+    const migrated = migrateSavedGame(game);
+
+    expect(migrated).not.toBeNull();
+    expect(migrated?.items?.quantitiesByItemId["customer-coupon"]).toBe(3);
+    expect(migrated?.items?.recentRewards[0]).toMatchObject({ itemId: "customer-coupon", score: 72 });
+  });
 });

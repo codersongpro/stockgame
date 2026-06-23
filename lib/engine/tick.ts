@@ -14,6 +14,7 @@ import { cityTurnEffects, updateCityState } from "./city";
 import { strategyTurnEffects, updateStrategyState } from "./strategy";
 import { refreshActionCardsForTurn } from "./cards";
 import { advanceRivalTurn } from "./rivals";
+import { calculateManagementDiligence, refreshItemsForTurn, rollItemReward } from "./items";
 
 export interface TurnSummary {
   turn: number;
@@ -126,6 +127,14 @@ export function advanceTurn(state: GameState): TurnSummary {
   state.turn += 1;
   advanceRivalTurn(state, playerResult);
   refreshActionCardsForTurn(state);
+  refreshItemsForTurn(state);
+  rollItemReward(state, "quarter", calculateManagementDiligence(state, {
+    turn: state.turn,
+    playerResult,
+    rateChange,
+    phaseChanged,
+    events,
+  }));
   if (state.turn >= state.maxTurns) state.status = "ended";
   state.updatedAt = Date.now();
 

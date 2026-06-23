@@ -12,6 +12,7 @@ import { shockStock } from "./market";
 import { nextFloat } from "./rng";
 import { getRecruitmentNegotiationProfile } from "./recruitment";
 import { getStrategicTiming, timingBonusFromScore } from "./strategyTiming";
+import { updateCityState } from "./city";
 
 // Mutating player/AI actions that happen *between* turns (they don't advance
 // the clock). Single-sourced so the AI and the human player obey the same rules.
@@ -36,6 +37,10 @@ export function avgCost(company: Company, targetCompanyId: string): number {
 }
 
 let buildingCounter = 0;
+
+function refreshCityForPlayer(state: GameState, company: Company): void {
+  if (company.id === state.playerCompanyId) updateCityState(state);
+}
 
 export function findCompany(state: GameState, id: string): Company | undefined {
   return state.companies.find((c) => c.id === id);
@@ -85,6 +90,7 @@ export function buildBuilding(
     turnsLeft: state.config.instantBuild ? 0 : BUILDINGS[type].buildTurns,
   };
   company.buildings.push(building);
+  refreshCityForPlayer(state, company);
   return { ok: true };
 }
 
@@ -103,6 +109,7 @@ export function sellBuilding(
   const refund = Math.round(spent * 0.5);
   company.cash += refund;
   company.buildings.splice(idx, 1);
+  refreshCityForPlayer(state, company);
   return { ok: true, refund };
 }
 
@@ -287,6 +294,7 @@ export function upgradeBuilding(
   company.cash -= cost;
   b.level += 1;
   if (!state.config.instantBuild) b.turnsLeft = Math.max(b.turnsLeft, 1);
+  refreshCityForPlayer(state, company);
   return { ok: true };
 }
 

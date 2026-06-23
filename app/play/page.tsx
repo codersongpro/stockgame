@@ -27,9 +27,11 @@ import { ExecutiveBriefing } from "@/components/ExecutiveBriefing";
 import { CampaignGoalCard } from "@/components/CampaignGoalCard";
 import { CityStrategyPanel } from "@/components/CityStrategyPanel";
 import { ActionHand } from "@/components/gameplay/ActionHand";
+import { ItemBag } from "@/components/gameplay/ItemBag";
 import { RivalPanel } from "@/components/gameplay/RivalPanel";
 import { SpriteSheetImage } from "@/components/SpriteSheetImage";
 import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS, STATUS_BANNER_ART } from "@/lib/assetMap";
+import { ITEM_RARITY_LABELS, ITEM_RARITY_STYLE, getItemDefinition } from "@/lib/data/campaign/items";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
@@ -229,6 +231,7 @@ export default function PlayPage() {
         <aside className="space-y-4">
           <CampaignGoalCard game={game} />
           <RivalPanel game={game} />
+          <ItemBag game={game} />
           <ActionHand game={game} />
           <CityStrategyPanel game={game} />
           <Secretary game={game} />
@@ -300,6 +303,8 @@ function ResultsPopup({
   const campaign = game.campaign;
   const rivalProgress = game.rival ? priceWarProgress(game) : null;
   const rivalGuide = getRivalResponseGuide(game);
+  const recentReward = game.items?.recentRewards.find((reward) => reward.turn === game.turn);
+  const recentRewardItem = recentReward ? getItemDefinition(recentReward.itemId) : undefined;
   const stockChange = stock
     ? ((stock.price - (stock.history[stock.history.length - 2] ?? stock.price)) /
         (stock.history[stock.history.length - 2] ?? stock.price)) *
@@ -359,6 +364,20 @@ function ResultsPopup({
         {campaign?.enabled && campaign.lastMessage && (
           <div className="mx-5 mb-3 rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold leading-5 text-brand-700">
             캠페인: {campaign.lastMessage}
+          </div>
+        )}
+
+        {recentRewardItem && (
+          <div className="mx-5 mb-3 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-800">
+            <div className="font-black">
+              아이템 보상: {recentRewardItem.emoji} {recentRewardItem.name}
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${ITEM_RARITY_STYLE[recentRewardItem.rarity]}`}>
+                {ITEM_RARITY_LABELS[recentRewardItem.rarity]}
+              </span>
+              <span className="text-xs font-semibold">성실도 {recentReward?.score ?? 0}점</span>
+            </div>
           </div>
         )}
 
