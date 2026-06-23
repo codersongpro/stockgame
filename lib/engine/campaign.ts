@@ -18,6 +18,7 @@ import { getRivalry } from "./relations";
 import { portfolioValue } from "./ranking";
 import { hasRecentAction, recordStrategyAction } from "./strategy";
 import { updateCityState } from "./city";
+import { respondToRivalPressure } from "./rivals";
 
 const CAMPAIGN_SCHEMA_VERSION = 2;
 
@@ -40,6 +41,16 @@ export function recordCampaignAction(
   action: Omit<StrategyAction, "id" | "turn">,
 ): void {
   recordStrategyAction(game, action);
+  if (isRivalPressureResponse(action)) {
+    respondToRivalPressure(game, action.targetId ?? action.type);
+  }
+}
+
+function isRivalPressureResponse(action: Omit<StrategyAction, "id" | "turn">): boolean {
+  if (action.type === "product_price") return true;
+  if (action.type === "company_action") return action.targetId === "pr_campaign";
+  if (action.type !== "decision") return false;
+  return action.targetId === "marketingBudget" || action.targetId === "rndBudget";
 }
 
 export function getActiveCampaignMission(game: GameState): CampaignMission | undefined {

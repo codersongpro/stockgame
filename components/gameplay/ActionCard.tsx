@@ -1,7 +1,9 @@
 "use client";
 
 import type { ActionCardDefinition } from "@/lib/engine";
+import { ACTION_CARD_CATEGORY_ART } from "@/lib/assetMap";
 import { formatMoney } from "@/lib/format";
+import { SpriteSheetImage } from "../SpriteSheetImage";
 
 export function ActionCard({
   card,
@@ -24,6 +26,7 @@ export function ActionCard({
       disabled={disabled}
       onClick={onPlay}
     >
+      <SpriteSheetImage crop={ACTION_CARD_CATEGORY_ART[card.category]} className="mb-2 h-16 w-full rounded-md bg-slate-50" />
       <div className="flex items-center justify-between gap-2">
         <span className="min-w-0 truncate text-sm font-black">
           <span className="mr-1">{card.emoji}</span>{card.name}

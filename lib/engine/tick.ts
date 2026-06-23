@@ -2,7 +2,7 @@ import type { GameState, NewsItem } from "./types";
 import { getCountry } from "../data/countries";
 import { PHASE_EMOJI, PHASE_LABELS, tickEconomy } from "./economy";
 import { runAiTurn } from "./ai";
-import { marketAttractiveness, runCompanyTurn, type CompanyTurnResult } from "./company";
+import { marketAttractiveness, runCompanyTurn, type CompanyTurnEffects, type CompanyTurnResult } from "./company";
 import { getIndustry } from "../data/industries";
 import { tickStocks } from "./market";
 import { tickAssets } from "./assets";
@@ -11,7 +11,7 @@ import { decayRelations } from "./relations";
 import { recordNetWorth } from "./ranking";
 import { topUpTalentPool } from "./characters";
 import { cityTurnEffects, updateCityState } from "./city";
-import { updateStrategyState } from "./strategy";
+import { strategyTurnEffects, updateStrategyState } from "./strategy";
 import { refreshActionCardsForTurn } from "./cards";
 import { advanceRivalTurn } from "./rivals";
 
@@ -90,13 +90,16 @@ export function advanceTurn(state: GameState): TurnSummary {
 
   let playerResult: CompanyTurnResult | null = null;
   for (const company of state.companies) {
+    const playerEffects = company.id === state.playerCompanyId
+      ? combineTurnEffects(cityTurnEffects(state), strategyTurnEffects(state))
+      : undefined;
     const result = runCompanyTurn(
       company,
       state.macro,
       state.config,
       state.rng,
       marketPressure,
-      company.id === state.playerCompanyId ? cityTurnEffects(state) : undefined,
+      playerEffects,
     );
     if (company.id === state.playerCompanyId) playerResult = result;
   }
@@ -127,6 +130,17 @@ export function advanceTurn(state: GameState): TurnSummary {
   state.updatedAt = Date.now();
 
   return { turn: state.turn, playerResult, rateChange, phaseChanged, events };
+}
+
+function combineTurnEffects(...items: CompanyTurnEffects[]): CompanyTurnEffects {
+  return items.reduce<CompanyTurnEffects>((merged, item) => ({
+    productionBonus: (merged.productionBonus ?? 0) + (item.productionBonus ?? 0),
+    qualityBonus: (merged.qualityBonus ?? 0) + (item.qualityBonus ?? 0),
+    commerceBonus: (merged.commerceBonus ?? 0) + (item.commerceBonus ?? 0),
+    moraleBonus: (merged.moraleBonus ?? 0) + (item.moraleBonus ?? 0),
+    safetyBonus: (merged.safetyBonus ?? 0) + (item.safetyBonus ?? 0),
+    financeBonus: (merged.financeBonus ?? 0) + (item.financeBonus ?? 0),
+  }), {});
 }
 
 function pushNews(state: GameState, item: Omit<NewsItem, "id" | "turn">): void {
