@@ -9,6 +9,7 @@ import { tickAssets } from "./assets";
 import { generateEvents } from "./events";
 import { decayRelations } from "./relations";
 import { recordNetWorth } from "./ranking";
+import { applyMilestones } from "./milestones";
 import { topUpTalentPool } from "./characters";
 import { cityTurnEffects, updateCityState } from "./city";
 import { strategyTurnEffects, updateStrategyState } from "./strategy";
@@ -104,6 +105,41 @@ export function advanceTurn(state: GameState): TurnSummary {
     if (company.id === state.playerCompanyId) playerResult = result;
   }
 
+  // 3.5) Resolve sustained over-leverage (3+ stressed quarters in a row).
+  // AI companies always get bailed out (there's no machinery to remove a
+  // company from the game); the player's outcome depends on the level's
+  // bankruptcyPolicy — younger levels get the same soft bailout, older ones
+  // end the game in bankruptcy.
+  for (const company of state.companies) {
+    if ((company.creditWarningStreak ?? 0) < 3) continue;
+    const isPlayer = company.id === state.playerCompanyId;
+    if (isPlayer && state.config.bankruptcyPolicy === "strict") {
+      state.status = "ended";
+      state.endReason = "bankrupt";
+      company.creditWarningStreak = 0;
+      continue;
+    }
+    const forgiven = Math.round(company.debt * 0.5);
+    company.debt -= forgiven;
+    company.reputation = Math.max(0, company.reputation - 10);
+    company.creditWarningStreak = 0;
+    if (isPlayer && enabled.has("internal")) {
+      pushNews(state, {
+        layer: "internal",
+        tone: "negative",
+        emoji: "🏦",
+        title: "긴급 구제금융",
+        body: `부채 위기로 은행의 긴급 자금 지원을 받았습니다. 부채 ${forgiven.toLocaleString()}원 탕감, 평판이 하락했습니다.`,
+        tags: [company.id],
+      });
+    }
+  }
+  if (state.status === "ended") {
+    state.turn += 1;
+    state.updatedAt = Date.now();
+    return { turn: state.turn, playerResult, rateChange, phaseChanged, events: [] };
+  }
+
   // 4) Update markets.
   tickStocks(state.stocks, state.companies, state.macro, state.config, state.rng);
   tickAssets(state.assets, state.macro, state.config, state.rng);
@@ -116,6 +152,11 @@ export function advanceTurn(state: GameState): TurnSummary {
   updateStrategyState(state);
   recordNetWorth(state);
 
+  // 6.5) Celebrate newly-crossed net-worth/rank milestones (once each).
+  const newsCountBeforeMilestones = state.news.length;
+  applyMilestones(state);
+  events.push(...state.news.slice(newsCountBeforeMilestones));
+
   // 7) Keep the talent market steadily stocked every turn.
   {
     const hiredIds = new Set(state.companies.flatMap((c) => c.hired.map((h) => h.id)));
@@ -126,7 +167,10 @@ export function advanceTurn(state: GameState): TurnSummary {
   state.turn += 1;
   advanceRivalTurn(state, playerResult);
   refreshActionCardsForTurn(state);
-  if (state.turn >= state.maxTurns) state.status = "ended";
+  if (state.turn >= state.maxTurns) {
+    state.status = "ended";
+    state.endReason = "maxTurns";
+  }
   state.updatedAt = Date.now();
 
   return { turn: state.turn, playerResult, rateChange, phaseChanged, events };

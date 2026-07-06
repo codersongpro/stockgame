@@ -2,6 +2,7 @@ import type {
   Company,
   CompanyDecisions,
   CountryDef,
+  DemandFactorBreakdown,
   IndustryDef,
   LevelConfig,
   MacroState,
@@ -26,6 +27,12 @@ export interface CompanyTurnResult {
   unitsProduced: number;
   profit: number;
   quitCount: number;
+  /** This turn's demand-pull factors, for showing the player *why* sales moved. */
+  demandFactors: DemandFactorBreakdown;
+  /** Same factors one turn prior (baseline 1 if there was no previous turn). */
+  prevDemandFactors: DemandFactorBreakdown;
+  /** True once 3 consecutive quarters of heavy over-leverage have piled up. */
+  insolvent: boolean;
 }
 
 export interface CompanyTurnEffects {
@@ -61,16 +68,17 @@ export function factoryCapacity(company: Company, config: LevelConfig): number {
 }
 
 /**
- * How strongly a company pulls customers, from its own decisions and stats
- * (price, marketing, quality, reputation). This is the company-specific part of
- * demand, normalised around ~1, so it can be compared across industries to model
- * competition for a shared pool of customers.
+ * Multiplicative components of a company's demand pull (price, marketing,
+ * quality, reputation). Split out from `marketAttractiveness` so the turn
+ * report can show the player *which* lever moved sales, not just the total.
+ * `share` is left at 1 here; it's filled in by `runCompanyTurn` once the
+ * field's average market pressure is known.
  */
-export function marketAttractiveness(
+export function demandFactorBreakdown(
   company: Company,
   industry: IndustryDef,
   config: LevelConfig,
-): number {
+): DemandFactorBreakdown {
   const caps = aggregateBuildingCaps(company.buildings, config.adjacencyBonus);
   const bonuses = roleBonuses(company);
   const price = Math.max(1, company.decisions.price);
@@ -96,7 +104,22 @@ export function marketAttractiveness(
   const qualityFactor = 1 + company.quality / 200;
   const reputationFactor = 0.7 + (company.reputation / 100) * 0.6;
 
-  return Math.max(0.01, priceFactor * marketingFactor * qualityFactor * reputationFactor);
+  return { price: priceFactor, marketing: marketingFactor, quality: qualityFactor, reputation: reputationFactor, share: 1 };
+}
+
+/**
+ * How strongly a company pulls customers, from its own decisions and stats
+ * (price, marketing, quality, reputation). This is the company-specific part of
+ * demand, normalised around ~1, so it can be compared across industries to model
+ * competition for a shared pool of customers.
+ */
+export function marketAttractiveness(
+  company: Company,
+  industry: IndustryDef,
+  config: LevelConfig,
+): number {
+  const f = demandFactorBreakdown(company, industry, config);
+  return Math.max(0.01, f.price * f.marketing * f.quality * f.reputation);
 }
 
 /**
@@ -226,6 +249,27 @@ export function runCompanyTurn(
   // --- Demand (now uses correct effective price via marketAttractiveness) ---
   const demand = estimateDemand(company, industry, country, macro, config, marketPressure);
 
+  // Snapshot *why* demand moved this turn, for the turn-report UI. `share`
+  // mirrors the shareFactor computed inside estimateDemand (own pull vs the
+  // field average) so it can be shown alongside the other levers.
+  const prevDemandFactors: DemandFactorBreakdown = company.lastDemandFactors ?? {
+    price: 1,
+    marketing: 1,
+    quality: 1,
+    reputation: 1,
+    share: 1,
+  };
+  const ownPull = marketAttractiveness(company, industry, config);
+  const shareFactor =
+    marketPressure && marketPressure > 0
+      ? clamp(Math.pow(ownPull / marketPressure, 0.5), 0.72, 1.7)
+      : 1;
+  const demandFactors: DemandFactorBreakdown = {
+    ...demandFactorBreakdown(company, industry, config),
+    share: shareFactor,
+  };
+  company.lastDemandFactors = demandFactors;
+
   // --- Per-product inventory and sales ---
   let revenue = 0;
   let unitsSold = 0;
@@ -250,7 +294,10 @@ export function runCompanyTurn(
   // --- Costs & profit ---
   const upkeep = totalUpkeep(company.buildings);
   const salaries = totalSalary(company);
-  const interest = (company.debt * (macro.interestRate / 100)) / 4 * bonuses.financeCostMult;
+  // Last quarter's credit-warning streak raises this quarter's borrowing cost,
+  // so sustained over-leverage compounds rather than sitting flat forever.
+  const creditSurcharge = 1 + Math.min(3, company.creditWarningStreak ?? 0) * 0.15;
+  const interest = (company.debt * (macro.interestRate / 100)) / 4 * bonuses.financeCostMult * creditSurcharge;
   const fixedCosts = (upkeep + salaries + interest) * (1 - (effects.financeBonus ?? 0));
   const welfareBudget = Math.max(0, d.welfareBudget ?? 0);
   const safetyBudget = Math.max(0, d.safetyBudget ?? 0);
@@ -297,12 +344,24 @@ export function runCompanyTurn(
     company.cash = 0;
   }
 
+  // --- Credit stress tracking ---
+  // A company is "stressed" this quarter if its debt dwarfs its fixed costs
+  // (heavily over-leveraged) and it has no cash cushion to work with. Three
+  // consecutive stressed quarters trip `insolvent`; tick.ts decides the
+  // consequence (bailout vs. game over) based on the level's bankruptcyPolicy.
+  const creditStress = fixedCosts > 0 && company.debt > fixedCosts * 6 && company.cash < fixedCosts * 0.5;
+  company.creditWarningStreak = creditStress ? (company.creditWarningStreak ?? 0) + 1 : 0;
+  const insolvent = (company.creditWarningStreak ?? 0) >= 3;
+
   return {
     revenue,
     unitsSold,
     unitsProduced: produced,
     profit,
     quitCount: quit.length,
+    demandFactors,
+    prevDemandFactors,
+    insolvent,
   };
 }
 

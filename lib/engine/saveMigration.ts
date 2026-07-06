@@ -43,12 +43,17 @@ export function migrateSavedGame(value: unknown): GameState | null {
   migrated.city = createCityState(level, player);
   migrated.strategy = migrateStrategyState(value.strategy, migrated);
   migrated.campaign = migrateCampaignProgress(value.campaign);
+  // Action points now gate one-off actions in every mode, not just the
+  // campaign, so they're always migrated (falling back to a fresh state for
+  // older saves that never had them).
+  migrated.actionPoints = migrateActionPoints(value.actionPoints, level);
+  migrated.actionCategoryUsage = isStringNumberRecord(value.actionCategoryUsage)
+    ? value.actionCategoryUsage
+    : {};
   if (migrated.campaign?.enabled) {
-    migrated.actionPoints = migrateActionPoints(value.actionPoints, level);
     migrated.cards = migrateCards(value.cards, level);
     migrated.rival = migrateRivalState(value.rival, level);
   } else {
-    migrated.actionPoints = undefined;
     migrated.cards = undefined;
     migrated.rival = undefined;
   }
@@ -144,7 +149,9 @@ function migrateCards(value: unknown, level: Level): GameState["cards"] {
 function migrateRivalState(value: unknown, level: Level): GameState["rival"] {
   const fallback = createPriceWarRivalState(level);
   if (!isRecord(value)) return fallback;
-  if (value.schemaVersion !== 1) return fallback;
+  // v1 saves predate recurring/escalating rivals — reset to a fresh chapter
+  // rather than trying to backfill the new fields.
+  if (value.schemaVersion !== 2) return fallback;
   if (typeof value.activeRivalId !== "string") return fallback;
   if (typeof value.chapterId !== "string") return fallback;
   if (value.status !== "active" && value.status !== "won" && value.status !== "lost") return fallback;
@@ -152,7 +159,7 @@ function migrateRivalState(value: unknown, level: Level): GameState["rival"] {
   if (typeof value.playerMarketShare !== "number" || typeof value.rivalMarketShare !== "number") return fallback;
   if (!Array.isArray(value.specialMovesUsed)) return fallback;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeRivalId: value.activeRivalId,
     chapterId: value.chapterId,
     status: value.status,
@@ -166,6 +173,8 @@ function migrateRivalState(value: unknown, level: Level): GameState["rival"] {
     objectiveStates: Array.isArray(value.objectiveStates)
       ? value.objectiveStates.filter(isRivalObjectiveState)
       : [],
+    escalation: typeof value.escalation === "number" ? Math.max(0, value.escalation) : 0,
+    respawnAtTurn: typeof value.respawnAtTurn === "number" ? value.respawnAtTurn : undefined,
   };
 }
 

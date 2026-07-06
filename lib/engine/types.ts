@@ -262,6 +262,25 @@ export interface Company {
 
   /** A notable visitor currently at the campus (cleared each turn). */
   visitor?: VisitorInfo;
+
+  /** Demand-side factor breakdown from the previous turn, for delta display. */
+  lastDemandFactors?: DemandFactorBreakdown;
+
+  /** Consecutive turns spent over the bankruptcy debt threshold (see tick.ts). */
+  creditWarningStreak?: number;
+}
+
+/**
+ * Multiplicative components of a company's demand pull, used both to compute
+ * `marketAttractiveness` and to explain turn-over-turn sales swings to the
+ * player (see CompanyTurnResult.demandFactors in company.ts).
+ */
+export interface DemandFactorBreakdown {
+  price: number;
+  marketing: number;
+  quality: number;
+  reputation: number;
+  share: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -503,6 +522,10 @@ export interface RivalState {
   responsesUsed: string[];
   currentTaunt: string;
   objectiveStates: RivalObjectiveState[];
+  /** How many price-war chapters have been fought so far (0 = first chapter). */
+  escalation: number;
+  /** Game turn at which a resolved chapter respawns as a tougher rematch. */
+  respawnAtTurn?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -530,6 +553,14 @@ export interface LevelConfig {
   numberScale: "small" | "medium" | "large" | "advanced";
   feedbackDepth: "picture" | "simple" | "reason" | "analysis";
   aiCount: number;
+  /**
+   * How sustained over-leverage (see CompanyTurnResult.insolvent) is resolved.
+   * "bailout": debt is partially forgiven and reputation dented, game continues
+   * (used for younger levels so a bad quarter isn't a hard stop).
+   * "strict": the player's game ends in bankruptcy; AI companies still get a
+   * bailout since there's no company-removal machinery.
+   */
+  bankruptcyPolicy: "bailout" | "strict";
 }
 
 // ---------------------------------------------------------------------------
@@ -652,6 +683,8 @@ export interface GameState {
   turn: number;
   maxTurns: number;
   status: "playing" | "ended";
+  /** Why the game ended (undefined while still playing). */
+  endReason?: "bankrupt" | "maxTurns";
 
   macro: MacroState;
 
@@ -666,6 +699,10 @@ export interface GameState {
   city: CityState;
   strategy: StrategyState;
   actionPoints?: ActionPointState;
+  /** Category -> times used this turn, for diminishing-returns on repeated one-off actions. */
+  actionCategoryUsage?: Record<string, number>;
+  /** IDs of net-worth/rank milestones the player has already been celebrated for. */
+  milestonesReached?: string[];
   cards?: PlayerCardState;
   rival?: RivalState;
   campaign?: CampaignProgress;

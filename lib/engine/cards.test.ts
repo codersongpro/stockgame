@@ -17,7 +17,7 @@ function campaignGame() {
 }
 
 describe("campaign action cards", () => {
-  it("creates action points and an opening hand only for campaign games", () => {
+  it("creates action points for every game, but the card hand only for campaign games", () => {
     const campaign = campaignGame();
     const sandbox = createGame({
       level: "elementary_high",
@@ -30,7 +30,9 @@ describe("campaign action cards", () => {
 
     expect(campaign.actionPoints).toEqual({ current: 2, max: 2, freeActionsUsed: 0 });
     expect(campaign.cards?.handCardIds).toHaveLength(4);
-    expect(sandbox.actionPoints).toBeUndefined();
+    // Sandbox games still get action points (they gate one-off actions/deals
+    // there too) — only the card deck/hand is campaign-exclusive.
+    expect(sandbox.actionPoints).toEqual({ current: 2, max: 2, freeActionsUsed: 0 });
     expect(sandbox.cards).toBeUndefined();
   });
 

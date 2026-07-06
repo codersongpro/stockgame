@@ -25,7 +25,9 @@ export function RivalPanel({ game }: { game: GameState }) {
           </div>
         )}
         <div className="min-w-0">
-          <div className="text-xs font-bold uppercase tracking-wide text-red-600">경쟁 세력</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-red-600">
+            경쟁 세력{game.rival.escalation > 0 ? ` · ${game.rival.escalation + 1}라운드` : ""}
+          </div>
           <h3 className="mt-1 text-base font-black leading-5 text-slate-900">
             {rival?.name ?? "경쟁자"} · {rival?.title ?? "라이벌"}
           </h3>
@@ -76,6 +78,13 @@ export function RivalPanel({ game }: { game: GameState }) {
           game.rival.status === "won" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
         }`}>
           {game.rival.status === "won" ? "가격 경쟁에서 승리했습니다." : "가격 경쟁을 다시 준비해야 합니다."}
+          {game.rival.respawnAtTurn !== undefined && (
+            <span className="block font-normal">
+              {game.rival.respawnAtTurn > game.turn
+                ? `${game.rival.respawnAtTurn - game.turn}분기 후 더 강한 경쟁자가 돌아옵니다.`
+                : "곧 더 강한 경쟁자가 돌아옵니다."}
+            </span>
+          )}
         </div>
       )}
     </section>

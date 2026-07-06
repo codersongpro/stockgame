@@ -160,4 +160,34 @@ describe("campaign rival price war", () => {
     expect(loser.status).toBe("playing");
     expect(priceWarProgress(winner).passed).toBeGreaterThan(priceWarProgress(loser).passed);
   });
+
+  it("brings back a tougher, escalated rival chapter a few turns after the first resolves", () => {
+    const game = makeGame(true);
+    const player = game.companies.find((company) => company.id === game.playerCompanyId)!;
+    player.cash = 20_000;
+    player.reputation = 25;
+    player.quality = 10;
+    player.decisions.productionTarget = 0;
+
+    for (let i = 0; i < 5; i += 1) advanceTurn(game);
+    expect(game.rival?.status).toBe("lost");
+    expect(game.rival?.escalation).toBe(0);
+
+    // One more turn lets advanceRivalTurn notice the resolved chapter and
+    // schedule the rematch (respawnAtTurn is set lazily, not on the turn the
+    // chapter actually resolves).
+    advanceTurn(game);
+    const respawnAtTurn = game.rival?.respawnAtTurn;
+    expect(respawnAtTurn).toBeGreaterThan(game.turn);
+
+    let guard = 0;
+    while (game.rival?.status !== "active" && guard < 20) {
+      advanceTurn(game);
+      guard++;
+    }
+
+    expect(game.rival?.status).toBe("active");
+    expect(game.rival?.escalation).toBe(1);
+    expect(game.rival?.turnInChapter).toBe(1);
+  });
 });

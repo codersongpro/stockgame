@@ -52,14 +52,19 @@ export function ensureCampaignCardState(game: GameState): void {
 }
 
 export function refreshActionCardsForTurn(game: GameState): void {
-  ensureCampaignCardState(game);
-  if (!game.actionPoints || !game.cards) return;
-
+  // Action points refill every turn regardless of mode; the card deck/hand
+  // machinery below only applies to the story campaign.
+  if (!game.actionPoints) game.actionPoints = createActionPointState(game.level);
   game.actionPoints = {
     ...game.actionPoints,
     current: game.actionPoints.max,
     freeActionsUsed: 0,
   };
+  game.actionCategoryUsage = {};
+
+  ensureCampaignCardState(game);
+  if (!game.cards) return;
+
   game.cards.cooldowns = Object.fromEntries(
     Object.entries(game.cards.cooldowns)
       .map(([cardId, turns]) => [cardId, Math.max(0, turns - 1)] as const)

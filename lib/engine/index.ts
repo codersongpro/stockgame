@@ -27,7 +27,7 @@ import { createActionPointState, createPlayerCardState } from "./cards";
 import { createPriceWarRivalState } from "./rivals";
 
 export { GAME_VERSION } from "./version";
-export const DEFAULT_MAX_TURNS = 100;
+export const DEFAULT_MAX_TURNS = 32;
 
 export interface NewGameOptions {
   level: Level | "elementary" | "university";
@@ -257,7 +257,9 @@ export function createGame(opts: NewGameOptions): GameState {
     news: [],
     city: createCityState(level, player),
     strategy: createStrategyState(),
-    actionPoints: opts.campaignEnabled ? createActionPointState(level) : undefined,
+    // Action points gate one-off management actions/deals in every mode, not
+    // just the story campaign, so a quarter's spending has a real limit.
+    actionPoints: createActionPointState(level),
     cards: opts.campaignEnabled ? createPlayerCardState(level) : undefined,
     rival: opts.campaignEnabled ? createPriceWarRivalState(level) : undefined,
     campaign: opts.campaignEnabled ? createCampaignProgress(level) : undefined,
@@ -323,6 +325,7 @@ export {
   factoryCapacity,
   estimateDemand,
   marketAttractiveness,
+  demandFactorBreakdown,
   defaultDecisions,
 } from "./company";
 export * from "./actions";

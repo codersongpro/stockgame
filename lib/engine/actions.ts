@@ -12,6 +12,7 @@ import { shockStock } from "./market";
 import { nextFloat } from "./rng";
 import { getRecruitmentNegotiationProfile } from "./recruitment";
 import { getStrategicTiming, timingBonusFromScore } from "./strategyTiming";
+import { createActionPointState } from "./cards";
 
 // Mutating player/AI actions that happen *between* turns (they don't advance
 // the clock). Single-sourced so the AI and the human player obey the same rules.
@@ -155,6 +156,49 @@ export const COMPANY_ACTIONS: Record<string, CompanyActionDef> = {
   pr_campaign: { label: "언론 홍보",    cost: 40_000, cat: "extra", desc: "언론 홍보 활동으로 회사의 긍정적 이미지가 확산됐습니다.",   apply: (c) => { c.reputation = Math.min(100, c.reputation + 6); } },
 };
 
+/**
+ * Ensure `state.actionPoints` exists and spend 1 point from it. Returns false
+ * (spending nothing) when the player is out of action points this quarter.
+ * One-off management actions and deals share this same pool with CEO action
+ * cards, so a quarter's worth of moves has a real, felt limit.
+ */
+function spendActionPoint(state: GameState): boolean {
+  if (!state.actionPoints) state.actionPoints = createActionPointState(state.level);
+  if (state.actionPoints.current < 1) return false;
+  state.actionPoints.current -= 1;
+  return true;
+}
+
+/** Snapshot of the stats a CompanyActionDef might touch, for scaling diminished repeats. */
+function statSnapshot(company: Company) {
+  return {
+    quality: company.quality,
+    reputation: company.reputation,
+    morale: company.morale,
+    safety: company.safety,
+    loyalty: company.hired.map((h) => h.loyalty ?? 70),
+  };
+}
+
+/** Roll a just-applied effect back toward `before` so only `multiplier` of it sticks. */
+function scaleEffect(company: Company, before: ReturnType<typeof statSnapshot>, multiplier: number): void {
+  company.quality = before.quality + (company.quality - before.quality) * multiplier;
+  company.reputation = before.reputation + (company.reputation - before.reputation) * multiplier;
+  company.morale = before.morale + (company.morale - before.morale) * multiplier;
+  company.safety = before.safety + (company.safety - before.safety) * multiplier;
+  company.hired.forEach((h, i) => {
+    const prevLoyalty = before.loyalty[i] ?? 70;
+    h.loyalty = prevLoyalty + ((h.loyalty ?? 70) - prevLoyalty) * multiplier;
+  });
+}
+
+/** 1st use of a category this turn is full strength; repeats taper off fast. */
+function diminishingMultiplier(usedCount: number): number {
+  if (usedCount <= 0) return 1;
+  if (usedCount === 1) return 0.5;
+  return 0.25;
+}
+
 /** Player-initiated cooperation with another company (from the visit screen). */
 interface DealDef { label: string; cost: number; }
 export const DEALS: Record<string, DealDef> = {
@@ -175,6 +219,7 @@ export function proposeDeal(
   const target = findCompany(state, targetCompanyId);
   if (!target || target.id === company.id) return { ok: false, error: "대상 회사를 찾을 수 없습니다." };
   if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
+  if (!spendActionPoint(state)) return { ok: false, error: "이번 분기 행동력을 모두 사용했습니다." };
 
   company.cash -= def.cost;
 
@@ -244,12 +289,23 @@ export function applyCompanyAction(
   const def = COMPANY_ACTIONS[actionId];
   if (!def) return { ok: false, error: "알 수 없는 활동입니다." };
   if (company.cash < def.cost) return { ok: false, error: "현금이 부족합니다." };
+  if (!spendActionPoint(state)) return { ok: false, error: "이번 분기 행동력을 모두 사용했습니다." };
+
+  // Repeating the same category of action in one quarter has diminishing
+  // returns (buying quality/rep/morale over and over shouldn't be a free win).
+  const category = def.cat ?? "extra";
+  const usedCount = state.actionCategoryUsage?.[category] ?? 0;
+  const multiplier = diminishingMultiplier(usedCount);
+  state.actionCategoryUsage = { ...(state.actionCategoryUsage ?? {}), [category]: usedCount + 1 };
+
   const timingBonus = def.cat === "rnd"
     ? timingBonusFromScore(getStrategicTiming(company, state).rnd.score)
     : 0;
   company.cash -= def.cost;
+  const before = statSnapshot(company);
   def.apply(company);
-  if (timingBonus > 0) company.quality = Math.min(100, company.quality + timingBonus);
+  if (multiplier < 1) scaleEffect(company, before, multiplier);
+  if (timingBonus > 0) company.quality = Math.min(100, company.quality + timingBonus * multiplier);
 
   // Push news item for the action
   if (def.desc) {
@@ -265,11 +321,12 @@ export function applyCompanyAction(
     });
   }
 
+  const diminishedNote = multiplier < 1 ? ` (반복 사용으로 효과 ${Math.round(multiplier * 100)}%)` : "";
   return {
     ok: true,
     message: timingBonus > 0
-      ? `${def.label} 완료! 연구 타이밍 보너스 +${timingBonus}`
-      : `${def.label} 완료!`,
+      ? `${def.label} 완료! 연구 타이밍 보너스 +${timingBonus}${diminishedNote}`
+      : `${def.label} 완료!${diminishedNote}`,
   };
 }
 

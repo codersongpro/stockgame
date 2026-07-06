@@ -175,7 +175,7 @@ export function BuildingInteriorModal({
             {action && (
               <button
                 className="w-full rounded-xl bg-brand-50 px-3 py-2.5 text-left ring-1 ring-brand-200 hover:ring-brand-400 disabled:opacity-50"
-                disabled={company.cash < COST_BY_ACTION[action.id]}
+                disabled={company.cash < COST_BY_ACTION[action.id] || (!!game.actionPoints && game.actionPoints.current < 1)}
                 onClick={() => companyAction(action.id)}
               >
                 <div className="flex items-center justify-between">

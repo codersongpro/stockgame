@@ -60,6 +60,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     numberScale: "small",
     feedbackDepth: "picture",
     aiCount: 2,
+    bankruptcyPolicy: "bailout",
   },
   elementary_mid: {
     level: "elementary_mid",
@@ -82,6 +83,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     numberScale: "medium",
     feedbackDepth: "simple",
     aiCount: 8,
+    bankruptcyPolicy: "bailout",
   },
   elementary_high: {
     level: "elementary_high",
@@ -104,6 +106,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     numberScale: "large",
     feedbackDepth: "reason",
     aiCount: 16,
+    bankruptcyPolicy: "bailout",
   },
   middle: {
     level: "middle",
@@ -126,6 +129,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     numberScale: "advanced",
     feedbackDepth: "reason",
     aiCount: 20,
+    bankruptcyPolicy: "strict",
   },
   high: {
     level: "high",
@@ -148,6 +152,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     numberScale: "advanced",
     feedbackDepth: "analysis",
     aiCount: 24,
+    bankruptcyPolicy: "strict",
   },
   adult: {
     level: "adult",
@@ -170,6 +175,7 @@ export const LEVEL_CONFIGS: Record<Level, LevelConfig> = {
     numberScale: "advanced",
     feedbackDepth: "analysis",
     aiCount: 28,
+    bankruptcyPolicy: "strict",
   },
 };
 

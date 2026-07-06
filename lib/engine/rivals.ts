@@ -1,6 +1,7 @@
 import { getRival, PRICE_WAR_RIVAL_ID } from "../data/campaign/rivals";
 import type { CompanyTurnResult } from "./company";
 import type { GameState, Level, RivalObjectiveState, RivalState, StrategyEvent } from "./types";
+import { nextInt } from "./rng";
 
 const PRICE_WAR_TURNS = 5;
 const PRICE_PRESSURE_OPTIONS = [
@@ -11,10 +12,10 @@ const PRICE_PRESSURE_OPTIONS = [
   "CEO 행동 카드로 빠르게 대응하기",
 ];
 
-export function createPriceWarRivalState(_level: Level): RivalState {
+export function createPriceWarRivalState(_level: Level, escalation = 0): RivalState {
   const rival = getRival(PRICE_WAR_RIVAL_ID)!;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeRivalId: rival.id,
     chapterId: rival.chapterId,
     status: "active",
@@ -26,13 +27,24 @@ export function createPriceWarRivalState(_level: Level): RivalState {
     responsesUsed: [],
     currentTaunt: rival.intro,
     objectiveStates: [],
+    escalation,
   };
 }
 
 export function advanceRivalTurn(game: GameState, result: CompanyTurnResult | null): void {
   if (!game.campaign?.enabled) return;
   if (!game.rival) game.rival = createPriceWarRivalState(game.level);
-  if (game.rival.status !== "active") return;
+
+  if (game.rival.status !== "active") {
+    // The chapter resolved earlier — bring a tougher rematch back a few
+    // turns later instead of leaving the rival gone for the rest of the game.
+    if (game.rival.respawnAtTurn === undefined) {
+      game.rival.respawnAtTurn = game.turn + nextInt(game.rng, 6, 10);
+      return;
+    }
+    if (game.turn < game.rival.respawnAtTurn) return;
+    game.rival = createPriceWarRivalState(game.level, game.rival.escalation + 1);
+  }
 
   const player = game.companies.find((company) => company.id === game.playerCompanyId);
   if (!player) return;
@@ -51,7 +63,11 @@ export function advanceRivalTurn(game: GameState, result: CompanyTurnResult | nu
   const reputationPull = player.reputation * 500;
   const cashPull = Math.min(80_000, player.cash) * 0.25;
   const playerPower = revenuePull + qualityPull + reputationPull + cashPull;
-  const rivalPower = 90_000 + nextTurn * 4_000 + (usedSpecial ? 12_000 : 0);
+  // Rival power scales off the player's own power (mostly revenue-driven)
+  // rather than a flat constant, so later — especially escalated — chapters
+  // stay a real fight instead of trivializing once the player has grown.
+  const escalationMult = 1 + game.rival.escalation * 0.35;
+  const rivalPower = playerPower * (0.6 + nextTurn * 0.08) * escalationMult * (usedSpecial ? 1.12 : 1);
   const playerShare = Math.round((playerPower / Math.max(1, playerPower + rivalPower)) * 100);
   const rivalShare = Math.max(0, 100 - playerShare);
 

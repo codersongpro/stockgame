@@ -132,7 +132,8 @@ function DealPanel({ game, target }: { game: GameState; target: Company }) {
       <p className="mb-3 text-xs text-slate-500">제안에는 비용이 들고 즉시 효과가 적용돼요.</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {Object.entries(DEALS).map(([id, def]) => {
-          const affordable = player.cash >= def.cost;
+          const hasAp = !game.actionPoints || game.actionPoints.current >= 1;
+          const affordable = player.cash >= def.cost && hasAp;
           return (
             <button
               key={id}

@@ -21,7 +21,7 @@ describe("sandbox campaign integration", () => {
       campaignEnabled: false,
     });
 
-    expect(game.maxTurns).toBe(100);
+    expect(game.maxTurns).toBe(32);
     expect(game.campaign).toBeUndefined();
   });
 

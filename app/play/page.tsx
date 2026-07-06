@@ -7,6 +7,7 @@ import { netWorth, playerRank, rankings, LAYER_LABELS, getRivalResponseGuide, pr
 import type { NewsItem } from "@/lib/engine";
 import type { TurnSummary } from "@/lib/engine/tick";
 import { formatMoney } from "@/lib/format";
+import { demandFactorInsights } from "@/lib/demandInsights";
 import { initAudio, isMuted, setMuted } from "@/lib/audio";
 
 import { Dashboard } from "@/components/Dashboard";
@@ -27,9 +28,10 @@ import { ExecutiveBriefing } from "@/components/ExecutiveBriefing";
 import { CampaignGoalCard } from "@/components/CampaignGoalCard";
 import { CityStrategyPanel } from "@/components/CityStrategyPanel";
 import { ActionHand } from "@/components/gameplay/ActionHand";
+import { ActionPointBar } from "@/components/gameplay/ActionPointBar";
 import { RivalPanel } from "@/components/gameplay/RivalPanel";
 import { SpriteSheetImage } from "@/components/SpriteSheetImage";
-import { TAB_ICONS, RESULT_ICONS, BANNER_IMGS, STATUS_BANNER_ART } from "@/lib/assetMap";
+import { TAB_ICONS, RESULT_ICONS, STATUS_BANNER_ART } from "@/lib/assetMap";
 
 const TUTORIAL_SEEN_KEY = "uc_tutorial_seen";
 
@@ -65,15 +67,16 @@ export default function PlayPage() {
   const [visitId, setVisitId] = useState<string | null>(null);
   const [muted, setMutedState] = useState(false);
   const [ready, setReady] = useState(false);
-  const [eventPopup, setEventPopup] = useState<NewsItem[] | null>(null);
-  const [resultsPopup, setResultsPopup] = useState<{ summary: TurnSummary; prevNw: number } | null>(null);
+  const [turnPopup, setTurnPopup] = useState<{ summary: TurnSummary; prevNw: number } | null>(null);
   const [help, setHelp] = useState<null | "tutorial" | "manual" | "glossary">(null);
   const lockUntil = useRef(0);
 
-  // Advance one quarter. Guards against (a) rapid double-clicks force-skipping
-  // multiple turns and (b) skipping past an unacknowledged event popup.
+  // Advance one quarter. Guards against rapid double-clicks force-skipping
+  // multiple turns, and against skipping past an unacknowledged turn popup.
+  // Quiet turns (no news, negligible net-worth swing) skip the popup
+  // entirely and surface a toast instead, so most quarters take one tap.
   const handleNext = () => {
-    if (eventPopup || resultsPopup) return; // must acknowledge popups first
+    if (turnPopup) return; // must acknowledge the popup first
     const now = Date.now();
     if (now < lockUntil.current) return; // debounce accidental multi-advance
     lockUntil.current = now + 400;
@@ -82,19 +85,25 @@ export default function PlayPage() {
     const prevPlayer = prevGame?.companies.find((c) => c.id === prevGame.playerCompanyId);
     const prevNw = prevPlayer && prevGame ? netWorth(prevPlayer, prevGame) : 0;
     next();
+    const nextGame = useGameStore.getState().game;
     const summary = useGameStore.getState().lastSummary;
-    if (summary?.playerResult) setResultsPopup({ summary, prevNw });
-    else {
-      const events = summary?.events ?? [];
-      if (events.length > 0) setEventPopup(events);
+    if (!nextGame || !summary) return;
+
+    const nextPlayer = nextGame.companies.find((c) => c.id === nextGame.playerCompanyId)!;
+    const nw = netWorth(nextPlayer, nextGame);
+    const nwDelta = nw - prevNw;
+    const quiet = summary.events.length === 0 && Math.abs(nwDelta) < Math.max(20_000, Math.abs(prevNw) * 0.004);
+    if (quiet) {
+      const sign = nwDelta >= 0 ? "+" : "−";
+      useGameStore.setState({
+        toast: { text: `${nextGame.turn}분기 · 순자산 ${sign}${formatMoney(Math.abs(nwDelta))}`, tone: nwDelta >= 0 ? "good" : "bad" },
+      });
+    } else {
+      setTurnPopup({ summary, prevNw });
     }
   };
 
-  const handleResultsDismiss = () => {
-    const events = resultsPopup?.summary.events ?? [];
-    setResultsPopup(null);
-    if (events.length > 0) setEventPopup(events);
-  };
+  const handleTurnPopupDismiss = () => setTurnPopup(null);
 
   // Hydrate from save if the store is empty (e.g. page refresh).
   useEffect(() => {
@@ -181,7 +190,7 @@ export default function PlayPage() {
           <button
             id="btn-next-turn"
             onClick={handleNext}
-            disabled={ended || !!eventPopup || !!resultsPopup}
+            disabled={ended || !!turnPopup}
             className="btn-primary whitespace-nowrap"
           >
             {ended ? "게임 종료" : "다음 분기 ▶"}
@@ -230,6 +239,14 @@ export default function PlayPage() {
           <CampaignGoalCard game={game} />
           <RivalPanel game={game} />
           <ActionHand game={game} />
+          {!game.campaign?.enabled && game.actionPoints && (
+            <section className="card p-4">
+              <div className="text-xs font-bold uppercase tracking-wide text-brand-600">이번 분기 행동력</div>
+              <div className="mt-2">
+                <ActionPointBar actionPoints={game.actionPoints} />
+              </div>
+            </section>
+          )}
           <CityStrategyPanel game={game} />
           <Secretary game={game} />
           <CompanyStatusCard game={game} company={player} />
@@ -250,19 +267,14 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* Quarterly results popup */}
-      {resultsPopup && (
-        <ResultsPopup
+      {/* Quarterly turn popup: results + news in a single modal */}
+      {turnPopup && (
+        <TurnResultPopup
           game={game}
-          summary={resultsPopup.summary}
-          prevNw={resultsPopup.prevNw}
-          onClose={handleResultsDismiss}
+          summary={turnPopup.summary}
+          prevNw={turnPopup.prevNw}
+          onClose={handleTurnPopupDismiss}
         />
-      )}
-
-      {/* Event popup */}
-      {eventPopup && (
-        <EventPopup events={eventPopup} onClose={() => setEventPopup(null)} />
       )}
 
       {/* Game over overlay */}
@@ -279,7 +291,7 @@ export default function PlayPage() {
   );
 }
 
-function ResultsPopup({
+function TurnResultPopup({
   game,
   summary,
   prevNw,
@@ -306,6 +318,7 @@ function ResultsPopup({
       100
     : 0;
   const resultBanner = resultBannerFor(r.profit, nwDelta, game.rival?.status, rivalGuide.active);
+  const demandInsights = demandFactorInsights(r.demandFactors, r.prevDemandFactors, game.config.feedbackDepth);
 
   const rows: { label: string; value: string; tone?: "good" | "bad" | "neutral" }[] = [
     { label: "매출", value: formatMoney(r.revenue), tone: r.revenue > 0 ? "good" : "neutral" },
@@ -356,6 +369,17 @@ function ResultsPopup({
         {/* Executive's quarterly briefing & advice */}
         <ExecutiveBriefing game={game} />
 
+        {demandInsights.length > 0 && (
+          <div className="mx-5 mb-3 rounded-xl bg-slate-50 px-4 py-3 text-sm leading-5 text-slate-600">
+            <div className="mb-1 text-xs font-bold text-slate-400">이번 분기 판매가 이렇게 움직였어요</div>
+            <ul className="space-y-0.5">
+              {demandInsights.map((line) => (
+                <li key={line}>• {line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {campaign?.enabled && campaign.lastMessage && (
           <div className="mx-5 mb-3 rounded-xl bg-brand-50 px-4 py-3 text-sm font-semibold leading-5 text-brand-700">
             캠페인: {campaign.lastMessage}
@@ -397,6 +421,38 @@ function ResultsPopup({
           ))}
         </div>
 
+        {summary.events.length > 0 && (
+          <div className="mx-5 mb-3 space-y-2.5 rounded-xl bg-slate-50 p-3">
+            <div className="text-xs font-bold text-slate-400">이번 분기 속보 ({summary.events.length})</div>
+            {summary.events.map((ev) => {
+              const evTone = TONE_STYLE[ev.tone];
+              return (
+                <div key={ev.id} className={`rounded-xl bg-white p-3 ring-1 ${evTone.ring}`}>
+                  <div className="flex items-start gap-2.5">
+                    {ev.portrait ? (
+                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-4xl shadow-inner">
+                        {ev.portrait}
+                      </span>
+                    ) : (
+                      <span className="text-2xl leading-none">{ev.emoji}</span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-bold text-slate-800">{ev.title}</span>
+                        <span className={`pill text-xs ${evTone.chip}`}>{evTone.label}</span>
+                        <span className="pill bg-slate-100 text-xs text-slate-500">
+                          {LAYER_LABELS[ev.layer]}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-snug text-slate-600">{ev.body}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         </div>
 
         <div className="shrink-0 border-t border-slate-100 bg-white px-5 pb-4 pt-3">
@@ -404,7 +460,7 @@ function ResultsPopup({
             className="btn-primary w-full"
             onClick={onClose}
           >
-            확인 {summary.events.length > 0 ? `(뉴스 ${summary.events.length}건 ▶)` : "▶"}
+            확인 ▶
           </button>
         </div>
       </div>
@@ -430,78 +486,24 @@ const TONE_STYLE: Record<NewsItem["tone"], { ring: string; chip: string; label: 
   neutral: { ring: "ring-slate-200", chip: "bg-slate-100 text-slate-500", label: "중립" },
 };
 
-function EventPopup({ events, onClose }: { events: NewsItem[]; onClose: () => void }) {
-  const tone: "positive" | "negative" | "neutral" = events.some((e) => e.tone === "positive")
-    ? "positive"
-    : events.some((e) => e.tone === "negative")
-    ? "negative"
-    : "neutral";
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="card w-full max-w-md animate-popin overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Banner header */}
-        <div className="relative overflow-hidden">
-          <img src={BANNER_IMGS[tone]} alt="" className="w-full object-cover" style={{ maxHeight: 100 }} />
-          <div className="absolute inset-0 flex items-end bg-black/25 px-4 pb-2.5">
-            <h2 className="text-base font-black text-white drop-shadow">
-              이번 분기 속보 {events.length > 1 ? `(${events.length})` : ""}
-            </h2>
-          </div>
-        </div>
-        <div className="p-5">
-        <div className="max-h-[55vh] space-y-2.5 overflow-y-auto scroll-thin">
-          {events.map((ev) => {
-            const tone = TONE_STYLE[ev.tone];
-            return (
-              <div key={ev.id} className={`rounded-xl bg-white p-3 ring-1 ${tone.ring}`}>
-                <div className="flex items-start gap-2.5">
-                  {ev.portrait ? (
-                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-4xl shadow-inner">
-                      {ev.portrait}
-                    </span>
-                  ) : (
-                    <span className="text-2xl leading-none">{ev.emoji}</span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-bold text-slate-800">{ev.title}</span>
-                      <span className={`pill text-xs ${tone.chip}`}>{tone.label}</span>
-                      <span className="pill bg-slate-100 text-xs text-slate-500">
-                        {LAYER_LABELS[ev.layer]}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm leading-snug text-slate-600">{ev.body}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <button className="btn-primary mt-4 w-full" onClick={onClose}>
-          확인하고 계속 ▶
-        </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function GameOver({ game, onRestart }: { game: ReturnType<typeof useGameStore.getState>["game"] & object; onRestart: () => void }) {
   if (!game) return null;
   const board = rankings(game);
   const rank = board.findIndex((e) => e.companyId === game.playerCompanyId) + 1;
-  const won = rank === 1;
+  const bankrupt = game.endReason === "bankrupt";
+  const won = !bankrupt && rank === 1;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="card w-full max-w-md animate-popin p-6 text-center">
         <img src={won ? RESULT_ICONS.win : RESULT_ICONS.end} alt={won ? "우승" : "게임 종료"} className="mx-auto h-40 w-40 object-contain" />
         <h2 className="mt-3 text-2xl font-black text-slate-800">
-          {won ? "축하합니다! 1위 달성!" : "게임 종료"}
+          {bankrupt ? "파산했습니다" : won ? "축하합니다! 1위 달성!" : "게임 종료"}
         </h2>
-        <p className="mt-1 text-slate-500">{game.maxTurns}분기 경영 결과, {rank}위로 마쳤어요.</p>
+        <p className="mt-1 text-slate-500">
+          {bankrupt
+            ? `${game.turn}분기, 부채를 감당하지 못해 회사 문을 닫았어요. ${rank}위로 마쳤어요.`
+            : `${game.maxTurns}분기 경영 결과, ${rank}위로 마쳤어요.`}
+        </p>
         <div className="mt-4 space-y-1.5 text-left">
           {board.slice(0, 5).map((e, i) => (
             <div

@@ -155,7 +155,7 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
           summary={timing.rnd.summary}
           reasons={timing.rnd.reasons}
           actionLabel={sl ? "연구하기" : "기술 연구 실행"}
-          disabled={company.cash < 80_000}
+          disabled={company.cash < 80_000 || (!!game.actionPoints && game.actionPoints.current < 1)}
           onAction={() => companyAction("rnd_active")}
         />
         <TimingCard
@@ -363,7 +363,8 @@ export function CompanyPanel({ game, company }: { game: GameState; company: Comp
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {section.actions.map((action) => {
-                  const canAfford = company.cash >= action.cost;
+                  const hasAp = !game.actionPoints || game.actionPoints.current >= 1;
+                  const canAfford = company.cash >= action.cost && hasAp;
                   return (
                     <button
                       key={action.id}
