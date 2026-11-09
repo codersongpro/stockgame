@@ -12,6 +12,7 @@ import { pickCityVoice, pickVisitorVoices } from "@/lib/data/cityVoices";
 import { getIndustry } from "@/lib/data/industries";
 import { BuildingInteriorModal } from "./BuildingInteriorModal";
 import { BUILDING_IMG } from "@/lib/assetMap";
+import { GltfPerson, type PersonAction } from "./campus/GltfPerson";
 
 /* ── palette ─────────────────────────────────────────────────────────────── */
 // [body, roof, accent]
@@ -523,6 +524,8 @@ const PERSON_PALETTE: Record<PersonKind, string[]> = {
 };
 const HAIR = ["#3b2a1a", "#1f2937", "#6b3f1d", "#111827", "#7c2d12", "#facc15"];
 const HAT = ["#ef4444", "#1d4ed8", "#15803d", "#f59e0b"];
+// glTF 인물용 피부 톤 (밝은 톤 ~ 어두운 톤 고르게)
+const SKIN = ["#f5d0b0", "#e8b48f", "#c98d64", "#a06a45", "#f1c6a2", "#7a4b2e"];
 
 const PANTS = ["#1e293b", "#334155", "#42302a", "#1f2937", "#3f3f46", "#374151"];
 
@@ -655,6 +658,11 @@ function PersonModel({
   );
 }
 
+/* 캠퍼스 활동 → glTF 모델 동작 */
+const PERSON_ACTION: Record<string, PersonAction> = {
+  walk: "walk", exercise: "cheer", wave: "cheer", chat: "idle", rest: "idle",
+};
+
 function Person({
   a, index, speaking, onClick,
 }: { a: AgentPath; index: number; speaking: string | null; onClick: () => void }) {
@@ -696,7 +704,22 @@ function Person({
   return (
     <group ref={ref}>
       <group onClick={(e) => { e.stopPropagation(); onClick(); }}>
-        <PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />
+        {kind === "man" ? (
+          // 시험 적용: 남성 직원만 glTF 정장 모델로 교체 (나머지는 기존 캐릭터)
+          <GltfPerson
+            model="suitMale"
+            action={PERSON_ACTION[act]}
+            colors={{
+              outfit: PERSON_PALETTE.man[(a.seed ?? index) % PERSON_PALETTE.man.length],
+              skin: SKIN[(a.seed ?? index) % SKIN.length],
+              hair: HAIR[(a.seed ?? index) % HAIR.length],
+            }}
+            phase={a.phase}
+            fallback={<PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />}
+          />
+        ) : (
+          <PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />
+        )}
       </group>
       {speaking && (
         <Html position={[0, 0.66, 0]} center distanceFactor={5} zIndexRange={[75, 0]}>
