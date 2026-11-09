@@ -13,6 +13,7 @@ import { getIndustry } from "@/lib/data/industries";
 import { BuildingInteriorModal } from "./BuildingInteriorModal";
 import { BUILDING_IMG } from "@/lib/assetMap";
 import { GltfPerson, pickPersonModel, type PersonAction } from "./campus/GltfPerson";
+import { GltfBuilding, hasBuildingModel } from "./campus/GltfBuilding";
 
 /* ── palette ─────────────────────────────────────────────────────────────── */
 // [body, roof, accent]
@@ -51,8 +52,8 @@ function blend(a: string, b: string, t: number): string {
 
 /* ── low-poly building ───────────────────────────────────────────────────── */
 function Building3D({
-  building, selected, tint, seed = 0,
-}: { building: PlacedBuilding; selected: boolean; tint?: string; seed?: number }) {
+  building, selected, tint, seed = 0, procedural = false,
+}: { building: PlacedBuilding; selected: boolean; tint?: string; seed?: number; procedural?: boolean }) {
   const base = COLORS[building.type];
   // Brand-tint each company's buildings toward its logo color so campuses differ.
   // A per-company seed jitters the blend strength so two companies with the same
@@ -81,6 +82,19 @@ function Building3D({
           <meshStandardMaterial color="#f59e0b" />
         </mesh>
       </group>
+    );
+  }
+
+  // glTF 모델이 있는 건물은 모델로 그림 (벽 색 = 건물 종류 색 + 회사 색). 불러오는 중·실패 시 기존 도형 건물.
+  if (!procedural && hasBuildingModel(building.type)) {
+    return (
+      <GltfBuilding
+        type={building.type}
+        level={lvl}
+        tint={body}
+        selected={selected}
+        fallback={<Building3D building={building} selected={selected} tint={tint} seed={seed} procedural />}
+      />
     );
   }
 
