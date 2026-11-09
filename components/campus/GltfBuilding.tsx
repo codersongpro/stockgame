@@ -35,9 +35,28 @@ const BUILDING_MODELS: Partial<Record<BuildingType, [string, string, string]>> =
 export function hasBuildingModel(type: BuildingType): boolean {
   return !!BUILDING_MODELS[type];
 }
-function modelUrl(type: BuildingType, level: number): string {
-  const list = BUILDING_MODELS[type]!;
-  return `/models/buildings/${list[Math.max(0, Math.min(2, level - 1))]}.glb`;
+function modelName(type: BuildingType, level: number): string {
+  return BUILDING_MODELS[type]![Math.max(0, Math.min(2, level - 1))];
+}
+
+/* 굴뚝 꼭대기 위치 (모델 경계 상자 기준 비율 x·높이·z).
+   모델 형상을 분석해 미리 계산한 값 — 연기 효과를 이 자리에 띄움. 굴뚝 없는 모델은 생략. */
+const CHIMNEYS: Record<string, [number, number, number][]> = {
+  "ind-building-l": [[0.56, 1, 0.864]],
+  "ind-building-m": [[0.748, 1, 0.265], [0.747, 1, 0.503], [0.748, 1, 0.735]],
+  "ind-building-c": [[0.595, 1, 0.41]],
+  "ind-building-e": [[0.144, 1, 0.816], [0.376, 1, 0.815]],
+  "ind-building-f": [[0.135, 1, 0.177]],
+};
+
+/** 너무 어두운 색(예: 공장 회색)은 벽이 거의 검게 보이므로 최소 밝기를 보장 */
+const MIN_LIGHTNESS = 0.62;
+function readableTint(hex: string): THREE.Color {
+  const c = new THREE.Color(hex);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  if (hsl.l < MIN_LIGHTNESS) c.setHSL(hsl.h, Math.min(1, hsl.s * 1.15), MIN_LIGHTNESS);
+  return c.convertSRGBToLinear();
 }
 
 /** 건물이 차지할 바닥 크기 (타일 1칸 = 1) */
@@ -63,7 +82,7 @@ function makeTintMaterial(src: THREE.Material, tint: THREE.Color, glow: boolean)
           "float wall = smoothstep( 0.25, 0.5, lum );",
           "float window = smoothstep( 0.1, 0.2, src.b - src.r ) * smoothstep( 0.08, 0.2, lum );",
           "vec3 light = mix( src, uTint, 0.55 ) * 1.05;",
-          "vec3 deep = mix( vec3( 0.07, 0.075, 0.1 ), uTint * 0.55, 0.6 );",
+          "vec3 deep = mix( vec3( 0.08, 0.085, 0.11 ), uTint * 0.72, 0.72 );",
           "vec3 painted = mix( deep, light, wall );",
           "diffuseColor.rgb = mix( painted, src, window );",
         ].join("\n"),
@@ -73,14 +92,17 @@ function makeTintMaterial(src: THREE.Material, tint: THREE.Color, glow: boolean)
   return m;
 }
 
+type ChimneyEffect = (position: [number, number, number], index: number) => ReactNode;
+
 function GltfBuildingInner({
-  type, level, tint, selected,
-}: { type: BuildingType; level: number; tint: string; selected: boolean }) {
-  const { scene } = useGLTF(modelUrl(type, level), false, true);
+  type, level, tint, selected, chimneyEffect,
+}: { type: BuildingType; level: number; tint: string; selected: boolean; chimneyEffect?: ChimneyEffect }) {
+  const name = modelName(type, level);
+  const { scene } = useGLTF(`/models/buildings/${name}.glb`, false, true);
 
   // 건물마다 독립된 재질(색)을 갖도록 복제하고, 바닥 크기에 맞춰 크기·위치 조정
-  const object = useMemo(() => {
-    const color = new THREE.Color(tint).convertSRGBToLinear();
+  const { object, chimneys } = useMemo(() => {
+    const color = readableTint(tint);
     const obj = scene.clone(true);
     obj.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -99,10 +121,21 @@ function GltfBuildingInner({
     obj.scale.setScalar(s);
     const g = new THREE.Group();
     g.add(obj);
-    return g;
-  }, [scene, tint, selected]);
+    // 비율 좌표 → 실제 위치 (바닥 중심 기준, 크기 조정 반영)
+    const tips = (CHIMNEYS[name] ?? []).map(([fx, fy, fz]) => [
+      (box.min.x + fx * size.x - center.x) * s,
+      fy * size.y * s,
+      (box.min.z + fz * size.z - center.z) * s,
+    ] as [number, number, number]);
+    return { object: g, chimneys: tips };
+  }, [scene, name, tint, selected]);
 
-  return <primitive object={object} />;
+  return (
+    <>
+      <primitive object={object} />
+      {chimneyEffect && chimneys.map((p, i) => <group key={i}>{chimneyEffect(p, i)}</group>)}
+    </>
+  );
 }
 
 /* 모델을 못 불러오면 기존 도형 건물로 대체 */
@@ -115,6 +148,8 @@ class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 
 export function GltfBuilding(props: {
   type: BuildingType; level: number; tint: string; selected: boolean; fallback: ReactNode;
+  /** 굴뚝 꼭대기마다 그릴 효과 (예: 연기) */
+  chimneyEffect?: ChimneyEffect;
 }) {
   const { fallback, ...rest } = props;
   return (

@@ -93,6 +93,12 @@ function Building3D({
         level={lvl}
         tint={body}
         selected={selected}
+        // 공장·발전소는 굴뚝마다 연기 (굴뚝 위치는 모델별로 미리 계산됨)
+        chimneyEffect={
+          building.type === "factory" || building.type === "power"
+            ? (p, i) => <SmokePuff position={p} scale={0.8 + (i % 2) * 0.2} />
+            : undefined
+        }
         fallback={<Building3D building={building} selected={selected} tint={tint} seed={seed} procedural />}
       />
     );
