@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { useGameStore } from "@/store/gameStore";
@@ -12,7 +12,7 @@ import { pickCityVoice, pickVisitorVoices } from "@/lib/data/cityVoices";
 import { getIndustry } from "@/lib/data/industries";
 import { BuildingInteriorModal } from "./BuildingInteriorModal";
 import { BUILDING_IMG } from "@/lib/assetMap";
-import { GltfPerson, type PersonAction } from "./campus/GltfPerson";
+import { GltfPerson, pickPersonModel, type PersonAction } from "./campus/GltfPerson";
 
 /* ── palette ─────────────────────────────────────────────────────────────── */
 // [body, roof, accent]
@@ -658,14 +658,35 @@ function PersonModel({
   );
 }
 
+/* 캠퍼스 인물: glTF 모델(종류·번호별 의상과 색) + 불러오는 동안/실패 시 기존 상자 캐릭터 */
+function CampusPerson({
+  kind, seed, action, phase, gait,
+}: { kind: PersonKind; seed: number; action: PersonAction; phase: number; gait: number }) {
+  const outfits = PERSON_PALETTE[kind];
+  return (
+    <GltfPerson
+      model={pickPersonModel(kind, seed)}
+      action={action}
+      height={kind === "child" ? 0.27 : 0.4}
+      colors={{
+        outfit: outfits[seed % outfits.length],
+        skin: SKIN[seed % SKIN.length],
+        hair: HAIR[(seed * 7 + 3) % HAIR.length],
+      }}
+      phase={phase}
+      fallback={<PersonModel kind={kind} seed={seed} walking={action === "walk"} gait={gait} />}
+    />
+  );
+}
+
 /* 캠퍼스 활동 → glTF 모델 동작 */
 const PERSON_ACTION: Record<string, PersonAction> = {
   walk: "walk", exercise: "cheer", wave: "cheer", chat: "idle", rest: "idle",
 };
 
 function Person({
-  a, index, speaking, onClick,
-}: { a: AgentPath; index: number; speaking: string | null; onClick: () => void }) {
+  a, index, speaking, focused = false, onClick,
+}: { a: AgentPath; index: number; speaking: string | null; focused?: boolean; onClick: (obj: THREE.Object3D | null) => void }) {
   const ref = useRef<THREE.Group>(null);
   const act = a.activity ?? "walk";
   useFrame((state) => {
@@ -703,29 +724,26 @@ function Person({
   const kind = a.kind ?? "man";
   return (
     <group ref={ref}>
-      <group onClick={(e) => { e.stopPropagation(); onClick(); }}>
-        {kind === "man" ? (
-          // 시험 적용: 남성 직원만 glTF 정장 모델로 교체 (나머지는 기존 캐릭터)
-          <GltfPerson
-            model="suitMale"
-            action={PERSON_ACTION[act]}
-            colors={{
-              outfit: PERSON_PALETTE.man[(a.seed ?? index) % PERSON_PALETTE.man.length],
-              skin: SKIN[(a.seed ?? index) % SKIN.length],
-              hair: HAIR[(a.seed ?? index) % HAIR.length],
-            }}
-            phase={a.phase}
-            fallback={<PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />}
-          />
-        ) : (
-          <PersonModel kind={kind} seed={a.seed ?? index} walking={act === "walk"} gait={a.phase * 6 + index} />
-        )}
+      <group onClick={(e) => { e.stopPropagation(); onClick(ref.current); }}>
+        {/* 보이지 않는 넓은 터치 영역: 작은 사람도 손가락으로 쉽게 누를 수 있게 */}
+        <mesh position={[0, 0.2, 0]} visible={false}>
+          <cylinderGeometry args={[0.16, 0.16, 0.45, 8]} />
+        </mesh>
+        <CampusPerson kind={kind} seed={a.seed ?? index} action={PERSON_ACTION[act]} phase={a.phase} gait={a.phase * 6 + index} />
       </group>
       {speaking && (
-        <Html position={[0, 0.66, 0]} center distanceFactor={5} zIndexRange={[75, 0]}>
+        // 확대 중: 화면 고정 크기 + 말풍선 아래 끝을 머리 바로 위에 붙여 얼굴을 가리지 않음
+        <Html
+          position={[0, focused ? 0.46 : 0.66, 0]}
+          center={!focused}
+          distanceFactor={focused ? undefined : 5}
+          zIndexRange={[75, 0]}
+        >
           <div style={{
+            transform: focused ? "translate(-50%, calc(-100% - 6px))" : undefined,
             background: "rgba(255,255,255,0.98)", border: "2px solid #cbd5e1", borderRadius: 12,
-            padding: "7px 10px", fontSize: 14, lineHeight: 1.35, width: 190,
+            // 좁은 화면(휴대폰)에서는 말풍선을 작게 해 인물을 가리지 않게
+            padding: "6px 9px", fontSize: "clamp(11px, 3.2vw, 14px)", lineHeight: 1.35, width: "min(190px, 42vw)",
             textAlign: "center", color: "#0f172a", boxShadow: "0 10px 26px rgba(15,23,42,0.3)",
             fontWeight: 700,
           }}>
@@ -838,7 +856,7 @@ function VisitorAgent({
         scale={1.4}
         onClick={(e) => { e.stopPropagation(); setVoiceIdx((i) => (i + 1) % voices.length); }}
       >
-        <PersonModel kind="man" seed={kindSeed} walking={true} gait={2.1} />
+        <CampusPerson kind="man" seed={kindSeed} action="walk" phase={0.3} gait={2.1} />
         {/* Glowing star crown to mark VIP status */}
         <mesh position={[0, 0.52, 0]}>
           <sphereGeometry args={[0.032, 8, 8]} />
@@ -1012,6 +1030,49 @@ function buildPaths(n: number, childBias = false, companySeed = 0, buildings: { 
 }
 
 /* ── scene ───────────────────────────────────────────────────────────────── */
+/* ── 사람을 누르면 카메라가 다가가 따라가고, 말풍선이 닫히면 원래 자리로 ── */
+const ORBIT_TARGET: [number, number, number] = [0, 0.3, 0]; // 고정 참조 (다시 그릴 때 시점이 초기화되지 않게)
+type OrbitLike = { target: THREE.Vector3; minDistance: number; update: () => void };
+
+function CameraFocus({ target, baseMin }: { target: THREE.Object3D | null; baseMin: number }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as OrbitLike | null;
+  const home = useRef<{ pos: THREE.Vector3; tgt: THREE.Vector3 } | null>(null);
+  const v = useMemo(() => ({ p: new THREE.Vector3(), t: new THREE.Vector3(), dir: new THREE.Vector3() }), []);
+
+  // 최소 거리는 여기서만 관리 (확대 중엔 가까이 갈 수 있게 풀었다가 복귀 후 되돌림)
+  useEffect(() => { if (controls && !home.current) controls.minDistance = baseMin; }, [controls, baseMin]);
+  // 확대 직전 카메라 자리를 기억
+  useEffect(() => {
+    if (target && controls && !home.current) home.current = { pos: camera.position.clone(), tgt: controls.target.clone() };
+  }, [target, controls, camera]);
+
+  useFrame((_, dt) => {
+    if (!controls) return;
+    const k = 1 - Math.exp(-dt * 4); // 부드럽게 따라가기 (프레임 속도와 무관)
+    if (target) {
+      target.getWorldPosition(v.t);
+      v.t.y += 0.3; // 사람 머리~말풍선 사이를 바라봄
+      v.dir.subVectors(camera.position, controls.target).setY(0).normalize(); // 지금 보던 방향 유지
+      v.p.copy(v.t).addScaledVector(v.dir, 1.6);
+      v.p.y += 0.6;
+      controls.minDistance = 0.3;
+      controls.target.lerp(v.t, k);
+      camera.position.lerp(v.p, k);
+      controls.update();
+    } else if (home.current) {
+      controls.target.lerp(home.current.tgt, k);
+      camera.position.lerp(home.current.pos, k);
+      controls.update();
+      if (camera.position.distanceTo(home.current.pos) < 0.05) {
+        controls.minDistance = baseMin;
+        home.current = null;
+      }
+    }
+  });
+  return null;
+}
+
 function Scene({
   game, company, readOnly, overview, selectedType, selectedBuildingId, onCell,
 }: {
@@ -1027,11 +1088,13 @@ function Scene({
   const companySeed = [...company.id].reduce((a, c) => a + c.charCodeAt(0), 0);
   const [hover, setHover] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState<{ i: number; text: string } | null>(null);
+  // 말을 건 사람 (카메라가 따라가며 확대)
+  const [focus, setFocus] = useState<THREE.Object3D | null>(null);
 
-  // Auto-dismiss person speech bubbles after 3 s.
+  // Auto-dismiss person speech bubbles (and zoom back out) after 4.5 s.
   useEffect(() => {
     if (!speaker) return;
-    const t = setTimeout(() => setSpeaker(null), 3000);
+    const t = setTimeout(() => { setSpeaker(null); setFocus(null); }, 4500);
     return () => clearTimeout(t);
   }, [speaker]);
 
@@ -1127,7 +1190,11 @@ function Scene({
           a={a}
           index={i}
           speaking={speaker?.i === i ? speaker.text : null}
-          onClick={() => setSpeaker({ i, text: pickCityVoice(company, game.macro.phase, { personKind: a.kind }) })}
+          focused={speaker?.i === i && focus !== null}
+          onClick={(obj) => {
+            setSpeaker({ i, text: pickCityVoice(company, game.macro.phase, { personKind: a.kind }) });
+            setFocus(obj);
+          }}
         />
       ))}
 
@@ -1137,15 +1204,16 @@ function Scene({
         <VisitorAgent visitor={company.visitor} half={half} company={company} />
       )}
 
+      <CameraFocus target={focus} baseMin={n * 0.9} />
       <OrbitControls
+        makeDefault
         enablePan={false}
-        minDistance={n * 0.9}
         maxDistance={n * 2.4}
         minPolarAngle={0.2}
         maxPolarAngle={Math.PI / 2.4}
         autoRotate={overview}
         autoRotateSpeed={0.6}
-        target={[0, 0.3, 0]}
+        target={ORBIT_TARGET}
       />
     </>
   );
@@ -1216,7 +1284,7 @@ export function CompanyMap3D({
       {!readOnly && !overview && (
         <div>
           <div className="mb-1 text-xs font-semibold text-slate-500">
-            건물을 선택하고 빈 타일을 클릭하세요 · 드래그로 회전, 휠로 확대 · 사람을 누르면 생각이 보여요
+            건물을 선택하고 빈 타일을 클릭하세요 · 드래그로 회전, 휠로 확대 · 사람을 누르면 가까이 다가가 생각을 들려줘요
           </div>
           <div className="flex flex-wrap gap-2">
             {BUILDING_LIST.filter((d) => game.config.enabledBuildings.includes(d.type)).map((d) => {

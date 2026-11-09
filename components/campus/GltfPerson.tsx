@@ -5,6 +5,7 @@
  *
  * - 모델: Quaternius "Ultimate Animated Character Pack" (CC0). public/models/CREDITS.md 참고.
  * - 파일은 gltf-transform으로 동작 3개(Idle·Walk·Victory)만 남기고 meshopt 압축 (1.2MB → 약 150KB).
+ *   원본은 신발과 피부가 같은 재질이라, 가공할 때 발목 아래를 "Shoes" 재질로 분리해 둠.
  *   압축 해제기는 drei(three-stdlib)에 들어 있어 외부 CDN이 필요 없음 (학교망 안전).
  * - 같은 모델을 여러 명이 쓰므로 SkeletonUtils.clone 으로 뼈대까지 복제하고,
  *   옷(재킷) 재질만 사람마다 다른 색으로 바꿔 다양하게 보이게 함.
@@ -18,13 +19,32 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 /* ── 모델 목록: 종류를 늘릴 때 여기만 추가 ─────────────────────────────── */
 // 재질 이름 → 사람마다 바꿀 색의 역할 (outfit: 옷, skin: 피부, hair: 머리)
 // 원본 파일의 피부색이 거의 검정이라 피부는 항상 코드에서 지정함
+const M = (file: string, outfit: string) => ({ url: `/models/people/${file}.glb`, outfit, skin: "Skin", hair: "Hair" });
 export const PERSON_MODELS = {
-  suitMale: { url: "/models/people/suit-male.glb", outfit: "Black", skin: "Skin", hair: "Hair" },
+  suitMale: M("suit-male", "Black"),       // 정장 재킷
+  suitFemale: M("suit-female", "Black"),
+  casualMale: M("casual-male", "Shirt"),   // 티셔츠
+  casualFemale: M("casual-female", "Shirt"),
+  workerMale: M("worker-male", "Shirt"),   // 작업복(조끼·모자는 원래 색 유지)
+  workerFemale: M("worker-female", "Shirt"),
+  kidBoy: M("kid-boy", "Shirt"),
+  kidGirl: M("kid-girl", "Shirt"),
 } as const;
 export type PersonModelId = keyof typeof PERSON_MODELS;
 
-/** 기존 상자 캐릭터의 키(머리 꼭대기 ≈ 0.39)에 맞춘 목표 키 */
-const TARGET_HEIGHT = 0.4;
+/** 캠퍼스 인물 종류 + 번호(seed) → 모델. 같은 seed면 항상 같은 모델 */
+const BY_KIND: Record<"man" | "woman" | "child", PersonModelId[]> = {
+  man: ["suitMale", "casualMale", "workerMale", "suitMale"],
+  woman: ["suitFemale", "casualFemale", "workerFemale", "suitFemale"],
+  child: ["kidBoy", "kidGirl"],
+};
+export function pickPersonModel(kind: "man" | "woman" | "child", seed: number): PersonModelId {
+  const list = BY_KIND[kind];
+  return list[Math.abs(seed) % list.length];
+}
+
+/** 기존 상자 캐릭터의 키(머리 꼭대기 ≈ 0.39)에 맞춘 기본 키 (아이는 더 작게 전달) */
+const DEFAULT_HEIGHT = 0.4;
 
 export type PersonAction = "walk" | "idle" | "cheer";
 const CLIP: Record<PersonAction, string> = { walk: "Walk", idle: "Idle", cheer: "Victory" };
@@ -32,8 +52,8 @@ const CLIP: Record<PersonAction, string> = { walk: "Walk", idle: "Idle", cheer: 
 export type PersonColors = { outfit?: string; skin?: string; hair?: string };
 
 function GltfPersonInner({
-  model, action, colors, phase = 0,
-}: { model: PersonModelId; action: PersonAction; colors: PersonColors; phase?: number }) {
+  model, action, colors, phase = 0, height = DEFAULT_HEIGHT,
+}: { model: PersonModelId; action: PersonAction; colors: PersonColors; phase?: number; height?: number }) {
   const group = useRef<THREE.Group>(null);
   // useGLTF(경로, draco 사용 안 함, meshopt 사용)
   const { scene, animations } = useGLTF(PERSON_MODELS[model].url, false, true);
@@ -60,8 +80,8 @@ function GltfPersonInner({
       mesh.material = Array.isArray(mesh.material) ? mesh.material.map(recolor) : recolor(mesh.material);
     });
     const size = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3());
-    return { object: obj, scale: size.y > 0 ? TARGET_HEIGHT / size.y : 1 };
-  }, [scene, spec, outfit, skin, hair]);
+    return { object: obj, scale: size.y > 0 ? height / size.y : 1 };
+  }, [scene, spec, outfit, skin, hair, height]);
 
   const { actions } = useAnimations(animations, group);
 
@@ -90,7 +110,7 @@ class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 }
 
 export function GltfPerson(props: {
-  model: PersonModelId; action: PersonAction; colors: PersonColors; phase?: number; fallback: ReactNode;
+  model: PersonModelId; action: PersonAction; colors: PersonColors; phase?: number; height?: number; fallback: ReactNode;
 }) {
   const { fallback, ...rest } = props;
   return (
